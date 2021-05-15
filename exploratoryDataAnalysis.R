@@ -1,4 +1,4 @@
 
-plot_scatters = function(data) {
+plot_scatters <- function(data) {
   
 }
