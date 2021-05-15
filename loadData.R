@@ -19,6 +19,11 @@ loadSet <- function(track, task) {
 
 
 # LOAD SOLAR -------------------------------------------------------------------
+
+# load solar track of the given task (task must be a number bewtween 1 and 15)
+# the return value is a named list containing the elements "LastTest_TS" 
+# (time stamp belonging to the last test entry) and "ZONE1", "ZONE2", "ZONE3"
+# (data frames containing data belonging to the respective zone)
 loadSolar <- function(task) {
   track <- "Solar"
   subfolder <- paste("Task", task)
@@ -43,26 +48,21 @@ loadSolar <- function(task) {
                         header=TRUE, dec=".", sep=",")
   Y_test <- read.table(paste(path, track, observation, sep=slash), 
                        header=TRUE, dec=".", sep=",")
-  # assign data in a sensible format
-  output <- data.frame()
-  output$LastTestTimeStamp <- c(Y_train$TIMESTAMP[length(Y_train$TIMESTAMP)])
-  zones = c("ZONE1", "ZONE2", "ZONE3")
+  # order data in a sensible format
+  output <- list("LastTest_TS" = Y_train$TIMESTAMP[length(Y_train$TIMESTAMP)],
+              "ZONE1" = data.frame(), "ZONE2" = data.frame(),
+              "ZONE3" = data.frame())
+  # and fill the data frames
   for (i in 1:3) {
     zone = subset(X, ZONEID==i, select=-ZONEID)
     y = c(subset(Y_train, ZONEID == i)$POWER, 
           subset(Y_test, 
-                 (ZONEID==i) && (TIMESTAMP>output$LastTestTimeStamp))$POWER)
-    output[i,] = cbind(zone, c("POWER" = y))
+                 (ZONEID==i) & (TIMESTAMP>output[["LastTest_TS"]]))$POWER)
+    # first name is lastTest_TS, so start at 2
+    output[[names(output)[i+1]]] = cbind(zone, POWER=y)
   }
-  ZONE1 = subset(X, ZONEID == 1)
-  ZONE2 = subset(X, ZONEID == 2)
-  ZONE3 = subset(X, ZONEID == 3)
   
-  X$TIMESTAMP[c(1, length(X$TIMESTAMP))]
-  Y_train$TIMESTAMP[c(1, length(Y_train$TIMESTAMP))]
-  Y_test$TIMESTAMP[c(1, length(Y_test$TIMESTAMP))]
-  
-  return(data.frame(X=c(track)))
+  return(output)
 }
 
 
