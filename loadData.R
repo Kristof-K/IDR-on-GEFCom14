@@ -54,7 +54,11 @@ loadSolar <- function(task) {
               "ZONE3" = data.frame())
   # and fill the data frames
   for (i in 1:3) {
-    zone = subset(X, ZONEID==i, select=-ZONEID)
+    if (task < 15) {
+      zone = subset(X, ZONEID==i, select=-ZONEID)
+    } else {   # in task 15 X has own POWER column. but with less decimals
+      zone = subset(X, ZONEID==i, select=c(-ZONEID, -POWER))
+    }
     y = c(subset(Y_train, ZONEID == i)$POWER, 
           subset(Y_test, 
                  (ZONEID==i) & (TIMESTAMP>output[["LastTest_TS"]]))$POWER)

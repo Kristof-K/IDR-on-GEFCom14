@@ -1,6 +1,9 @@
+# working directory must be set to directory of source file
+# setwd(D:/Studium/Semester6/BachelorArbeit/Code")
+
 source("loadData.R")
 
-data <- loadSolar(1)
+data <- loadSolar(15)
 
 par(mfrow=c(3,1))
 plot(1:nrow(data$ZONE1), data$ZONE1$POWER, type="l")
