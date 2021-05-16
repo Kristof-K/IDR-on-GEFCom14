@@ -19,11 +19,17 @@ variableNames <- c("VAR78" = "liquid water",
 
 corr_c <- c("pearson", "spearman", "kendall")
 
+# TODO:
+# - scatter plot mit Farbkategorisierung Jahreszeiten
+# - scatter plot mit Farbkategorisierung Uhrzeit
+# - scatter plot mit Farbkategorisierung Tasks
+# - plot mit Korrelationskoeffizienten
+
 
 # implement the whole process of examination and prediction of the solar track
 runSolar <- function() {
-  for (i in tasks) {
-    data <- loadSolar(i)
+  for (task in tasks) {
+    data <- loadSolar(task)
     # data frame storing all correlation coefficients
     coeffs = matrix(0, nrow=length(variableNames),
                     ncol=length(corr_c)*length(zones)) 
@@ -34,16 +40,16 @@ runSolar <- function() {
       
       # plot POWER ~ variable and calc correlation coefficients
       par(mfrow=c(3,4), mar=c(4, 0, 0, 0), oma=c(0,2,3,3), mgp=c(1.4,0.6,0))
-      i = 0
+      j = 0
       for (var in names(variableNames)) {
-        coeffs[i+1,k:k+2] = c(cor(examine[[var]], examine[["POWER"]], 
-                             method="pearson"),
-                         cor(examine[[var]], examine[["POWER"]], 
-                             method="spearman"),
-                         cor(examine[[var]], examine[["POWER"]], 
-                             method="kendall"))
+        coeffs[j+1,k:(k+2)] = c(cor(examine[[var]], examine[["POWER"]], 
+                                    method="pearson"),
+                                cor(examine[[var]], examine[["POWER"]], 
+                                    method="spearman"),
+                                cor(examine[[var]], examine[["POWER"]], 
+                                    method="kendall"))
         if(full_plot) {  
-          if (i %% 4 == 0) {
+          if (j %% 4 == 0) {
             plot(examine[["POWER"]] ~ examine[[var]], xlab=variableNames[[var]],
                 ylab="", pch=20)
           } else {
@@ -51,14 +57,15 @@ runSolar <- function() {
                 ylab="", yaxt="n", pch=20)
           }
         }
-        i = i + 1
+        j = j + 1
       }
       mtext(paste0("Task ", i, ", ", zone, ": Power ~ var"), outer=TRUE,
             line=0.5, cex=1.5)
       par(mfrow=c(1,1))
+      k = k + 3
     }
-    Coefficients = data.frame(coeff)
+    Coefficients = data.frame(coeffs)
     rownames(Coefficients) = names(variableNames)
-    colNames(Coefficients) = paste(rep(c_corr, each=3), rep(zones, 3))
+    colnames(Coefficients) = paste(rep(corr_c, each=3), rep(zones, 3), sep="_")
   }
 }
