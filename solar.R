@@ -59,7 +59,7 @@ runSolar <- function() {
         }
         j = j + 1
       }
-      mtext(paste0("Task ", i, ", ", zone, ": Power ~ var"), outer=TRUE,
+      mtext(paste0("Task ", task, ", ", zone, ": Power ~ var"), outer=TRUE,
             line=0.5, cex=1.5)
       par(mfrow=c(1,1))
       k = k + 3
@@ -67,5 +67,22 @@ runSolar <- function() {
     Coefficients = data.frame(coeffs)
     rownames(Coefficients) = names(variableNames)
     colnames(Coefficients) = paste(rep(corr_c, each=3), rep(zones, 3), sep="_")
+    
+    n <- length(names(variableNames))
+    x <- 1:n
+    colors = c("red", "green", "blue")
+    shapes = c(18, 17, 16)
+    par(mfrow=c(1,1), mar=c(4, 0, 2, 0))
+    plot(c(0,13), c(0,0), type="l", lty=3, main="Correlation coefficients",
+         xaxt="n", xlim=c(0,13), ylim=c(-1.2,1.2), xlab="", ylab="")
+    for (col in 1:(length(corr_c)*length(zones))) {
+      lines(x, Coefficients[,col], type="p", cex=1.5,
+                pch=shapes[floor(col / length(shapes)) + 1],
+                col=colors[(col - 1) %% length(colors) + 1])
+    }
+    axis(1, at=x, labels=names(variableNames), cex.axis=0.8, las=2)
+    text(c(10, 11, 12), rep(1.1, 3), zones, col=colors, cex=0.8)
+    text(c(1,3,5), rep(1.1, 3), corr_c, cex=0.8)
+    lines(c(0.4,2.1,4.4), rep(1.1, 3), type="p", pch=shapes, cex=1.5)
   }
 }
