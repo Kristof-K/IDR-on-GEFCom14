@@ -1,0 +1,38 @@
+variableNames <- c("VAR78" = "liquid water", 
+                   "VAR79" = "Ice water", 
+                   "VAR134" = "surface pressure", 
+                   "VAR157" = "relative humidity", 
+                   "VAR164" = "total cloud cover", 
+                   "VAR165" = "10-meter u-wind",
+                   "VAR166" = "10-meter v-wind", 
+                   "VAR167" = "2-meter temperature",
+                   "VAR169" = "surface solar rad down", 
+                   "VAR175" = "surface thermal rad down",
+                   "VAR178" = "top net solar rad", 
+                   "VAR228" = "total precipitation")
+
+corr_c <- c("pearson", "spearman", "kendall")
+
+yLim <- c(0, 1.1)  # Power is normalized, so we can use these limits
+
+
+scatterFull <- function(list, categories, zone, min, max) {
+  colors <- rainbow(length(categories))
+  
+  par(mfrow=c(3,4), mar=c(4, 0, 0, 0), oma=c(0,2,3,3), mgp=c(1.4,0.6,0))
+  j <- 0
+  for (var in names(variableNames)) {
+    y_axis <- if(j %% 4 == 0) "s" else "n"      # plot y axis or not
+    
+    plot(0, type="n", ylab="Power", yaxt=y_axis, xlab=variableNames[[var]], 
+         xlim=c(min, max), ylim=yLim)
+    for (element in category) {
+      lines(list[[element]][["POWER"]] ~ list[[element]][[var]], pch=20,
+            col=colors[j])
+    }
+  }
+  j = j + 1
+  mtext(paste0(zone, ": Power ~ variables"), outer=TRUE, line=0.5, cex=1.5)
+  # set parameters back to default
+  par(mfrow=c(1,1), mar=c(5, 4, 4, 2) + 0.1, oma=c(0,0,0,0), mgp=c(3 ,1 ,0))
+}
