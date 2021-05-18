@@ -7,6 +7,6 @@ belongsToHour <- function(timestamp, hour) {
 
 belongsToMonth <- function(timestamp, month) {
   # months are numbered starting with 0 => increase by one
-  bool = (strptime(timestamp, format)$month + 1) == month
+  bool = ((strptime(timestamp, format)$mon + 1) == month)
   return(bool)
 }

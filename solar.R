@@ -1,23 +1,10 @@
 source("loadData.R")
+source("util.R")
+source("plot.R")
 
 full_plot <- FALSE
 tasks <- 1:15
 zones <- c("ZONE1", "ZONE2", "ZONE3")
-
-variableNames <- c("VAR78" = "liquid water", 
-                  "VAR79" = "Ice water", 
-                  "VAR134" = "surface pressure", 
-                  "VAR157" = "relative humidity", 
-                  "VAR164" = "total cloud cover", 
-                  "VAR165" = "10-meter u-wind",
-                  "VAR166" = "10-meter v-wind", 
-                  "VAR167" = "2-meter temperature",
-                  "VAR169" = "surface solar rad down", 
-                  "VAR175" = "surface thermal rad down",
-                  "VAR178" = "top net solar rad", 
-                  "VAR228" = "total precipitation")
-
-corr_c <- c("pearson", "spearman", "kendall")
 
 # TODO:
 # - scatter plot mit Farbkategorisierung Jahreszeiten
@@ -28,21 +15,44 @@ corr_c <- c("pearson", "spearman", "kendall")
 
 # implement the whole process of examination and prediction of the solar track
 runSolar <- function() {
+  # data is a list containing for every string in zones a data frame
+  data <- loadSolar(15)
+  
+  # EXAMINE DATA GROUPED BY HOUR
+  for (zone in zones) {
+    hours <- paste0("", 0:23)   # categories by which is grouped
+    groupByHour <- list()       # list containing data.frame for every category
+    # get the data
+    for (hour in hours) {
+      indices <- belongsToHour(data[[zone]]$TIMESTAMP, hour)
+      groupByHour[[hour]] <- subset(data[[zone]], indices, select=-TIMESTAMP)
+    }
+    min <- sapply(data[[zone]][-1], min) # get for every column min and max
+    max <- sapply(data[[zone]][-1], max)# drop timestamp => -1
+    
+    # now plot
+    scatterHours(groupByHour, hours, zone, min, max)
+  }
+  
+  
+  
+  
+  
   for (task in tasks) {
     data <- loadSolar(task)
     # data frame storing all correlation coefficients
-    coeffs = matrix(0, nrow=length(variableNames),
+    coeffs <- matrix(0, nrow=length(variableNames),
                     ncol=length(corr_c)*length(zones)) 
-    k = 1 # current columns to fill
+    k <- 1 # current columns to fill
     
     for (zone in zones) {
-      examine = data[[zone]]
+      examine <- data[[zone]]
       
       # plot POWER ~ variable and calc correlation coefficients
       par(mfrow=c(3,4), mar=c(4, 0, 0, 0), oma=c(0,2,3,3), mgp=c(1.4,0.6,0))
-      j = 0
+      j <- 0
       for (var in names(variableNames)) {
-        coeffs[j+1,k:(k+2)] = c(cor(examine[[var]], examine[["POWER"]], 
+        coeffs[j+1,k:(k+2)] <- c(cor(examine[[var]], examine[["POWER"]], 
                                     method="pearson"),
                                 cor(examine[[var]], examine[["POWER"]], 
                                     method="spearman"),
