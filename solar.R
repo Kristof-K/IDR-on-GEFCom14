@@ -2,7 +2,6 @@ source("loadData.R")
 source("util.R")
 source("plot.R")
 
-full_plot <- FALSE
 tasks <- 1:15
 zones <- c("ZONE1", "ZONE2", "ZONE3")
 
