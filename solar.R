@@ -34,7 +34,21 @@ runSolar <- function() {
     scatterHours(groupByHour, hours, zone, min, max)
   }
   
-  
+  # EXAMINE DATA GROUPED BY MONTH
+  for (zone in zones) {
+    months <- paste0("", 1:12)   # categories by which is grouped
+    groupByMonth <- list()       # list containing data.frame for every category
+    # get the data
+    for (month in months) {
+      indices <- belongsToMonth(data[[zone]]$TIMESTAMP, month)
+      groupByMonth[[month]] <- subset(data[[zone]], indices, select=-TIMESTAMP)
+    }
+    min <- sapply(data[[zone]][-1], min) # get for every column min and max
+    max <- sapply(data[[zone]][-1], max)# drop timestamp => -1
+    
+    # now plot
+    scatterMonths(groupByHour, hours, zone, min, max)
+  }
   
   
   

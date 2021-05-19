@@ -22,14 +22,15 @@ yLim <- c(0, 1.1)  # Power is normalized, so we can use these limits
 # - zone : current zone (only label for plotting)
 # - min / max : data.frame containg for every variable min and max value
 scatterHours <- function(list, categories, zone, min, max) {
-  scatterFull(list, categories, zone, min, max, append="h", labels=None)
-}
-
-scatterMonths <- function(list, categories, zone, min, max) {
   scatterFull(list, categories, zone, min, max, append="h")
 }
 
-scatterFull <- function(list, categories, zone, min, max, append="") {
+scatterMonths <- function(list, categories, zone, min, max) {
+  l = c("Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dez")
+  scatterFull(list, categories, zone, min, max, labels=l)
+}
+
+scatterFull <- function(list, categories, zone, min, max, append="", labels=NA) {
   colors <- rainbow(length(categories))
   
   par(mfrow=c(3,4), mar=c(4, 0, 0, 0), oma=c(3,2,3,3), mgp=c(1.4,0.6,0))
@@ -50,7 +51,7 @@ scatterFull <- function(list, categories, zone, min, max, append="") {
     j <- j+1
   }
   mtext(paste0(zone, ": Power ~ variables"), outer=TRUE, line=0.5, cex=1.5)
-  text <- if (labels == "") categories else labels
+  text <- if (any(is.na(labels))) categories else labels
   mtext(paste0(text, append), side=1, outer=TRUE, line=0.5, col=colors, 
         at=seq(0.1, 0.9, 0.8 / (length(categories) - 1)))
   # set parameters back to default
