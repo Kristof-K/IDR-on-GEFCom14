@@ -16,35 +16,49 @@ corr_c <- c("pearson", "spearman", "kendall")
 months <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
       "Nov", "Dez")
 
+powerLim <- c(0, 1.1) # power is normalized, i.e it lives in the unit interval
+
+
+# Get the plot limits of a variable given the min and max data.frames
+# - var : variable code as defined in variableNames
+# - min / max : data.frame containg for every variable min and max value
+getLimits <- function(var, min, max) {
+  myMax <- if (max[[var]] >= 0) max[[var]] * 1.01 else max[[var]] * 0.99
+  myMin <- if (min[[var]] >= 0) min[[var]] * 0.99 else min[[var]] * 1.01
+  return(c(myMin, myMax))
+}
+
+
 # Plot scatter plots for every variable in variableNames
 # - list : list of data.frames for every category
-# - categroy : vector of names defining the categories
+# - categroies : vector of names defining the categories
 # - zone : current zone (only label for plotting)
 # - min / max : data.frame containg for every variable min and max value
 scatterHours <- function(list, categories, zone, min, max) {
+  svg(paste0("plots/scatterByHours_", zone, ".svg"))
   scatterFull(list, categories, zone, min, max, append="h", 
               title="grouped by hour")
+  dev.off()
 }
 
 scatterMonths <- function(list, categories, zone, min, max) {
+  svg(paste("plots/scatterByMonths_", zone, ".svg"))
   scatterFull(list, categories, zone, min, max, labels=months,
               title="grouped by month")
+  dev.off()
 }
 
 scatterFull <- function(list, categories, zone, min, max, append="", 
                         labels=NA, title="") {
   colors <- rainbow(length(categories))
-  yLim <- c(0, 1.1)  # Power is normalized, so we can use these limits
   
   par(mfrow=c(3,4), mar=c(4, 0, 0, 0), oma=c(3,2,3,2), mgp=c(1.4,0.6,0))
   j <- 0
   for (var in names(variableNames)) {
     y_axis <- if(j %% 4 == 0) "s" else "n"      # plot y axis or not
     
-    myMax <- if (max[[var]] >= 0) max[[var]] * 1.01 else max[[var]] * 0.99
-    myMin <- if (min[[var]] >= 0) min[[var]] * 0.99 else min[[var]] * 1.01
     plot(0, type="n", ylab="Power", yaxt=y_axis, xlab=variableNames[[var]], 
-         xlim=c(myMin, myMax), ylim=yLim)
+         xlim=getLimits(var, min, max), ylim=powerLim)
     c <- 1
     for (element in categories) {
       lines(list[[element]][[var]], list[[element]][["POWER"]], pch=20, 
@@ -70,17 +84,21 @@ scatterFull <- function(list, categories, zone, min, max, append="",
 # - categories : vector of names defining the categories
 # - zone : current zone (only label for plotting)
 correlationPlotHours <- function(coefficients, categories, zone) {
+  svg(paste0("plots/correlationByHours", zone, ".svg"))
   correlationPlot(coefficients, categories, zone, title="grouped by hour", 
-                  append="h") 
+                  append="h")
+  dev.off()
 }
 
 correlateMonths <- function(list, categories, zone, min, max) {
+  svg(paste0("plots/correlationByMonths", zone, ".svg"))
   correlationPlot(coefficients, categories, zone, title="grouped by month", 
                   labels=months)
+  dev.off()
 }
 
 correlationPlot <- function(coefficients, categories, zone, title="", append="", 
-                            labels=NA,) {
+                            labels=NA) {
   n <- length(names(variableNames))
   x <- 1:n
   colors <- rainbow(length(categories))
@@ -110,7 +128,49 @@ correlationPlot <- function(coefficients, categories, zone, title="", append="",
   text <- if (any(is.na(labels))) categories else labels
   mtext(paste0(text, append), side=1, outer=TRUE, line=0, col=colors, 
         at=seq(0.1, 0.9, 0.8 / (length(categories) - 1)))
-  mtext(paste(corr_c, c("(square)", "(circle)", "(triangle)")), side=1, outer=TRUE, 
-              line=1, at=c(0.3, 0.5, 0.7))
+  mtext(paste(corr_c, c("(square)", "(circle)", "(triangle)")), side=1,  
+        outer=TRUE, line=1, at=c(0.3, 0.5, 0.7))
   par(mfrow=c(1,1), mar=c(5, 4, 4, 2) + 0.1, oma=c(0,0,0,0))
+}
+
+
+# Plot scatter plots for a single variable, every category gets an own plot
+# - list : list of data.frames for every category
+# - categroies : vector of names defining the categories
+# - zone : current zone (only label for plotting)
+# - min / max : data.frame containg for every variable min and max value
+# - name : name of the varibale that should be plotted
+scatterSingleHours <- function(list, categories, zone, min, max, name) {
+  svg(paste0("plots/scatter_", name, "byHours_", zone, ".svg"))
+  scatterFull(list, categories, zone, min, max, name, append="h", 
+              title=paste0(name, ", grouped by hour"), grid=c(4,6))
+  dev.off()
+}
+
+scatterSingleMonths <- function(list, categories, zone, min, max, name) {
+  svg(paste0("plots/scatter_", name, "byMonths_", zone, ".svg"))
+  scatterFull(list, categories, zone, min, max, name, labels=months,
+              title=paste0(name, ", grouped by month"), grid=c(3,4))
+  dev.off()
+}
+
+scatterFull <- function(list, categories, zone, min, max, name, append="", 
+                        labels=NA, title="", grid=c(1,1)) {
+  colors <- rainbow(length(categories))
+  
+  par(mfrow=grid, mar=c(0, 0, 0, 0), oma=c(3,2,3,2), mgp=c(1.4,0.6,0))
+  
+  j <- 0
+  for (element in categories) {
+    y_axis <- if(j %% grid[1] == 0) "s" else "n"      # plot x/y axis or not
+    x_axis <- if(j %% grid[2] == 0) "s" else "n"
+    
+    plot(list[[element]][[name]], list[[element]][["POWER"]], type="n", pch=20,   
+         ylab="Power", yaxt=y_axis, xaxt=x_axis, xlab=variableNames[[var]], 
+         xlim=getLimits(name, min, max), ylim=powerLim, col=colors[j+1])
+    descriptionList <- if (any(is.na(labels))) categories else labels
+    description <- paste0(description[j+1], append)
+    text(0.9 * powerLim[2], 0.9 * myMax, labels=description)
+    j <- j+1
+  }
 }
