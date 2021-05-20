@@ -1,3 +1,5 @@
+setwd("D:/Studium/Semester6/BachelorArbeit/Code")
+
 source("loadData.R")
 source("util.R")
 source("plot.R")
@@ -26,6 +28,7 @@ runSolar <- function() {
     
     # now plot
     scatterHours(groupByHour, hours, zone, min, max)
+    scatterAllSingle(groupByHour, hours, zone, min, max)
     # and examine the correlation coefficients
     coeffs <- getCorrelationCoefficients(groupByHour, hours, numOfVars)
     correlationPlotHours(coeffs, hours, zone)
@@ -45,6 +48,7 @@ runSolar <- function() {
     
     # now plot
     scatterMonths(groupByMonth, months, zone, min, max)
+    scatterAllSingle(groupByMonth, months, zone, min, max)
     # and examine the correlation coefficients
     coeffs <- getCorrelationCoefficients(groupByMonth, month, numOfVars)
     correlationPlotHours(coeffs, months, zone)
