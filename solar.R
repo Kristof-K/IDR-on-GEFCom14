@@ -28,7 +28,7 @@ runSolar <- function() {
     
     # now plot
     scatterHours(groupByHour, hours, zone, min, max)
-    scatterAllSingle(groupByHour, hours, zone, min, max)
+    scatterAllSingle(groupByHour, hours, zone, min, max, hour=TRUE)
     # and examine the correlation coefficients
     coeffs <- getCorrelationCoefficients(groupByHour, hours, numOfVars)
     correlationPlotHours(coeffs, hours, zone)
@@ -48,10 +48,10 @@ runSolar <- function() {
     
     # now plot
     scatterMonths(groupByMonth, months, zone, min, max)
-    scatterAllSingle(groupByMonth, months, zone, min, max)
+    scatterAllSingle(groupByMonth, months, zone, min, max, hour=FALSE)
     # and examine the correlation coefficients
-    coeffs <- getCorrelationCoefficients(groupByMonth, month, numOfVars)
-    correlationPlotHours(coeffs, months, zone)
+    coeffs <- getCorrelationCoefficients(groupByMonth, months, numOfVars)
+    correlationPlotMonths(coeffs, months, zone)
   }
   
   
