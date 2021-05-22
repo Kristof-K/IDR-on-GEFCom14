@@ -34,3 +34,25 @@ getCorrelationCoefficients <- function(list, categories, numOfVariables) {
   }
   return(output)
 }
+
+
+# Calculate the pinball loss for
+# - x : vector containing prediction for the 1% up to 99% quantile
+# - y : vector containg the 99 respective observations
+# - print : output information if True otherwise calc score
+pinBallLoss <- function(x, y, print=FALSE) {
+  if (print) {
+    outputScoringFunction("Pinball-Loss / asymmetric piecewise linear scoring 
+                          fct.")
+    return(NA)
+  }
+  quantiles <- seq(0.01, 0.99, 0.01)
+  scoreVec <- ((y < x) - quantiles) * (x - y)
+  return(mean(scoreVec))
+}
+
+# Method output description consistently for a specific scoring function
+# - name : name of the forecasting method
+outputScoringFunction <- function(name) {
+  cat("\n[SCORING FUNCTION]:", name, "\n")
+}
