@@ -1,4 +1,4 @@
-setwd("D:/Studium/Semester6/BachelorArbeit/Code")
+#setwd("D:/Studium/Semester6/BachelorArbeit/Code")
 
 source("loadData.R")
 source("util.R")
