@@ -11,6 +11,18 @@ belongsToMonth <- function(timestamp, month) {
   return(bool)
 }
 
+getMonth <- function(timestamp) {
+  date <- strptime(timestamp, format)
+  # internally months are numbered 0-11 => add one
+  return(date$mon + 1)
+}
+
+getNextDay <- function(timestamp) {
+  date <- strptime(timestamp, format)
+  date$mday <- date$mday + 1
+  return(format(date, format))
+}
+
 # Calculate the pearson, spearman and kendall correlation coefficient for every
 # variable for every category in list
 # - list : list of data.frames for every category

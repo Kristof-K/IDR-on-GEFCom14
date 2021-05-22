@@ -21,7 +21,7 @@ loadSet <- function(track, task) {
 # LOAD SOLAR -------------------------------------------------------------------
 
 # load solar track of the given task (task must be a number bewtween 1 and 15)
-# the return value is a named list containing the elements "LastTest_TS" 
+# the return value is a named list containing the elements "LastTrain_TS" 
 # (time stamp belonging to the last test entry) and "ZONE1", "ZONE2", "ZONE3"
 # (data frames containing data belonging to the respective zone)
 loadSolar <- function(task) {
@@ -49,7 +49,7 @@ loadSolar <- function(task) {
   Y_test <- read.table(paste(path, track, observation, sep=slash), 
                        header=TRUE, dec=".", sep=",")
   # order data in a sensible format
-  output <- list("LastTest_TS" = Y_train$TIMESTAMP[length(Y_train$TIMESTAMP)],
+  output <- list("LastTrain_TS" = Y_train$TIMESTAMP[length(Y_train$TIMESTAMP)],
               "ZONE1" = data.frame(), "ZONE2" = data.frame(),
               "ZONE3" = data.frame())
   # and fill the data frames
@@ -61,7 +61,7 @@ loadSolar <- function(task) {
     }
     y = c(subset(Y_train, ZONEID == i)$POWER, 
           subset(Y_test, 
-                 (ZONEID==i) & (TIMESTAMP>output[["LastTest_TS"]]))$POWER)
+                 (ZONEID==i) & (TIMESTAMP>output[["LastTrain_TS"]]))$POWER)
     # first name is lastTest_TS, so start at 2
     output[[names(output)[i+1]]] = cbind(zone, POWER=y)
   }
