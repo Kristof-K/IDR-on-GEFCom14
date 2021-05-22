@@ -4,12 +4,11 @@ source("loadData.R")
 source("util.R")
 source("plot.R")
 
-tasks <- 1:15
 zones <- c("ZONE1", "ZONE2", "ZONE3")
 
 
-# implement the whole process of examination and prediction of the solar track
-runSolar <- function() {
+# implement the whole process of examination solar track
+examineSolar <- function() {
   # data is a list containing for every string in zones a data frame
   data <- loadSolar(15)
   numOfVars <- length(variableNames)  # variableNames is defined in plot.R
@@ -53,12 +52,14 @@ runSolar <- function() {
     coeffs <- getCorrelationCoefficients(groupByMonth, months, numOfVars)
     correlationPlotMonths(coeffs, months, zone)
   }
-  
-  
-  
-  for (task in tasks) {
-    data <- loadSolar(task)
-    
-    
-  }
 }
+
+
+# VISUAL RESULT:
+# positive propotionality to Power
+# [strong]  : surface solar rad down (VAR169), top net solar rad (VAR178)
+# [weak]    : 2-meter temperature (VAR167)
+# negative proportionality to Power
+# [strong]  :
+# [weak]    : relative humidity (VAR 157)
+# 

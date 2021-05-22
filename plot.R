@@ -179,7 +179,7 @@ scatterSingle <- function(list, categories, zone, min, max, name, append="",
     
     plot(list[[element]][[name]], list[[element]][["POWER"]], type="p", pch=20,   
          ylab="Power", yaxt=y_axis, xaxt=x_axis, xlab=variableNames[[name]], 
-         xlim=limits, ylim=powerLim, col=colors[j+1], cex=1.3)
+         xlim=limits, ylim=powerLim, col=colors[j+1], cex=2)
     descriptionList <- if (any(is.na(labels))) categories else labels
     description <- paste0(descriptionList[j+1], append)
     text(x=0.1*limits[1] + 0.9*limits[2], y=0.9*powerLim[2], description, 
