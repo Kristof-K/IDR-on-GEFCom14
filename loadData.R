@@ -1,7 +1,7 @@
 library(lubridate)
 
 # path to the directory containing the GEFCom14 data
-PATH <- "D:\\Studium\\Semester6\\BachelorArbeit\\GEFCom2014_Data"
+path <- "D:\\Studium\\Semester6\\BachelorArbeit\\GEFCom2014_Data"
 
 # function loading a specific track
 loadSet <- function(track, task) {
@@ -45,13 +45,13 @@ loadSolar <- function(task) {
   
   # read all necessary data and transform timestamps into clear format
   # understood from functions in lubridate
-  X <- read.table(paste(PATH, track, predictors, sep=slash), header=TRUE, 
+  X <- read.table(paste(path, track, predictors, sep=slash), header=TRUE,
                      dec=".", sep=",")
   X$TIMESTAMP = ymd_hm(X$TIMESTAMP)
-  Y_train <- read.table(paste(PATH, track, targetVariable, sep=slash), 
+  Y_train <- read.table(paste(path, track, targetVariable, sep=slash),
                         header=TRUE, dec=".", sep=",")
   Y_train$TIMESTAMP = ymd_hm(Y_train$TIMESTAMP)
-  Y_test <- read.table(paste(PATH, track, observation, sep=slash), 
+  Y_test <- read.table(paste(path, track, observation, sep=slash),
                        header=TRUE, dec=".", sep=",")
   Y_test$TIMESTAMP = ymd_hm(Y_test$TIMESTAMP)
   # order data in a sensible format
