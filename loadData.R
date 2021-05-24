@@ -1,3 +1,5 @@
+library(lubridate)
+
 # path to the directory containing the GEFCom14 data
 path <- "D:\\Studium\\Semester6\\BachelorArbeit\\GEFCom2014_Data"
 
@@ -41,13 +43,17 @@ loadSolar <- function(task) {
     observation <- "Solution\ to\ Task 15\\Solution\ to\ Task\ 15.csv"
   }
   
-  # read all necessary data
+  # read all necessary data and transform timestamps into clear format
+  # understood from functions in lubridate
   X <- read.table(paste(path, track, predictors, sep=slash), header=TRUE, 
                      dec=".", sep=",")
+  X$TIMESTAMP = ymd_hm(X$TIMESTAMP)
   Y_train <- read.table(paste(path, track, targetVariable, sep=slash), 
                         header=TRUE, dec=".", sep=",")
+  Y_train$TIMESTAMP = ymd_hm(Y_train$TIMESTAMP)
   Y_test <- read.table(paste(path, track, observation, sep=slash), 
                        header=TRUE, dec=".", sep=",")
+  Y_test$TIMESTAMP = ymd_hm(Y_test$TIMESTAMP)
   # order data in a sensible format
   output <- list("LastTrain_TS" = Y_train$TIMESTAMP[length(Y_train$TIMESTAMP)],
               "ZONE1" = data.frame(), "ZONE2" = data.frame(),

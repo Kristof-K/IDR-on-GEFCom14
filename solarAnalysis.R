@@ -18,9 +18,9 @@ examineSolar <- function() {
     hours <- paste0("", 0:23)   # categories by which is grouped
     groupByHour <- list()       # list containing data.frame for every category
     # get the data
-    for (hour in hours) {
-      indices <- belongsToHour(data[[zone]]$TIMESTAMP, hour)
-      groupByHour[[hour]] <- subset(data[[zone]], indices, select=-TIMESTAMP)
+    for (h in hours) {
+      indices <- hour(data[[zone]]$TIMESTAMP) == h
+      groupByHour[[h]] <- subset(data[[zone]], indices, select=-TIMESTAMP)
     }
     min <- sapply(data[[zone]][-1], min) # get for every column min and max
     max <- sapply(data[[zone]][-1], max)# drop timestamp => -1
@@ -38,9 +38,9 @@ examineSolar <- function() {
     months <- paste0("", 1:12)   # categories by which is grouped
     groupByMonth <- list()       # list containing data.frame for every category
     # get the data
-    for (month in months) {
-      indices <- belongsToMonth(data[[zone]]$TIMESTAMP, month)
-      groupByMonth[[month]] <- subset(data[[zone]], indices, select=-TIMESTAMP)
+    for (m in months) {
+      indices <- month(data[[zone]]$TIMESTAMP) == m
+      groupByMonth[[m]] <- subset(data[[zone]], indices, select=-TIMESTAMP)
     }
     min <- sapply(data[[zone]][-1], min) # get for every column min and max
     max <- sapply(data[[zone]][-1], max)# drop timestamp => -1

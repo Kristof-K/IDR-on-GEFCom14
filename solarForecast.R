@@ -39,13 +39,14 @@ evaluation <- function(predictionfct, scoringfct) {
     data <- loadSolar(task)   # read data
     # task was to predict the next 24 hours one month long
     lastTrainTS <- date$LastTrain_TS
-    lastTestTS <- getNextDay(lastTrain_TS)
-    currentMonth <- getMonth(lastTrainTS)
+    lastTestTS <- lastTrainTS
+    day(lastTestTS) <- lastTrainTS + 1  # Test period comprises 24 hours
+    currentMonth <- month(lastTrainTS)
     # data.frame for all results and vecotr for average results
     saveScores <- data.frame()
     averageScores <- rep(0, length(tasks))
     # last timestamp we have to predict is hour zero in the new month
-    while (belongsToMonth(lastTrainTS, currentMonth)) {
+    while (month(lastTrainTS) == currentMonth) {
       z <- 1
       for (zone in zones) {
         current <- data[[zone]]  # restrict focus to one zone each iteration
