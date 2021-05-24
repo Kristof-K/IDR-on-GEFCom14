@@ -4,8 +4,6 @@ source("loadData.R")
 source("util.R")
 source("plot.R")
 
-zones <- c("ZONE1", "ZONE2", "ZONE3")
-
 
 # implement the whole process of examination solar track
 examineSolar <- function() {
@@ -15,7 +13,7 @@ examineSolar <- function() {
 
   # EXAMINE DATA GROUPED BY HOUR
   cat("Examing data grouped by hour:\n")
-  for (zone in zones) {
+  for (zone in SOLAR_ZONES) {
     cat("\t-", zone, "\n")
     hours <- paste0("", 0:23)   # categories by which is grouped
     groupByHour <- list()       # list containing data.frame for every category
@@ -37,7 +35,7 @@ examineSolar <- function() {
   
   # EXAMINE DATA GROUPED BY MONTH
   cat("Examing data grouped by month:\n")
-  for (zone in zones) {
+  for (zone in SOLAR_ZONES) {
     cat("\t-", zone, "\n")
     months <- paste0("", 1:12)   # categories by which is grouped
     groupByMonth <- list()       # list containing data.frame for every category

@@ -1,3 +1,7 @@
+QUANTILES <- seq(0.01, 0.99, 0.01)
+SOLAR_ZONES <- c("ZONE1", "ZONE2", "ZONE3")
+TASKS <- 1:15
+
 # Calculate the pearson, spearman and kendall correlation coefficient for every
 # variable for every category in list
 # - list : list of data.frames for every category
@@ -26,18 +30,21 @@ getCorrelationCoefficients <- function(list, categories, numOfVariables) {
 
 
 # Calculate the pinball loss for
-# - x : vector containing prediction for the 1% up to 99% quantile
-# - y : vector containg the 99 respective observations
+# - x : matrix containing prediction for the 1% up to 99% quantile in every row
+# - y : vector containg the respective observations
 # - print : output information if True otherwise calc score
 pinBallLoss <- function(x, y, print=FALSE) {
   if (print) {
-    outputScoringFunction("Pinball-Loss / asymmetric piecewise linear scoring 
-                          fct.")
-    return(NA)
+    outputScoringFunction("Pinball-Loss / asymmetric piecewise linear
+                          scoring fct.")
+    return(NULL)
   }
-  quantiles <- seq(0.01, 0.99, 0.01)
-  scoreVec <- ((y < x) - quantiles) * (x - y)
-  return(mean(scoreVec))
+  singlePinBallLoss <- function(x, y) {
+    scoreVec <- ((y < x) - QUANTILES) * (x - y)
+    return(mean(scoreVec))
+  }
+  # apply pinball loss on every row in the given x vector
+  return(apply(x, 1, singlePinBallLoss, y))
 }
 
 # Method output description consistently for a specific scoring function
