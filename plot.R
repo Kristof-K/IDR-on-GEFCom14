@@ -49,7 +49,7 @@ scatterMonths <- function(list, categories, zone, min, max) {
 }
 
 scatterFull <- function(list, categories, zone, min, max, append="", 
-                        labels=NA, title="") {
+                        labels=NULL, title="") {
   colors <- rainbow(length(categories))
   
   par(mfrow=c(3,4), mar=c(4, 0, 0, 0), oma=c(3,2,3,2), mgp=c(1.4,0.6,0))
@@ -69,7 +69,7 @@ scatterFull <- function(list, categories, zone, min, max, append="",
   }
   add <- if (title != "") paste(",", title) else ""
   mtext(paste0(zone, ": Power ~ variables", add), outer=TRUE, line=0.5, cex=1.5)
-  text <- if (any(is.na(labels))) categories else labels
+  text <- if (is.null(labels)) categories else labels
   mtext(paste0(text, append), side=1, outer=TRUE, line=0.5, col=colors, 
         at=seq(0.1, 0.9, 0.8 / (length(categories) - 1)))
   # set parameters back to default
@@ -98,7 +98,7 @@ correlationPlotMonths <- function(coefficients, categories, zone) {
 }
 
 correlationPlot <- function(coefficients, categories, zone, title="", append="", 
-                            labels=NA) {
+                            labels=NULL) {
   n <- length(names(variableNames))
   x <- 1:n
   colors <- rainbow(length(categories))
@@ -125,7 +125,7 @@ correlationPlot <- function(coefficients, categories, zone, title="", append="",
   add <- if (title != "") paste(",", title) else ""
   mtext(paste0(zone, ": Correlation(Power,variables)", add), outer=TRUE, 
         line=0.5, cex=1.5)
-  text <- if (any(is.na(labels))) categories else labels
+  text <- if (is.null(labels)) categories else labels
   mtext(paste0(text, append), side=1, outer=TRUE, line=0, col=colors, 
         at=seq(0.1, 0.9, 0.8 / (length(categories) - 1)))
   mtext(paste(corr_c, c("(square)", "(circle)", "(triangle)")), side=1,  
@@ -165,7 +165,7 @@ scatterAllSingle <- function(list, categories, zone, min, max, hour=TRUE) {
 }
 
 scatterSingle <- function(list, categories, zone, min, max, name, append="", 
-                        labels=NA, title="", grid=c(1,1)) {
+                        labels=NULL, title="", grid=c(1,1)) {
   colors <- rainbow(length(categories))
   
   par(mfrow=grid, mar=c(0, 0, 0, 0), oma=c(4,4,4,2), mgp=c(1.2,0.6,0))
@@ -180,7 +180,7 @@ scatterSingle <- function(list, categories, zone, min, max, name, append="",
     plot(list[[element]][[name]], list[[element]][["POWER"]], type="p", pch=20,   
          ylab="Power", yaxt=y_axis, xaxt=x_axis, xlab=variableNames[[name]], 
          xlim=limits, ylim=powerLim, col=colors[j+1], cex=2)
-    descriptionList <- if (any(is.na(labels))) categories else labels
+    descriptionList <- if (is.null(labels)) categories else labels
     description <- paste0(descriptionList[j+1], append)
     text(x=0.1*limits[1] + 0.9*limits[2], y=0.9*powerLim[2], description, 
          cex=1.7)

@@ -12,9 +12,11 @@ examineSolar <- function() {
   # data is a list containing for every string in zones a data frame
   data <- loadSolar(15)
   numOfVars <- length(variableNames)  # variableNames is defined in plot.R
-  
+
   # EXAMINE DATA GROUPED BY HOUR
+  cat("Examing data grouped by hour:\n")
   for (zone in zones) {
+    cat("\t-", zone, "\n")
     hours <- paste0("", 0:23)   # categories by which is grouped
     groupByHour <- list()       # list containing data.frame for every category
     # get the data
@@ -34,7 +36,9 @@ examineSolar <- function() {
   }
   
   # EXAMINE DATA GROUPED BY MONTH
+  cat("Examing data grouped by month:\n")
   for (zone in zones) {
+    cat("\t-", zone, "\n")
     months <- paste0("", 1:12)   # categories by which is grouped
     groupByMonth <- list()       # list containing data.frame for every category
     # get the data
@@ -54,6 +58,7 @@ examineSolar <- function() {
   }
 }
 
+examineSolar()
 
 # VISUAL RESULT:
 # positive propotionality to Power

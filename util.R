@@ -5,17 +5,19 @@
 # return 3-dim array: 1st axis variables, 2nd axis correlation coefficient typ
 # (pearson, spearman, kendall), 3rd axis categories
 getCorrelationCoefficients <- function(list, categories, numOfVariables) {
-  output <- array(0, dim=c(numOfVariables, 3, length(categories)))
+  output <- array(NA, dim=c(numOfVariables, 3, length(categories)))
   c <- 1
   for (element in categories) {       # iterate over 3rd dimension
     for (var in 1:numOfVariables) {   # iterate over 1st dimension
       examine <- list[[element]]
-      output[var,1:3,c] <- c(cor(examine[,var], examine[["POWER"]], 
-                                method="pearson"),
-                            cor(examine[,var], examine[["POWER"]], 
-                                method="spearman"),
-                            cor(examine[,var], examine[["POWER"]], 
-                                method="kendall"))
+      if (sd(examine[["POWER"]]) != 0 && sd(examine[, var]) != 0) {
+        output[var,1:3,c] <- c(cor(examine[,var], examine[["POWER"]],
+                                  method="pearson"),
+                              cor(examine[,var], examine[["POWER"]],
+                                  method="spearman"),
+                              cor(examine[,var], examine[["POWER"]],
+                                  method="kendall"))
+      }
     }
     c <- c+1
   }
