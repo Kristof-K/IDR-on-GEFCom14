@@ -1,6 +1,7 @@
 QUANTILES <- seq(0.01, 0.99, 0.01)
 SOLAR_ZONES <- c("ZONE1", "ZONE2", "ZONE3")
 TASKS <- 1:15
+FIRST_EVAL_TASK <- 4        # in GEFCom14 the first 3 tasks weren't evaluated
 
 # Calculate the pearson, spearman and kendall correlation coefficient for every
 # variable for every category in list

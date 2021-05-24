@@ -29,9 +29,7 @@ evaluation <- function(predictionfct, scoringfct) {
   # use the print functionality in order to get some explaining text
   predictionfct(NA, NA, NA, print=TRUE)
   scoringfct(NA, NA, print=TRUE)
-  
-  # in GEFCom14 the first 3 tasks weren't evaluated
-  firstTaskToEvalaute <- 4
+
   # list containing for every task data.frames with timestamps, zones and scores
   scoreList <- list()
   averageScores <- rep(0, length(TASKS))
@@ -72,6 +70,7 @@ evaluation <- function(predictionfct, scoringfct) {
       lastTrainTS <- lastTestTS
       day(lastTestTS) <- day(lastTestTS) + 1
     }
+    # save scores
     scoreList[[paste0("Task", task)]] <- saveScores
     averageScores[task] <- mean(saveScores[["SCORE"]])
   }
@@ -79,7 +78,7 @@ evaluation <- function(predictionfct, scoringfct) {
   results <- data.frame(rbind(averageScores), row.names=c("Score"))
   colnames(results) <- paste0("Task", TASKS)
   results
-  finalScore <- mean(as.numeric(results[1,firstTaskToEvalaute:length(TASKS)]))
+  finalScore <- mean(as.numeric(results[1, FIRST_EVAL_TASK:length(TASKS)]))
   cat("\n[AVERAGED SCORE]:", finalScore, "\n")
 }
 
@@ -110,6 +109,7 @@ trivialForecast <- function(X_train, y_train, X_test, print=FALSE) {
     return(data.frame(PROBS=QUANTILES, Q=quantile(x, QUANTILES)))
   }
   # get for every hour the 99 empirical quantiles which we will use as forecast
+  # pivot_wider transforms the long data table into a wide one
   quantiles_by_hour <- X_train %>%
     mutate(Y = y_train, HOUR = hour(TIMESTAMP)) %>%
     group_by(HOUR) %>% summarise(getAllQuantiles(Y)) %>%
@@ -123,8 +123,36 @@ trivialForecast <- function(X_train, y_train, X_test, print=FALSE) {
     return(predicted_q)
   }
   joinedForecast <- sapply(hours, getForecast)
-  # sapply puts outputs of getForecast in columns, but we want that in the rows
+  # sapply puts outputs of getForecast in columns, but we want that in rows
   return(t(joinedForecast))
 }
 
-evaluation(trivialForecast, pinBallLoss)
+
+# GEFCOM14 Benchmark forecast : predict for all quantiles (1% up to 99%) the
+# power generation value of last year at exactly the same date
+# Therefore train has to comprise the one year past of test
+benchmark <- function(X_train, y_train, X_test, print=FALSE) {
+  if (print) {
+    outputForecastingMethod("benchmark forecast", "",
+                            "Issue for every timestamp the power
+                            production of last year ago as all quantiles")
+    return("")
+  }
+  forecast_in <- X_test$TIMESTAMP
+
+  # predict for all quantiles the one year past power generation
+  getLastYearVal <- function(date) {
+    year(date) <- year(date) - 1
+    power <- X_train %>% mutate(POWER = y_train) %>% filter(TIMESTAMP == date)
+    # it could be that train doesn't contain last year's value
+    out <-if(!identical(power$POWER, numeric(0)))  power$POWER  else NA
+    return(rep(out, length(QUANTILES)))
+  }
+
+  joinedForecast <- sapply(forecast_in, getLastYearVal)
+  # sapply puts outputs of getLastYearVal in columns, we want that in rows
+  return(t(joinedForecast))
+}
+
+#evaluation(trivialForecast, pinBallLoss)
+evaluation(benchmark, pinBallLoss)
