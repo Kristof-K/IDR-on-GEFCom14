@@ -37,14 +37,19 @@ pinBallLoss <- function(x, y, print=FALSE) {
   if (print) {
     outputScoringFunction("Pinball-Loss / asymmetric piecewise linear
                           scoring fct.")
-    return(NULL)
+    return("")
   }
-  singlePinBallLoss <- function(x, y) {
+  singlePinBallLoss <- function(vec) {
+    # separate y and x again
+    y <- vec[1]
+    x <- vec[-1]
     scoreVec <- ((y < x) - QUANTILES) * (x - y)
     return(mean(scoreVec))
   }
+  # in order to use apply more easily
+  join <- cbind(y, x)
   # apply pinball loss on every row in the given x vector
-  return(apply(x, 1, singlePinBallLoss, y))
+  return(apply(join, 1, singlePinBallLoss))
 }
 
 # Method output description consistently for a specific scoring function
