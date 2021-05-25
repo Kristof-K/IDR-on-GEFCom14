@@ -1,7 +1,6 @@
 #setwd("D:/Studium/Semester6/BachelorArbeit/Code")
 
 library(tidyverse)
-library(isodistrreg)
 
 source("loadData.R")
 source("util.R")
@@ -156,5 +155,5 @@ benchmark <- function(X_train, y_train, X_test, print=FALSE) {
   return(t(joinedForecast))
 }
 
-#evaluation(trivialForecast, pinBallLoss)
-evaluation(benchmark, pinBallLoss)
+evaluation(trivialForecast, pinBallLoss)
+#evaluation(benchmark, pinBallLoss)
