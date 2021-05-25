@@ -3,6 +3,8 @@ SOLAR_ZONES <- c("ZONE1", "ZONE2", "ZONE3")
 TASKS <- 1:15
 FIRST_EVAL_TASK <- 4        # in GEFCom14 the first 3 tasks weren't evaluated
 
+PRINT_WIDTH <- 70
+
 # Calculate the pearson, spearman and kendall correlation coefficient for every
 # variable for every category in list
 # - list : list of data.frames for every category
@@ -36,8 +38,8 @@ getCorrelationCoefficients <- function(list, categories, numOfVariables) {
 # - print : output information if True otherwise calc score
 pinBallLoss <- function(x, y, print=FALSE) {
   if (print) {
-    outputScoringFunction("Pinball-Loss / asymmetric piecewise linear
-                          scoring fct.")
+    outputScoringFunction(c("Pinball-Loss /", "asymmetric", "piecewise",
+                          "linear", "scoring", "fct."))
     return("")
   }
   singlePinBallLoss <- function(vec) {
@@ -54,7 +56,8 @@ pinBallLoss <- function(x, y, print=FALSE) {
 }
 
 # Method output description consistently for a specific scoring function
-# - name : name of the forecasting method
+# - name : name of the forecasting method (it should be a vector of words in
+#   order to be printed correctly)
 outputScoringFunction <- function(name) {
-  cat("\n[SCORING FUNCTION]:", name, "\n")
+  cat("\n[SCORING FUNCTION]:", name, "\n", fill = PRINT_WIDTH)
 }

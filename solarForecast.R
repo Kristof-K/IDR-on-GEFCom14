@@ -77,7 +77,7 @@ evaluation <- function(predictionfct, scoringfct) {
   
   results <- data.frame(rbind(averageScores), row.names=c("Score"))
   colnames(results) <- paste0("Task", TASKS)
-  results
+  print(results)
   finalScore <- mean(as.numeric(results[1, FIRST_EVAL_TASK:length(TASKS)]))
   cat("\n[AVERAGED SCORE]:", finalScore, "\n")
 }
@@ -85,12 +85,13 @@ evaluation <- function(predictionfct, scoringfct) {
 # Method output consistently a specific forecasting method
 # - name : name of the forecasting method
 # - vars : vector of variable nems that are incorporated
-# - description : short text descripbing the method further
+# - description : short text descripbing the method further (it should be a
+#   vector of words in order to print correctly)
 outputForecastingMethod <- function(name, vars, description) {
   cat("\n\n=================================================================\n")
   cat(" ", name,"\n")
   cat("=================================================================\n")
-  print(description)
+  cat(description, "\n", fill = PRINT_WIDTH)
   cat("[VARIABLES]:", vars, "\n")
 }
 
@@ -98,10 +99,10 @@ outputForecastingMethod <- function(name, vars, description) {
 # belonging to the hour for which a forecast is issued
 trivialForecast <- function(X_train, y_train, X_test, print=FALSE) {
   if (print) {
-    outputForecastingMethod("trivial forecast", "",
-                            "Calculate for every hour the empirical
-                            quantiles and return them irrespective of any
-                            variable values")
+    outputForecastingMethod("trivial forecast", "None",
+                            c("Calculate", "for", "every", "hour", "the",
+                            "empirical", "quantiles", "and", "return", "them",
+                            "irrespective", "of", "any", "variable", "values"))
     return("")
   }
   # function: calculate all quantiles and return data.frame
@@ -133,9 +134,10 @@ trivialForecast <- function(X_train, y_train, X_test, print=FALSE) {
 # Therefore train has to comprise the one year past of test
 benchmark <- function(X_train, y_train, X_test, print=FALSE) {
   if (print) {
-    outputForecastingMethod("benchmark forecast", "",
-                            "Issue for every timestamp the power
-                            production of last year ago as all quantiles")
+    outputForecastingMethod("benchmark forecast", "None",
+                            c("Issue", "for", "every", "timestamp", "the",
+                              "power", "production", "of", "last", "year",
+                              "ago", "as", "all", "quantiles"))
     return("")
   }
   forecast_in <- X_test$TIMESTAMP
