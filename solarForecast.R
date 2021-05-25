@@ -7,7 +7,7 @@ source("util.R")
 
 source("solarIDR.R")
 
-SOLAR_CSV <- "..\\solarResults.csv"
+SOLAR_CSV <- "../solarResults.csv"
 
 # prediction model
 # - IDR on every hour (three variable models)
@@ -79,17 +79,19 @@ evaluation <- function(predictionfct, scoringfct, name) {
     cat("- Finished task", task, "\n")
   }
   
-  results <- data.frame(rbind(averageScores), row.names=c("Score"))
+  results <- data.frame(rbind(averageScores))
   colnames(results) <- paste0("Task", TASKS)
   print(results)
   finalScore <- mean(as.numeric(results[1, FIRST_EVAL_TASK:length(TASKS)]))
   cat("\n[AVERAGED SCORE]:", finalScore, "\n")
 
   # Lastly save the results by extending previous results
-  results <- cbind(results, Mean = finalScore)
-  previous <- read.csv2(SOALR_CSV)
-  new <- rbind(previous, name = results)
-  write.csv2(new, SOLAR_CSV)
+  results <- cbind(Name = name, results, Mean = finalScore)
+  if (file.exists(SOLAR_CSV)) {
+    previous <- read.csv2(SOLAR_CSV)
+    results <- rbind(previous, results)
+  }
+  write.csv2(results, SOLAR_CSV)
 }
 
 # Method output consistently a specific forecasting method
@@ -166,6 +168,6 @@ benchmark <- function(X_train, y_train, X_test, print=FALSE) {
   return(t(joinedForecast))
 }
 
-#evaluation(trivialForecast, pinBallLoss, "empirical quantiles")
-evaluation(benchmark, pinBallLoss, "benchmark")
+evaluation(trivialForecast, pinBallLoss, "empirical quantiles")
+#evaluation(benchmark, pinBallLoss, "benchmark")
 #evaluation(idrOnAll_V1, pinBallLoss, "idr_all_v1")
