@@ -15,7 +15,7 @@ examineSolar <- function() {
   cat("Examing data grouped by hour:\n")
   for (zone in SOLAR_ZONES) {
     cat("\t-", zone, "\n")
-    hours <- paste0("", 0:23)   # categories by which is grouped
+    hours <- paste0(0:23)   # categories by which is grouped
     groupByHour <- list()       # list containing data.frame for every category
     # get the data
     for (h in hours) {
@@ -37,7 +37,7 @@ examineSolar <- function() {
   cat("Examing data grouped by month:\n")
   for (zone in SOLAR_ZONES) {
     cat("\t-", zone, "\n")
-    months <- paste0("", 1:12)   # categories by which is grouped
+    months <- paste0(1:12)   # categories by which is grouped
     groupByMonth <- list()       # list containing data.frame for every category
     # get the data
     for (m in months) {

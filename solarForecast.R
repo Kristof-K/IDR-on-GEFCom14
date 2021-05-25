@@ -5,8 +5,11 @@ library(tidyverse)
 source("loadData.R")
 source("util.R")
 
+source("solarIDR.R")
+
+SOLAR_CSV <- "..\\solarResults.csv"
+
 # prediction model
-# - trivial IDR on all data
 # - IDR on every hour (three variable models)
 # - IDR on every hour +- 1 hour (~extended probabilistoc climatological)
 # - IDR on every astronomical hour (same sunposition)
@@ -24,7 +27,8 @@ source("util.R")
 #   2nd is vector of true observation. It should return an average score over
 #   all quantiles. If print=TRUE is passed, the function should print some
 #   explaining text
-evaluation <- function(predictionfct, scoringfct) {
+# - name : name to be logged in csv file storing the results
+evaluation <- function(predictionfct, scoringfct, name) {
   # use the print functionality in order to get some explaining text
   predictionfct(NA, NA, NA, print=TRUE)
   scoringfct(NA, NA, print=TRUE)
@@ -72,6 +76,7 @@ evaluation <- function(predictionfct, scoringfct) {
     # save scores
     scoreList[[paste0("Task", task)]] <- saveScores
     averageScores[task] <- mean(saveScores[["SCORE"]])
+    cat("- Finished task", task, "\n")
   }
   
   results <- data.frame(rbind(averageScores), row.names=c("Score"))
@@ -79,6 +84,12 @@ evaluation <- function(predictionfct, scoringfct) {
   print(results)
   finalScore <- mean(as.numeric(results[1, FIRST_EVAL_TASK:length(TASKS)]))
   cat("\n[AVERAGED SCORE]:", finalScore, "\n")
+
+  # Lastly save the results by extending previous results
+  results <- cbind(results, Mean = finalScore)
+  previous <- read.csv2(SOALR_CSV)
+  new <- rbind(previous, name = results)
+  write.csv2(new, SOLAR_CSV)
 }
 
 # Method output consistently a specific forecasting method
@@ -155,5 +166,6 @@ benchmark <- function(X_train, y_train, X_test, print=FALSE) {
   return(t(joinedForecast))
 }
 
-evaluation(trivialForecast, pinBallLoss)
-#evaluation(benchmark, pinBallLoss)
+#evaluation(trivialForecast, pinBallLoss, "empirical quantiles")
+evaluation(benchmark, pinBallLoss, "benchmark")
+#evaluation(idrOnAll_V1, pinBallLoss, "idr_all_v1")
