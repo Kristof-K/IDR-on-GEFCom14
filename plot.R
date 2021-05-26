@@ -208,13 +208,14 @@ plotAgainstTime <- function(data, start, end, zone) {
 }
 
 plotTimeSeries <- function(data, start, end) {
+  # restrict data to timestamps of interest
   plotData <- filter(data, TIMESTAMP %within% interval(start, end))
+  # get timestamps and replace them in the data frame with the values 1,...,n
   t <- plotData %>% select(TIMESTAMP) %>% pull()
   n <- dim(plotData)[1]
   plotData <- plotData %>% select(-TIMESTAMP) %>% mutate(X = 1:n)
 
-  m <- dim(plotData)[2]
-  # normalize all variables
+  # normalize all variables, want to draw power with each variable in one plot
   for (var in names(plotData)) {
     if (var == "X" || var == "POWER") {
       next
@@ -229,7 +230,7 @@ plotTimeSeries <- function(data, start, end) {
     select(-POWER)
   # get data in a long format with categories "VAR" specifying which data goes
   # with which variable and create column power to indicate whether this is
-  # the power graph for the respective
+  # the power graph for the respective variable or the variable itsself
   plotData <- plotData %>% pivot_longer(cols = -X, names_to = "var") %>%
     mutate(POWER = str_detect(var, "_p"),
            VAR = str_replace(var, "_p", "")) %>%
@@ -238,9 +239,8 @@ plotTimeSeries <- function(data, start, end) {
   ticks <- as.integer(seq(1, n, (n - 1) / 3))   # positions of the x-ticks
   # get the labels with new line between date und time and drop time zone
   labels <- str_replace(substr(t[ticks], 1, 16), " ", "\n")
-  ggplot(mapping = aes(x = X, y = value)) +
-    geom_line(data = filter(plotData, VAR != "POWER"),
-              mapping = aes(color = POWER)) +
+  ggplot(data = plotData, mapping = aes(x = X, y = value)) +
+    geom_line(mapping = aes(color = POWER)) +
     scale_x_continuous(breaks = ticks, labels = labels, name = "") +
     facet_wrap(~ VAR)
 }

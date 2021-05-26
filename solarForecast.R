@@ -1,6 +1,6 @@
 #setwd("D:/Studium/Semester6/BachelorArbeit/Code")
 
-library(tidyverse)
+library(tidyverse)      # in order to use dplyr
 
 source("loadData.R")
 source("util.R")
@@ -43,7 +43,7 @@ evaluation <- function(predictionfct, scoringfct, name) {
     lastTrainTS <- data$LastTrain_TS
     lastTestTS <- lastTrainTS
     day(lastTestTS) <- day(lastTestTS) + 1  # Test period comprises 24 hours
-    currentMonth <- month(lastTrainTS)
+    currentMonth <- month(lastTrainTS)      # and task comprises one month
     # data.frame for all results and vector for average results
     saveScores <- data.frame()
     # last timestamp we have to predict is hour zero in the new month
@@ -73,26 +73,29 @@ evaluation <- function(predictionfct, scoringfct, name) {
       lastTrainTS <- lastTestTS
       day(lastTestTS) <- day(lastTestTS) + 1
     }
-    # save scores
+    # save scores and calc average score
     scoreList[[paste0("Task", task)]] <- saveScores
     averageScores[task] <- mean(saveScores[["SCORE"]])
     cat("- Finished task", task, "\n")
   }
-  
+  # print results
   results <- data.frame(rbind(averageScores))
   colnames(results) <- paste0("Task", TASKS)
   print(results)
   finalScore <- mean(as.numeric(results[1, FIRST_EVAL_TASK:length(TASKS)]))
   cat("\n[AVERAGED SCORE]:", finalScore, "\n")
 
-  # Lastly save the results by extending previous results
-  results <- cbind(X = 1, Name = name, results, Mean = finalScore)
+  # Lastly save the results in log file by extending previous results
+  results <- cbind(X = 0, Name = name, results, Mean = finalScore)
+  rownames(results)[1] <- 1
   if (file.exists(SOLAR_CSV)) {
     previous <- read.csv2(SOLAR_CSV)
-    results$X <- dim(previous)[1] + 1
+    # make sure that new determined result receives the next row number
+    rownames(results)[1] <- dim(previous)[1] + 1
     results <- rbind(previous, results)
   }
-  write.csv2(results, SOLAR_CSV)
+  # X (1st) column in results is dummy column and should not be saved in result
+  write.csv2(results[-1], SOLAR_CSV)
 }
 
 # Method output consistently a specific forecasting method
@@ -132,12 +135,13 @@ trivialForecast <- function(X_train, y_train, X_test, print=FALSE) {
   hours <- hour(X_test$TIMESTAMP)
   # pick the respective forecast
   getForecast <- function(hour) {
+    # get according to the hour the respective quantiles (one row)
     predicted_q <- quantiles_by_hour %>% ungroup() %>% filter(HOUR == hour) %>%
       select(-HOUR) %>% as.numeric()
     return(predicted_q)
   }
   joinedForecast <- sapply(hours, getForecast)
-  # sapply puts outputs of getForecast in columns, but we want that in rows
+  # sapply puts outputs of getForecast in columns, but we want them in rows
   return(t(joinedForecast))
 }
 
@@ -159,7 +163,7 @@ benchmark <- function(X_train, y_train, X_test, print=FALSE) {
   getLastYearVal <- function(date) {
     year(date) <- year(date) - 1
     power <- X_train %>% mutate(POWER = y_train) %>% filter(TIMESTAMP == date)
-    # it could be that train doesn't contain last year's value
+    # it could be that train doesn't contain last year's value, then return NA
     out <-if(!identical(power$POWER, numeric(0)))  power$POWER  else NA
     return(rep(out, length(QUANTILES)))
   }
@@ -171,5 +175,5 @@ benchmark <- function(X_train, y_train, X_test, print=FALSE) {
 
 #evaluation(trivialForecast, pinBallLoss, "empirical quantiles")
 #evaluation(benchmark, pinBallLoss, "benchmark")
-#evaluation(idrOnAll_V1, pinBallLoss, "idr_all_v1")
-evaluation(idrOnHour_V1, pinBallLoss, "idr_hour_v1")
+evaluation(idrOnAll_V1, pinBallLoss, "idr_all_v1")
+#evaluation(idrOnHour_V1, pinBallLoss, "idr_hour_v1")
