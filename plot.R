@@ -1,4 +1,6 @@
-variableNames <- c("VAR78" = "liquid water", 
+library(tidyverse)
+
+variableNames <- c("VAR78" = "liquid water",
                    "VAR79" = "Ice water", 
                    "VAR134" = "surface pressure", 
                    "VAR157" = "relative humidity", 
@@ -191,4 +193,43 @@ scatterSingle <- function(list, categories, zone, min, max, name, append="",
         line=0.5, cex=1.5)
   # set parameters back to default
   par(mfrow=c(1,1), mar=c(5, 4, 4, 2) + 0.1, oma=c(0,0,0,0), mgp=c(3 ,1 ,0))
+}
+
+
+# plot variables against time in one plot to assess the development
+# - data : data.frame with TIMESTAMPS as one solumn and other variables
+# - start : first timestamp, from what time we should start plotting
+# - end : last timestamp, up to what time we should plot
+# - zone : current zone for naming the plot
+plotAgainstTime <- function(data, start, end, zone) {
+  png(file=paste0("plots/TimeSeries_", zone, ".png"), width=1600, height=900)
+  plotTimeSeries(data, start, end)
+  dev.off()
+}
+
+plotTimeSeries <- function(data, start, end) {
+  plotData <- data %>% filter(TIMESTAMP >= start, TIMESTAMP <= end)
+  t <- plotData %>% select(TIMESTAMP) %>% pull()
+  n <- dim(plotData)[1]
+  plotData <- plotData %>% select(-TIMESTAMP) %>% mutate(X = 1:n)
+  m <- dim(plotData)[2]
+  # normalize all variables
+  for (var in names(plotData)) {
+    if (var == "X") {
+      next
+    }
+    tmp <- plotData[[var]]
+    plotData[[var]] <- (tmp - min(tmp)) / (max(tmp) - min(tmp))
+  }
+  # get data in a long format with categories "VAR" specifying which data goes
+  # with which
+  plotData <- plotData %>% pivot_longer(cols = -m, names_to = "VAR") %>%
+    arrange(VAR)
+
+  ticks <- as.integer(seq(1, n, (n - 1) / 9))   # positions of the x-ticks
+  # get the labels with new line between date und time and drop time zone
+  labels <- str_replace(substr(t[ticks], 1, 16), " ", "\n")
+  ggplot(data = plotData) +
+     geom_smooth(mapping = aes(x = X, y = value, color = VAR), se = FALSE) +
+     scale_x_continuous(breaks = ticks, labels = labels, name = "")
 }

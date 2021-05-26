@@ -23,7 +23,7 @@ examineSolar <- function() {
       groupByHour[[h]] <- subset(data[[zone]], indices, select=-TIMESTAMP)
     }
     min <- sapply(data[[zone]][-1], min) # get for every column min and max
-    max <- sapply(data[[zone]][-1], max)# drop timestamp => -1
+    max <- sapply(data[[zone]][-1], max) # drop timestamp => -1
     
     # now plot
     scatterHours(groupByHour, hours, zone, min, max)
@@ -31,6 +31,9 @@ examineSolar <- function() {
     # and examine the correlation coefficients
     coeffs <- getCorrelationCoefficients(groupByHour, hours, numOfVars)
     correlationPlotHours(coeffs, hours, zone)
+    # plot time series
+    plotAgainstTime(data[[zone]], "2013-09-09 00:00",
+                    "2013-09-19 00:00", zone)
   }
   
   # EXAMINE DATA GROUPED BY MONTH

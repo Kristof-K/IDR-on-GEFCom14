@@ -86,9 +86,10 @@ evaluation <- function(predictionfct, scoringfct, name) {
   cat("\n[AVERAGED SCORE]:", finalScore, "\n")
 
   # Lastly save the results by extending previous results
-  results <- cbind(Name = name, results, Mean = finalScore)
+  results <- cbind(X = 1, Name = name, results, Mean = finalScore)
   if (file.exists(SOLAR_CSV)) {
     previous <- read.csv2(SOLAR_CSV)
+    results$X <- dim(previous)[1] + 1
     results <- rbind(previous, results)
   }
   write.csv2(results, SOLAR_CSV)
@@ -168,6 +169,7 @@ benchmark <- function(X_train, y_train, X_test, print=FALSE) {
   return(t(joinedForecast))
 }
 
-evaluation(trivialForecast, pinBallLoss, "empirical quantiles")
+#evaluation(trivialForecast, pinBallLoss, "empirical quantiles")
 #evaluation(benchmark, pinBallLoss, "benchmark")
 #evaluation(idrOnAll_V1, pinBallLoss, "idr_all_v1")
+evaluation(idrOnHour_V1, pinBallLoss, "idr_hour_v1")
