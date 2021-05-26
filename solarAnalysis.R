@@ -32,8 +32,8 @@ examineSolar <- function() {
     coeffs <- getCorrelationCoefficients(groupByHour, hours, numOfVars)
     correlationPlotHours(coeffs, hours, zone)
     # plot time series
-    plotAgainstTime(data[[zone]], "2013-09-09 00:00",
-                    "2013-09-19 00:00", zone)
+    plotAgainstTime(data[[zone]], "2013-09-09 00:00:00 UTC",
+                    "2013-09-19 00:00:00 UTC", zone)
   }
   
   # EXAMINE DATA GROUPED BY MONTH

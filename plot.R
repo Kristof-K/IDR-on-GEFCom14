@@ -208,14 +208,18 @@ plotAgainstTime <- function(data, start, end, zone) {
 }
 
 plotTimeSeries <- function(data, start, end) {
-  plotData <- data %>% filter(TIMESTAMP >= start, TIMESTAMP <= end)
+  plotData <- filter(data, TIMESTAMP %within% interval(start, end))
   t <- plotData %>% select(TIMESTAMP) %>% pull()
+  power <- plotData %>% select(POWER) %>% pull()
+  x <- 1:n
+  plotPower <- data.frame(X=x, POWER=power)
   n <- dim(plotData)[1]
-  plotData <- plotData %>% select(-TIMESTAMP) %>% mutate(X = 1:n)
+  plotData <- plotData %>% select(-TIMESTAMP, -POWER) %>% mutate(X = x)
+
   m <- dim(plotData)[2]
   # normalize all variables
   for (var in names(plotData)) {
-    if (var == "X") {
+    if (var == "X" || var == "POWER") {
       next
     }
     tmp <- plotData[[var]]
@@ -223,13 +227,16 @@ plotTimeSeries <- function(data, start, end) {
   }
   # get data in a long format with categories "VAR" specifying which data goes
   # with which
-  plotData <- plotData %>% pivot_longer(cols = -m, names_to = "VAR") %>%
-    arrange(VAR)
+  plotData <- plotData %>% pivot_longer(cols = -m, names_to = "VAR")
 
-  ticks <- as.integer(seq(1, n, (n - 1) / 9))   # positions of the x-ticks
+  ticks <- as.integer(seq(1, n, (n - 1) / 5))   # positions of the x-ticks
   # get the labels with new line between date und time and drop time zone
   labels <- str_replace(substr(t[ticks], 1, 16), " ", "\n")
   ggplot(data = plotData) +
-     geom_smooth(mapping = aes(x = X, y = value, color = VAR), se = FALSE) +
-     scale_x_continuous(breaks = ticks, labels = labels, name = "")
+    geom_line(mapping = aes(x = X, y = value, color = VAR)) +
+    scale_x_continuous(breaks = ticks, labels = labels, name = "") +
+    geom_line(data = plotPower, mapping = aes(x = X, y = POWER),
+              color = "black") +
+    scale_color_manual(name = "", values = c("POWER" = "black")) +
+    facet_wrap(~ VAR)
 }
