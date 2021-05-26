@@ -210,11 +210,8 @@ plotAgainstTime <- function(data, start, end, zone) {
 plotTimeSeries <- function(data, start, end) {
   plotData <- filter(data, TIMESTAMP %within% interval(start, end))
   t <- plotData %>% select(TIMESTAMP) %>% pull()
-  power <- plotData %>% select(POWER) %>% pull()
-  x <- 1:n
-  plotPower <- data.frame(X=x, POWER=power)
   n <- dim(plotData)[1]
-  plotData <- plotData %>% select(-TIMESTAMP, -POWER) %>% mutate(X = x)
+  plotData <- plotData %>% select(-TIMESTAMP) %>% mutate(X = 1:n)
 
   m <- dim(plotData)[2]
   # normalize all variables
@@ -225,18 +222,27 @@ plotTimeSeries <- function(data, start, end) {
     tmp <- plotData[[var]]
     plotData[[var]] <- (tmp - min(tmp)) / (max(tmp) - min(tmp))
   }
+  # get for every variable column a copy of POWER and remove the original power
+  # ~ . is lambda with . as input variable => here constant function (no .)
+  plotData <- plotData %>% mutate(across(c(-POWER, -X), ~ POWER,
+                                         .names = "{.col}_p")) %>%
+    select(-POWER)
   # get data in a long format with categories "VAR" specifying which data goes
-  # with which
-  plotData <- plotData %>% pivot_longer(cols = -m, names_to = "VAR")
+  # with which variable and create column power to indicate whether this is
+  # the power graph for the respective
+  plotData <- plotData %>% pivot_longer(cols = -X, names_to = "var") %>%
+    mutate(POWER = str_detect(var, "_p"),
+           VAR = str_replace(var, "_p", "")) %>%
+    select(-var)
 
-  ticks <- as.integer(seq(1, n, (n - 1) / 5))   # positions of the x-ticks
+  ticks <- as.integer(seq(1, n, (n - 1) / 3))   # positions of the x-ticks
   # get the labels with new line between date und time and drop time zone
   labels <- str_replace(substr(t[ticks], 1, 16), " ", "\n")
-  ggplot(data = plotData) +
-    geom_line(mapping = aes(x = X, y = value, color = VAR)) +
+  ggplot(mapping = aes(x = X, y = value)) +
+    geom_line(data = filter(plotData, VAR != "POWER"),
+              mapping = aes(color = POWER)) +
     scale_x_continuous(breaks = ticks, labels = labels, name = "") +
-    geom_line(data = plotPower, mapping = aes(x = X, y = POWER),
-              color = "black") +
-    scale_color_manual(name = "", values = c("POWER" = "black")) +
     facet_wrap(~ VAR)
 }
+
+# we neeed for evey VARXXX another dummy specifying variable or target
