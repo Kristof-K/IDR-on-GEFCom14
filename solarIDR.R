@@ -52,11 +52,21 @@ idrOnHour <- function(X_train, y_train, X_test, groups, orders) {
 
 # wrapper and help functions ===================================================
 
+# current idr versions
+# 1 IDR on all data
+# 2 IDR on every hour
+# * IDR on every hour +- 1 hour (~extended probabilistoc climatological)
+# * IDR on every astronomical hour (same sunposition)
+# * IDR on every hour all zones at once
+# * IDR subbagging
+# * IDR other orders
 getAttr <- function(element, version) {
   # attributes belonging to variable selection version
   varCombis <- list(c("VAR169"), c("VAR178"), c("VAR169", "VAR178"),
                    c("VAR169", "VAR178", "VAR167"),
                    c("VAR169", "VAR178", "VAR167", "VAR157"))
+  # define whether variable (for positive correlation) or -1 * variable (for
+  # negative correlation) is used
   sign <- list(1, 1, c(1, 1), c(1, 1, 1), c(1, 1, 1, -1))
   # attributes belonging to idr application versions
   titles <- list(c("IDR on all"), c("IDR on hour"))
@@ -74,97 +84,29 @@ getAttr <- function(element, version) {
 
 unleashIDR <- function(X_train, y_train, X_test, version, variableVersion,
                 print=FALSE) {
-  # get variable list that is used
-  vars <- getAttr(VAR, variableVersion)
+  # get variable list that is used and signs of that variables
+  vars <- getAttr("VAR", variableVersion)
+  signs <- getAttr("SGN", variableVersion)
   # if version needs timestamps extend variable list by timestamps
-  if (getAttr(NTS, version)) {
+  if (getAttr("NTS", version)) {
     vars <- c("TIMESTAMP", vars)
+    signs <- c(1, signs)
   }
   # if print, then output information and do nothing else
   if (print) {
-    outputForecastingMethod(getAttr(TIT, version),
-                            paste0(getAttr(VAR, variableVersion), "(",
-                                   getAttr(SGN, variableVersion), ")"),
-                            getAttr(DES, version))
+    outputForecastingMethod(getAttr("TIT", version),
+                            paste0(getAttr("VAR", variableVersion), "(",
+                                   getAttr("SGN", variableVersion), ")"),
+                            getAttr("DES", version))
     return("")
   }
   groups <- setNames(rep(1, length(vars)), vars)
   orders <- c("comp" = 1)
 
-  return(getAttr(FUN, version)(X_train[var], y_train, X_test[var], groups,
-                               orders))
-}
-
-# IDR applied on whole training data ===========================================
-# parameter variations ---------------------------------------------------------
-idrOnAll_V1 <- function(X_train, y_train, X_test, print=FALSE) {
-  var <- c("VAR169")
-  groups <- c("VAR169" = 1)
-  orders <- c("comp" = 1)
-  return(invoke_idrOnAll(X_train, y_train, X_test, var, print, groups, orders))
-}
-
-
-idrOnAll_V2 <- function(X_train, y_train, X_test, print=FALSE) {
-  var <- c("VAR178")
-  groups <- c("VAR178" = 1)
-  orders <- c("comp" = 1)
-  return(invoke_idrOnAll(X_train, y_train, X_test, var, print, groups, orders))
-}
-
-
-idrOnAll_V3 <- function(X_train, y_train, X_test, print=FALSE) {
-  var <- c("VAR169", "VAR178")
-  groups <- c("VAR178" = 1, "VAR169" = 1)
-  orders <- c("comp" = 1)
-  return(invoke_idrOnAll(X_train, y_train, X_test, var, print, groups, orders))
-}
-
-# invoke the method
-invoke_idrOnAll <- function(X_train, y_train, X_test, var, print, groups,
-                            orders) {
-  if (print) {
-    outputForecastingMethod(name_all, var, descr_all)
-    return("")
-  }
-  return(idrOnAll(X_train[var], y_train, X_test[var], groups, orders))
-}
-
-
-# actual implementation of IDR -------------------------------------------------
-
-
-# IDR applied on data grouped by hour ==========================================
-# parameter variations ---------------------------------------------------------
-idrOnHour_V1 <- function(X_train, y_train, X_test, print=FALSE) {
-  var <- c("TIMESTAMP", "VAR169")
-  groups <- c("VAR169" = 1)
-  orders <- c("comp" = 1)
-  return(invoke_idrOnHour(X_train, y_train, X_test, var, print, groups, orders))
-}
-
-
-idrOnHour_V2 <- function(X_train, y_train, X_test, print=FALSE) {
-  var <- c("TIMESTAMP", "VAR178")
-  groups <- c("VAR178" = 1)
-  orders <- c("comp" = 1)
-  return(invoke_idrOnHour(X_train, y_train, X_test, var, print, groups, orders))
-}
-
-
-idrOnHour_V3 <- function(X_train, y_train, X_test, print=FALSE) {
-  var <- c("TIMESTAMP", "VAR169", "VAR178")
-  groups <- c("VAR178" = 1, "VAR169" = 1)
-  orders <- c("comp" = 1)
-  return(invoke_idrOnHour(X_train, y_train, X_test, var, print, groups, orders))
-}
-
-# invoke the method
-invoke_idrOnHour <- function(X_train, y_train, X_test, var, print, groups,
-orders) {
-  if (print) {
-    outputForecastingMethod(name_all, var, descr_all)
-    return("")
-  }
-  return(idrOnHour(X_train[var], y_train, X_test[var], groups, orders))
+  # take care about signs => -1 means change sign of covariates
+  X_train[vars[signs == -1]] <- (-1) * X_train[vars[signs == -1]]
+  X_test[vars[signs == -1]] <- (-1) * X_test[vars[signs == -1]]
+  # get IDR method
+  fcn <- getAttr("FUN", version)
+  return(fcn(X_train[vars], y_train, X_test[vars], groups, orders))
 }

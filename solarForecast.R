@@ -9,28 +9,29 @@ source("solarIDR.R")
 
 SOLAR_CSV <- "../solarResults.csv"
 
-# prediction model
-# - IDR on every hour (three variable models)
-# - IDR on every hour +- 1 hour (~extended probabilistoc climatological)
-# - IDR on every astronomical hour (same sunposition)
-
 
 # Routine conducting evaluation for a given prediciton and scoring method
-# - predictionfct : function getting X_train (data.frame containing covariates)
-#   y_train (vector containing response variable) and X_test (data.frame
-#   containing covariates for test data) and returning matrix of response
-#   variable quantiles (1% up to 99%) for testing data, i.e. every row in X_test
-#   should lead to such q quantile row in the output
-#   if print=TRUE is passed, the function should print some explaining text
+# - predictionfct : function getting
+#     - X_train (data.frame containing covariates)
+#     - y_train (vector containing response variable)
+#     - X_test (data.frame containing covariates for test data)
+#     - version (only important if there are several versions)
+#     - variableVersion (only important if there are several variable combis)
+#     - print (if true only print information text, if false make forecast)
+#   and returning matrix of quantiles (1% up to 99%) response variable for
+#   testing data, i.e. every row in X_test leads to such q quantile row
 # - scoringfct : function getting matrix as 1st and vector as 2nd argument,
 #   whereby 1st list in rows predictions for 1% up to 99% quantiles and
 #   2nd is vector of true observation. It should return an average score over
 #   all quantiles. If print=TRUE is passed, the function should print some
 #   explaining text
 # - name : name to be logged in csv file storing the results
-evaluation <- function(predictionfct, scoringfct, name) {
+# - version : which version should be passed to the predictionfct
+# - variableVersion : which variableVersion should be passed to predictionfct
+evaluation <- function(predictionfct, scoringfct, name, version = 0,
+                       variableVersion = 0) {
   # use the print functionality in order to get some explaining text
-  predictionfct(NA, NA, NA, print=TRUE)
+  predictionfct(NA, NA, NA, version, variableVersion, print=TRUE)
   scoringfct(NA, NA, print=TRUE)
 
   # list containing for every task data.frames with timestamps, zones and scores
@@ -61,7 +62,8 @@ evaluation <- function(predictionfct, scoringfct, name) {
         X_test <- subset(current, i_test, select=-POWER)
         times <- subset(current, i_test, select=TIMESTAMP)
         # conduct prediction
-        prediction <- predictionfct(X_train, y_train, X_test)
+        prediction <- predictionfct(X_train, y_train, X_test, version,
+                                    variableVersion)
         # conduct scoring
         scores <- scoringfct(prediction, y)
         # get them into a data.frame and add to previous scores
@@ -86,7 +88,9 @@ evaluation <- function(predictionfct, scoringfct, name) {
   cat("\n[AVERAGED SCORE]:", finalScore, "\n")
 
   # Lastly save the results in log file by extending previous results
-  results <- cbind(X = 0, Name = name, results, Mean = finalScore)
+  results <- cbind(X = 0, Name = name, Version = version,
+                   VariableVersion = variableVersion, results,
+                   Mean = finalScore)
   rownames(results)[1] <- 1
   if (file.exists(SOLAR_CSV)) {
     previous <- read.csv2(SOLAR_CSV)
@@ -113,7 +117,8 @@ outputForecastingMethod <- function(name, vars, description) {
 
 # Make a trivial forecast by using the empirical qauntiles of past obervations
 # belonging to the hour for which a forecast is issued
-trivialForecast <- function(X_train, y_train, X_test, print=FALSE) {
+trivialForecast <- function(X_train, y_train, X_test, print=FALSE, version = 0,
+                            variableVersion = 0) {
   if (print) {
     outputForecastingMethod("trivial forecast", "None",
                             c("Calculate", "for", "every", "hour", "the",
@@ -149,7 +154,8 @@ trivialForecast <- function(X_train, y_train, X_test, print=FALSE) {
 # GEFCOM14 Benchmark forecast : predict for all quantiles (1% up to 99%) the
 # power generation value of last year at exactly the same date
 # Therefore train has to comprise the one year past of test
-benchmark <- function(X_train, y_train, X_test, print=FALSE) {
+benchmark <- function(X_train, y_train, X_test, print=FALSE, version = 0,
+                      variableVersion = 0) {
   if (print) {
     outputForecastingMethod("benchmark forecast", "None",
                             c("Issue", "for", "every", "timestamp", "the",
@@ -175,5 +181,4 @@ benchmark <- function(X_train, y_train, X_test, print=FALSE) {
 
 #evaluation(trivialForecast, pinBallLoss, "empirical quantiles")
 #evaluation(benchmark, pinBallLoss, "benchmark")
-evaluation(idrOnAll_V1, pinBallLoss, "idr_all_v1")
-#evaluation(idrOnHour_V1, pinBallLoss, "idr_hour_v1")
+evaluation(unleashIDR, pinBallLoss, "IDR", 1, 5)
