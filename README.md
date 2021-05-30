@@ -5,7 +5,7 @@ Isontonic Distributional Regression (IDR) is a nonparametric forecasting techniq
 order to predict the conditional distribution of the response variable.
 
 The Global Energy Forecasting Competition 2014 (GEFCom14) was an international forecasting competition demanding from its participants to predict
-the {1,2,3,...,99}% quantiles of energy load and price and solar and wind power production in specific scenarios.
+the {1,2,3,...,99}% quantiles of energy load and price and solar and wind power production in specific scenarios and providing data.
 
 References
 
