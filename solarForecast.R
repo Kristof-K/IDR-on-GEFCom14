@@ -33,7 +33,8 @@ evaluation <- function(predictionfct, scoringfct, name, version = 0,
   # use the print functionality in order to get some explaining text
   predictionfct(NA, NA, NA, version, variableVersion, print=TRUE)
   scoringfct(NA, NA, print=TRUE)
-
+  # saving timestamp
+  start_ts <- now()
   # list containing for every task data.frames with timestamps, zones and scores
   scoreList <- list()
   averageScores <- rep(0, length(TASKS))
@@ -87,10 +88,12 @@ evaluation <- function(predictionfct, scoringfct, name, version = 0,
   finalScore <- mean(as.numeric(results[1, FIRST_EVAL_TASK:length(TASKS)]))
   cat("\n[AVERAGED SCORE]:", finalScore, "\n")
 
+  end_ts <- now()
+  duration <- as.numeric(difftime(end_ts, start_ts, unit="mins"))
   # Lastly save the results in log file by extending previous results
   results <- cbind(X = 0, Name = name, Version = version,
                    VariableVersion = variableVersion, results,
-                   Mean = finalScore)
+                   Mean_A = finalScore, Minutes=duration)
   rownames(results)[1] <- 1
   if (file.exists(SOLAR_CSV)) {
     previous <- read.csv2(SOLAR_CSV)
@@ -181,4 +184,7 @@ benchmark <- function(X_train, y_train, X_test, print=FALSE, version = 0,
 
 #evaluation(trivialForecast, pinBallLoss, "empirical quantiles")
 #evaluation(benchmark, pinBallLoss, "benchmark")
-evaluation(unleashIDR, pinBallLoss, "IDR", 1, 5)
+#evaluation(unleashIDR, pinBallLoss, "IDR", 1, 1)
+#evaluation(unleashIDR, pinBallLoss, "IDR", 1, 2)
+evaluation(unleashIDR, pinBallLoss, "IDR", 2, 3)
+#evaluation(unleashIDR, pinBallLoss, "IDR", 2, 4)
