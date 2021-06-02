@@ -27,7 +27,7 @@ idrOnHour <- function(X_train, y_train, X_test, groups, orders) {
     }
     trainByHour <- subset(train, indices, select=c(-TIMESTAMP, -POWER))
     idr_models[[h]] <- idr(y = y, X = trainByHour,  groups = groups,
-                           orders = orders)
+                           orders = orders, progress = FALSE)
   }
   # reduce timestamps in X_test to hours
   X_test$TIMESTAMP <- hour(X_test$TIMESTAMP)
@@ -51,6 +51,8 @@ idrOnHour <- function(X_train, y_train, X_test, groups, orders) {
 }
 
 # wrapper and help functions ===================================================
+
+# sun ray variables deaccumulate
 
 # current idr versions
 # 1 IDR on all data
@@ -87,6 +89,8 @@ unleashIDR <- function(X_train, y_train, X_test, version, variableVersion,
   # get variable list that is used and signs of that variables
   vars <- getAttr("VAR", variableVersion)
   signs <- getAttr("SGN", variableVersion)
+  groups <- setNames(rep(1, length(vars)), vars)
+  orders <- c("comp" = 1)
   # if version needs timestamps extend variable list by timestamps
   if (getAttr("NTS", version)) {
     vars <- c("TIMESTAMP", vars)
@@ -100,8 +104,6 @@ unleashIDR <- function(X_train, y_train, X_test, version, variableVersion,
                             getAttr("DES", version))
     return("")
   }
-  groups <- setNames(rep(1, length(vars)), vars)
-  orders <- c("comp" = 1)
 
   # take care about signs => -1 means change sign of covariates
   X_train[vars[signs == -1]] <- (-1) * X_train[vars[signs == -1]]

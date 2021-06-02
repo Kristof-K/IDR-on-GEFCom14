@@ -43,38 +43,31 @@ evaluation <- function(predictionfct, scoringfct, name, version = 0,
     data <- loadSolar(task)   # read data
     # task was to predict the next 24 hours one month long
     lastTrainTS <- data$LastTrain_TS
-    lastTestTS <- lastTrainTS
-    day(lastTestTS) <- day(lastTestTS) + 1  # Test period comprises 24 hours
-    currentMonth <- month(lastTrainTS)      # and task comprises one month
+
     # data.frame for all results and vector for average results
     saveScores <- data.frame()
-    # last timestamp we have to predict is hour zero in the new month
-    while (month(lastTrainTS) == currentMonth) {
-      z <- 1
-      for (zone in SOLAR_ZONES) {
-        current <- data[[zone]]  # restrict focus to one zone each iteration
-        i_train <- (current$TIMESTAMP <= lastTrainTS)
-        i_test <- (current$TIMESTAMP > lastTrainTS &
-          current$TIMESTAMP <= lastTestTS)
-        # get true observations (y) and train and test covariates, response var
-        y <- subset(current, i_test)[["POWER"]]
-        y_train <- subset(current, i_train)[["POWER"]]
-        X_train <- subset(current, i_train, select=-POWER)
-        X_test <- subset(current, i_test, select=-POWER)
-        times <- subset(current, i_test, select=TIMESTAMP)
-        # conduct prediction
-        prediction <- predictionfct(X_train, y_train, X_test, version,
-                                    variableVersion)
-        # conduct scoring
-        scores <- scoringfct(prediction, y)
-        # get them into a data.frame and add to previous scores
-        newScores <- data.frame(TIMESTAMP=times, ZONE=z, SCORE=scores)
-        saveScores <- rbind(saveScores, newScores)
-        z <- z+1
-      }
-      # move scope to next day
-      lastTrainTS <- lastTestTS
-      day(lastTestTS) <- day(lastTestTS) + 1
+    z <- 1
+    for (zone in SOLAR_ZONES) {
+      current <- data[[zone]]  # restrict focus to one zone each iteration
+      lastTestTS <- current$TIMESTAMP[length(current$TIMESTAMP)]
+      i_train <- (current$TIMESTAMP <= lastTrainTS)
+      i_test <- (current$TIMESTAMP > lastTrainTS &
+                 current$TIMESTAMP <= lastTestTS)
+      # get true observations (y) and train and test covariates, response var
+      y <- subset(current, i_test)[["POWER"]]
+      y_train <- subset(current, i_train)[["POWER"]]
+      X_train <- subset(current, i_train, select=-POWER)
+      X_test <- subset(current, i_test, select=-POWER)
+      times <- subset(current, i_test, select=TIMESTAMP)
+      # conduct prediction
+      prediction <- predictionfct(X_train, y_train, X_test, version,
+                                  variableVersion)
+      # conduct scoring
+      scores <- scoringfct(prediction, y)
+      # get them into a data.frame and add to previous scores
+      newScores <- data.frame(TIMESTAMP=times, ZONE=z, SCORE=scores)
+      saveScores <- rbind(saveScores, newScores)
+      z <- z+1
     }
     # save scores and calc average score
     scoreList[[paste0("Task", task)]] <- saveScores
@@ -163,7 +156,8 @@ benchmark <- function(X_train, y_train, X_test, print=FALSE, version = 0,
     outputForecastingMethod("benchmark forecast", "None",
                             c("Issue", "for", "every", "timestamp", "the",
                               "power", "production", "of", "last", "year",
-                              "ago", "as", "all", "quantiles"))
+                              "ago", "as", "all", "quantiles", "(point-measure",
+                            "on", "value", "last", "year", "ago"))
     return("")
   }
   forecast_in <- X_test$TIMESTAMP
@@ -186,5 +180,7 @@ benchmark <- function(X_train, y_train, X_test, print=FALSE, version = 0,
 #evaluation(benchmark, pinBallLoss, "benchmark")
 #evaluation(unleashIDR, pinBallLoss, "IDR", 1, 1)
 #evaluation(unleashIDR, pinBallLoss, "IDR", 1, 2)
-evaluation(unleashIDR, pinBallLoss, "IDR", 2, 3)
+#evaluation(unleashIDR, pinBallLoss, "IDR", 2, 1)
+#evaluation(unleashIDR, pinBallLoss, "IDR", 2, 2)
+#evaluation(unleashIDR, pinBallLoss, "IDR", 2, 3)
 #evaluation(unleashIDR, pinBallLoss, "IDR", 2, 4)
