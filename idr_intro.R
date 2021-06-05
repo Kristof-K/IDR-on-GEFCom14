@@ -82,16 +82,23 @@ plot(predict(fit1, data=data.frame(X=2)), main="P(Y | X = 2)")
 
 
 
-# Create long data frame containing with columns X, value, cdfs, color
-# listing jumping points of a cdf belonging to a prediction in pred
-get_pred_df <- function(fit, pred, pred_points, x_min, x_max) {
-  predictions <- predict(fit, data=data.frame(X=pred))
+# Create long data frame containing columns X, value, cdfs, color, in which
+# jumps of a cdf belonging to one value in pred are listed
+# groups assigns every cdf a unique name and color contains for every group
+# the prediction value, which can be used to color every cdf
+get_pred_df <- function(fit, val) {
+  cdf_names <- paste0("cdf", 1:length(val))
+  m <- length(fit$thresholds)
+  x_left <- fit$thresholds[1] - 0.15 * (fit$thresholds[m] - fit$thresholds[1])
+  x_right <- fit$thresholds[m] + 0.15 * (fit$thresholds[m] - fit$thresholds[1])
+
+  predictions <- predict(fit, data=data.frame(X=val))
   pred_cdfs <- data.frame()
    # fill data.frame by iterating through the predictions
-   for (j in 1:length(pred)) {
-     new_cdf <- data.frame(X=c(x_min, predictions[[j]][["points"]], x_max),
+   for (j in 1:length(val)) {
+     new_cdf <- data.frame(X=c(x_left, predictions[[j]][["points"]], x_right),
                            value=c(0, predictions[[j]][["cdf"]], 1),
-                           cdfs=pred_points[j], color=pred[j])
+                           cdfs=cdf_names[j], color=val[j])
      pred_cdfs <- rbind(pred_cdfs, new_cdf)
    }
   return(pred_cdfs)
@@ -102,51 +109,36 @@ get_pred_df <- function(fit, pred, pred_points, x_min, x_max) {
 # added.
 # if print_all equals False only predicted cdfs are drawn
 visualizeIDR <- function(x, y, pred=numeric(0), print_all=TRUE) {
-  points <- paste0("p", 1:length(y))
-
+  # apply IDR
   fit <- idr(y=y, X=data.frame(X=x))
-  cdfs <- cbind(0, fit$cdf, 1)
-  rownames(cdfs) <- points
 
-  pointcloud <- data.frame(x=x, y=y, p=points) %>%
+  pointcloud <- data.frame(x=x, y=y, p=paste0("p", 1:length(y))) %>%
     ggplot(mapping = aes(x=x, y=y, group=p, color=x)) +
       geom_point(show.legend = FALSE) +
       labs(title = "point cloud")
 
-  m <- length(fit$thresholds)
-  x_min <- fit$thresholds[1] - 0.15 * (fit$thresholds[m] - fit$thresholds[1])
-  x_max <- fit$thresholds[m] + 0.15 * (fit$thresholds[m] - fit$thresholds[1])
-
   if (print_all) {
-    cdfs_plot <- data.frame(t(cdfs)) %>%
-      mutate(X = c(x_min, fit$thresholds, x_max)) %>%
-      pivot_longer(cols = -X, names_to = "cdfs") %>%
-      mutate(color = x[strtoi(str_replace(cdfs, "p", ""))]) %>%
-      ggplot(mapping = aes(x=X, y=value, group=cdfs, color=color)) +
-        geom_step(show.legend = FALSE) +
-        labs(title = "CDFs") +
-        ylab("") +
-        xlab("")
+    # plot all estimated conditional cdfs (predict on training data x!)
+    cdfs_plot <- ggplot(mapping = aes(x=X, y=value, group=cdfs, color=color)) +
+                  geom_step(data = get_pred_df(fit, x), show.legend = FALSE)
   } else {
     cdfs_plot <- ggplot(mapping = aes(x=X, y=value, group=cdfs, color=color))
   }
+  # add title and remove labels
+  cdfs_plot <- cdfs_plot + labs(title = "CDFs") + ylab("") + xlab("")
 
   # if there are predictions, draw them also in the graphs
   s <- length(pred)
   if (s > 0) {
-    y_max <- max(y)
-    y_min <- min(y)
-
-    pred_points <- paste0("p", length(y)+1:s)
     # extend points clouds by dashed vertical lines
-    vert_lines <- data.frame(x=rep(pred, each=2), y=rep(c(y_min, y_max), s),
-                          p=rep(pred_points, each=2))
+    vert_lines <- data.frame(x=rep(pred, each=2), y=rep(c(min(y), max(y)), s),
+                          p=rep(paste0("l", 1:s), each=2))
     pointcloud <- pointcloud +
       geom_line(data=vert_lines, show.legend=FALSE, linetype = "dashed")
-    # draw predicted cdfs to the cdf graph
-    pred_cdfs <- get_pred_df(fit, pred, pred_points, x_min, x_max)
+    # add predicted cdfs to the cdf graph
     cdfs_plot <- cdfs_plot +
-      geom_step(data=pred_cdfs, linetype = "dashed", show.legend = FALSE)
+      geom_step(data=get_pred_df(fit, pred), linetype = "dashed",
+                show.legend = FALSE)
   }
   # now draw plots in one grid
   grid.arrange(pointcloud, cdfs_plot, ncol=2)
@@ -165,17 +157,104 @@ visualizeIDR(x=c(1,2), y=c(1,2), pred=c(0.8, 2.2))
 visualizeIDR(x=c(1,2), y=c(2,1))
 
 
-# And now a more complex example (from the simulation study in the IDR paper)
+
+# And now a more complex example (from the simulation study in the IDR paper) --
 
 n <- 600
 X <- runif(n, 0, 10)     # X ~ U(0, 10)
 Y <- rgamma(n, sqrt(X), scale=pmin(pmax(1, X), 6))
+
+# look at data
+ggplot(data = data.frame(X=X, Y=Y)) +
+  geom_point(mapping = aes(x=X, y=Y))
 
 # check stochastic dominance
 grid <- seq(0, 40, 0.1)
 plot_stochDom(X=grid , F=pgamma(grid, sqrt(2), scale=2),
               G=pgamma(grid, sqrt(4), scale = 4))
 
+# apply IDR
 visualizeIDR(x=X, y=Y)
-
+# make some predictions
 visualizeIDR(x=X, y=Y, pred=c(0.5, 3, 5, 7, 9.5), print_all=FALSE)
+
+
+
+# compare IDR CDFs with true CDFs ----------------------------------------------
+groups <- c(X = 1)
+orders <- c("comp" = 1)
+fit <- idr(y=Y, X=data.frame(X=X), groups, orders)
+predict_val <- c(0.5, 3, 5, 7, 9.5)
+idr_cdfs <- get_pred_df(fit, val=predict_val)
+
+# determine true CDFs
+true_cdfs <- data.frame()
+grid <- seq(min(Y)-0.15*(max(Y)-min(Y)), max(Y)+0.15*(max(Y)-min(Y)), 0.1)
+for(t in predict_val) {
+  gamma_dist <- data.frame(X=grid, value=pgamma(grid, sqrt(t),
+                                                  scale=min(max(1,t),6)),
+                           cdfs=paste0("cdf",t), color=t)
+  true_cdfs <- rbind(true_cdfs, gamma_dist)
+}
+
+ggplot(mapping = aes(x=X, y=value, group=cdfs, color=color)) +
+  geom_step(data=idr_cdfs, linetype = "dashed", show.legend = FALSE) +
+  geom_line(data=true_cdfs)
+
+
+
+# Extract mean and some quantiles ----------------------------------------------
+
+predictions <- predict(fit, data=data.frame(X=X))
+q <- c(0.1, 0.3, 0.5, 0.7, 0.9)
+
+quantiles <- qpred(predictions, quantiles = q)
+
+calc_expectation <- function(step_cdf) {
+  # substract current height from previous height = jump height
+  jumps <- step_cdf[["cdf"]] - lag(step_cdf[["cdf"]], default=0)
+  return(sum(step_cdf[["points"]] * jumps))
+}
+
+expectations <- sapply(predictions, calc_expectation)
+
+features <- data.frame(cbind(quantiles, expectations, X))
+colnames(features) <- c(paste0("q_", q), "E", "X")
+
+pivot_longer(features, cols = -X, names_to = "feature") %>%
+  ggplot(mapping = aes(x=X, y=value, color=feature)) +
+    geom_step() +
+    geom_point(data = data.frame(X=X, value=Y), color="black")
+
+
+
+# Extract all quantiles --------------------------------------------------------
+
+d <- 0.01
+q <- seq(d, 1-d, d)
+
+quantiles <- qpred(predictions, quantiles = q)
+colnames(quantiles) <- paste0("q", q)
+
+data.frame(quantiles) %>% mutate(X=X) %>%
+  pivot_longer(cols = -X, names_to = "Quantile") %>%
+  mutate(strength = as.double(str_replace(Quantile, "q", ""))) %>%
+  mutate(strength = 1 * (1 - strength) * strength) %>%
+  ggplot(mapping = aes(x=X, y=value)) +
+    geom_step(mapping = aes(group=Quantile, alpha=strength), color="red",
+         show.legend=FALSE) +
+    geom_point(data=data.frame(X=X, value=Y), color="black")
+
+
+
+
+
+
+
+# test get_pred_df =============================================================
+plot(predict(fit, data=data.frame(X=0)))
+df <- get_pred_df(fit, 0)
+n <- nrow(df)
+y_vals <- c(rep(df$value[c(-n, -(n-1))], each=2), df$value[c(n-1, n-1)])
+x_vals <- c(df$X[1], rep(df$X[c(-1, -n)], each=2), df$X[n])
+lines(x_vals, y_vals, type="l", col="red")
