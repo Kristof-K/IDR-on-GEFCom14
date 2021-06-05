@@ -2,6 +2,8 @@ library(dplyr)
 library(tidyr)        # for pivot_longer
 library(ggplot2)
 library(gridExtra)    # for multiple plots
+
+
 #
 # IDR is a non-parametric distributional regression technique
 #
@@ -37,19 +39,26 @@ library(gridExtra)    # for multiple plots
 #   - right: stochastic dominance:
 #       F <= G :<=> F(x) >= G(x) for all x in IR
 
+
+
 X <- seq(-4, 4, 0.1)
 F <- pnorm(X, mean = -1, sd = 1)
 G <- pnorm(X, mean = 1, sd = 1)
 
 
-data.frame(X=X, F=F, G=G) %>% pivot_longer(cols=-X, names_to="CDF") %>%
-  ggplot() +
-    geom_line(mapping = aes(x=X, y=value, color=CDF), show.legend = FALSE) +
-    scale_color_manual(values = c("orange", "skyblue")) +
-    annotate("text", x = -1.5, y = 0.75, label = "F ~ N(-1, 1)",
-             color = "orange", size = 10) +
-    annotate("text", x = 1.5, y = 0.25, label = "G ~ N(1, 1)",
-             color = "skyblue", size = 10)
+plot_stochDom <- function(X, F, G, F_lab="F", G_lab="G") {
+  data.frame(X=X, F=F, G=G) %>% pivot_longer(cols=-X, names_to="CDF") %>%
+    ggplot() +
+      geom_line(mapping = aes(x=X, y=value, color=CDF), show.legend = FALSE) +
+      scale_color_manual(values = c("orange", "skyblue")) +
+      annotate("text", x = -1.5, y = 0.75, label = F_lab,
+              color = "orange", size = 10) +
+      annotate("text", x = 1.5, y = 0.25, label = G_lab,
+              color = "skyblue", size = 10) +
+      labs(title = "Stochastic dominance")
+}
+
+plot_stochDom(X, F, G, "F ~ N(-1, 1)", "G ~ N(1, 1)")
 
 # load IDR package
 library(isodistrreg)
@@ -65,23 +74,27 @@ fit1
 names(fit1)
 fit1$thresholds
 fit1$cdf
-plot(predict(fit1, data.frame(X=1)))
 
-visualizeIDR(c(1,2), c(1,2))
-visualizeIDR(c(1,2), c(2,1))
+predict(fit1)
+
+plot(predict(fit1, data=data.frame(X=1)), main="P(Y | X = 1)")
+plot(predict(fit1, data=data.frame(X=2)), main="P(Y | X = 2)")
 
 
-visualizeIDR <- function(X, y) {
-  n <- length(y)
-  points <- paste0("p", 1:n)
+
+# Method visualizing point cloud and estimated conditional distribution fct.
+# Additionally via pred predicted conditdional distribution fct.s can also be
+# added
+visualizeIDR <- function(X, y, pred=numeric(0)) {
+  points <- paste0("p", 1:length(y))
 
   fit <- idr(y=y, X=data.frame(X=X))
   cdfs <- cbind(0, fit$cdf, 1)
   rownames(cdfs) <- points
 
   pointcloud <- data.frame(x=X, y=y, p=points) %>%
-    ggplot() +
-      geom_point(mapping = aes(x=x, y=y, color=p), show.legend = FALSE) +
+    ggplot(mapping = aes(x=x, y=y, color=p)) +
+      geom_point(show.legend = FALSE) +
       labs(title = "point cloud")
 
   m <- length(fit$thresholds)
@@ -91,11 +104,66 @@ visualizeIDR <- function(X, y) {
   cdfs_plot <- data.frame(t(cdfs)) %>%
     mutate(X = c(x_min, fit$thresholds, x_max)) %>%
     pivot_longer(cols = -X, names_to = "cdfs") %>%
-    ggplot() +
-      geom_step(mapping = aes(x=X, y=value, color=cdfs), show.legend = FALSE) +
+    ggplot(mapping = aes(x=X, y=value, color=cdfs)) +
+      geom_step(show.legend = FALSE) +
       labs(title = "CDFs") +
       ylab("") +
       xlab("")
 
+  # if there are predictions, draw them also in the graphs
+  s <- length(pred)
+  if (s > 0) {
+    y_max <- max(y)
+    y_min <- min(y)
+
+    pred_points <- paste0("p", length(y)+1:s)
+    # extend points clouds by dashed vertical lines
+    vert_lines <- data.frame(x=rep(pred, each=2), y=rep(c(y_min, y_max), s),
+                          p=rep(pred_points, each=2))
+    pointcloud <- pointcloud +
+      geom_line(data=vert_lines, show.legend=FALSE, linetype = "dashed")
+    # draw predicted cdfs to the cdf graph
+    predictions <- predict(fit, data=data.frame(X=pred))
+    pred_cdfs <- data.frame()
+    # fill data.frame by iterating through the predictions
+    for (j in 1:s) {
+      new_cdf <- data.frame(X=c(x_min, predictions[[j]][["points"]], x_max),
+                            value=c(0, predictions[[j]][["cdf"]], 1),
+                            cdfs=pred_points[j])
+      pred_cdfs <- rbind(pred_cdfs, new_cdf)
+    }
+    cdfs_plot <- cdfs_plot +
+      geom_step(data=pred_cdfs, linetype = "dashed", show.legend = FALSE)
+  }
+  # now draw plots in one grid
   grid.arrange(pointcloud, cdfs_plot, ncol=2)
 }
+
+
+visualizeIDR(X=c(1,2), y=c(1,2))
+
+# And what is with prediction
+visualizeIDR(X=c(1,2), y=c(1,2), pred=1.5)
+# ~ interpolation
+visualizeIDR(X=c(1,2), y=c(1,2), pred=c(1.2, 1.8))
+# ~ extrapolation
+visualizeIDR(X=c(1,2), y=c(1,2), pred=c(0.8, 2.2))
+
+# Role of isotonicity
+visualizeIDR(X=c(1,2), y=c(2,1))
+
+
+# And now a more complex example (from the simulation study in the IDR paper)
+
+n <- 600
+X <- runif(n, 0, 10)     # X ~ U(0, 10)
+Y <- rgamma(n, sqrt(X), scale=pmin(pmax(1, X), 6))
+
+# check stochastic dominance
+grid <- seq(0, 40, 0.1)
+plot_stochDom(X=grid , F=pgamma(grid, sqrt(2), scale=2),
+              G=pgamma(grid, sqrt(4), scale = 4))
+
+
+
+visualizeIDR(X=X, y=Y)
