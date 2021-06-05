@@ -1,4 +1,8 @@
-library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tidyr)      # for pivot_longer
+library(stringr)    # for string manipulations
+library(lubridate)  # for working with dates
 
 variableNames <- c("VAR78" = "liquid water",
                    "VAR79" = "Ice water", 
