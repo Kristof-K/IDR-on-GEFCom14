@@ -1,8 +1,7 @@
 library(dplyr)
-library(tidyr)        # for pivot_longer
 library(ggplot2)
+library(tidyr)        # for pivot_longer
 library(gridExtra)    # for multiple plots
-library(stringr)      # to manipulate strings
 
 #
 # IDR is a non-parametric distributional regression technique
@@ -31,9 +30,9 @@ library(stringr)      # to manipulate strings
 # -> we assume that there is a isotonic relationship between the explanatory
 #    variables and the conditional distribution of Y, namely:
 #
-#  (x_1,...,x_k) <= (z_1,...,z_k) => P(Y | X_1=x_1,...X_k=x_k) <= P(Y | X_1=z_1,...X_k=z_k)
+#  (x_1,...,x_k) <= (z_1,...,z_k) => P(Y|X_1=x_1,...X_k=x_k) <= P(Y|X_1=z_1,...X_k=z_k)
 #
-#   What are these inequalities?
+#   What are these inequalities? <- partial orders
 #   - left: e.g. component-wise order:
 #      (x_1,...,x_k) <= (z_1,...,z_k) :<=> x_1 <= z_1, ..., x_k <= z_k
 #   - right: stochastic dominance:
@@ -75,12 +74,11 @@ names(fit1)
 fit1$thresholds
 fit1$cdf
 
-predict(fit1)
-
+# predict on training data = get estimated CDFs
 plot(predict(fit1, data=data.frame(X=1)), main="P(Y | X = 1)")
 plot(predict(fit1, data=data.frame(X=2)), main="P(Y | X = 2)")
-
-
+# predict out of training sample = real prediction
+predict(fit1, data=data.frame(X=0.5))
 
 # Create long data frame containing columns X, value, cdfs, color, in which
 # jumps of a cdf belonging to one value in pred are listed
@@ -164,14 +162,14 @@ n <- 600
 X <- runif(n, 0, 10)     # X ~ U(0, 10)
 Y <- rgamma(n, sqrt(X), scale=pmin(pmax(1, X), 6))
 
-# look at data
-ggplot(data = data.frame(X=X, Y=Y)) +
-  geom_point(mapping = aes(x=X, y=Y))
-
 # check stochastic dominance
 grid <- seq(0, 40, 0.1)
 plot_stochDom(X=grid , F=pgamma(grid, sqrt(2), scale=2),
               G=pgamma(grid, sqrt(4), scale = 4))
+
+# look at data
+ggplot(data = data.frame(X=X, Y=Y)) +
+  geom_point(mapping = aes(x=X, y=Y))
 
 # apply IDR
 visualizeIDR(x=X, y=Y)
@@ -199,7 +197,8 @@ for(t in predict_val) {
 
 ggplot(mapping = aes(x=X, y=value, group=cdfs, color=color)) +
   geom_step(data=idr_cdfs, linetype = "dashed", show.legend = FALSE) +
-  geom_line(data=true_cdfs)
+  geom_line(data=true_cdfs) +
+  ggtitle(label = "true cdf (solid,continuous) vs. predicted cdf (dashed,step)")
 
 
 
@@ -223,18 +222,40 @@ colnames(features) <- c(paste0("q_", q), "E", "X")
 
 pivot_longer(features, cols = -X, names_to = "feature") %>%
   ggplot(mapping = aes(x=X, y=value, color=feature)) +
-    geom_step() +
-    geom_point(data = data.frame(X=X, value=Y), color="black")
+    geom_step(size=2) +
+    geom_point(data = data.frame(X=X, value=Y), color="black") +
+    ggtitle(label = "point cloud and estimated expectation and quantiles")
 
 
 
 # Extract all quantiles --------------------------------------------------------
 
-d <- 0.01
+d <- 0.05
 q <- seq(d, 1-d, d)
 
 quantiles <- qpred(predictions, quantiles = q)
-colnames(quantiles) <- paste0("q", q)
+colnames(quantiles) <- c(paste0("l", (0.49/d):1), "m", paste0("u", 1:(0.49/d)))
+
+lower <- data.frame(quantiles) %>% select(starts_with("l")) %>%
+  mutate(X=X) %>% pivot_longer(cols = -X, names_to = "Q") %>% arrange(Q, X)
+data.frame(quantiles) %>% select(starts_with("u")) %>%
+  mutate(X=X) %>%
+  pivot_longer(cols=-X, names_to="Q", names_prefix="u", values_to="upper") %>%
+  arrange(Q, X) %>% mutate(lower=lower$value) %>%
+  ggplot(mapping = aes(x=X)) +
+    geom_ribbon(mapping = aes(ymin=lower, ymax=upper, group=Q),
+                alpha=d*5, fill="red", show.legend=FALSE) +
+    geom_point(data=data.frame(X=X, Y=Y), mapping = aes(y=Y), color = "black") +
+    ggtitle(label = "point cloud and estimated quantile areas")
+
+
+cat("Fertig")
+
+
+
+
+# old quantile plot ============================================================
+library(stringr)      # to manipulate strings
 
 data.frame(quantiles) %>% mutate(X=X) %>%
   pivot_longer(cols = -X, names_to = "Quantile") %>%
@@ -244,12 +265,6 @@ data.frame(quantiles) %>% mutate(X=X) %>%
     geom_step(mapping = aes(group=Quantile, alpha=strength), color="red",
          show.legend=FALSE) +
     geom_point(data=data.frame(X=X, value=Y), color="black")
-
-
-
-
-
-
 
 # test get_pred_df =============================================================
 plot(predict(fit, data=data.frame(X=0)))
