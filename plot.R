@@ -206,12 +206,11 @@ scatterSingle <- function(list, categories, zone, min, max, name, append="",
 # - end : last timestamp, up to what time we should plot
 # - zone : current zone for naming the plot
 plotAgainstTime <- function(data, start, end, zone) {
-  png(file=paste0("plots/TimeSeries_", zone, ".png"), width=1600, height=900)
-  plotTimeSeries(data, start, end)
-  dev.off()
+  plotTimeSeries(data, start, end,
+                 name=paste0("TimeSeries_", zone, ".png"))
 }
 
-plotTimeSeries <- function(data, start, end) {
+plotTimeSeries <- function(data, start, end, name) {
   # restrict data to timestamps of interest
   plotData <- filter(data, TIMESTAMP %within% interval(start, end))
   # get timestamps and replace them in the data frame with the values 1,...,n
@@ -246,7 +245,6 @@ plotTimeSeries <- function(data, start, end) {
   ggplot(data = plotData, mapping = aes(x = X, y = value)) +
     geom_line(mapping = aes(color = POWER)) +
     scale_x_continuous(breaks = ticks, labels = labels, name = "") +
-    facet_wrap(~ VAR)
+    facet_wrap(~ VAR) +
+    ggsave(name, path="plots/")
 }
-
-# we neeed for evey VARXXX another dummy specifying variable or target
