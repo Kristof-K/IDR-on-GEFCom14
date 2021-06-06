@@ -1,5 +1,7 @@
 library(isodistrreg)
 
+source("preprocess.R")
+
 # core functions ===============================================================
 
 # Version1 : Apply idr on the whole data set
@@ -50,9 +52,7 @@ idrOnHour <- function(X_train, y_train, X_test, groups, orders) {
   return(t(joinedForecast))
 }
 
-# wrapper and help functions ===================================================
-
-# sun ray variables deaccumulate
+# IDR variants and variable combinations =======================================
 
 # current idr versions
 # 1 IDR on all data
@@ -62,53 +62,101 @@ idrOnHour <- function(X_train, y_train, X_test, groups, orders) {
 # * IDR on every hour all zones at once
 # * IDR subbagging
 # * IDR other orders
-getAttr <- function(element, version) {
-  # attributes belonging to variable selection version
-  varCombis <- list(c("VAR169"), c("VAR178"), c("VAR169", "VAR178"),
-                   c("VAR169", "VAR178", "VAR167"),
-                   c("VAR169", "VAR178", "VAR167", "VAR157"))
-  # define whether variable (for positive correlation) or -1 * variable (for
-  # negative correlation) is used
-  sign <- list(1, 1, c(1, 1), c(1, 1, 1), c(1, 1, 1, -1))
-  # attributes belonging to idr application versions
-  titles <- list(c("IDR on all"), c("IDR on hour"))
-  desrciptions <- list(c("Apply", "IDR", "on", "the", "whole", "training",
-                                     "set"),
-                      c("Group", "training", "set", "by", "hour", "and",
-                        "apply", "IDR", "on", "every", "group", "separately"))
-  needTimeStamps <- list(FALSE, TRUE)
-  functions <- list(idrOnAll, idrOnHour)
-  attributes <- list(VAR = varCombis, TIT = titles, DES = desrciptions,
-                     FUN = functions, NTS = needTimeStamps, SGN = sign)
-  return(attributes[[element]][[version]])
+
+# IDR variants:
+# FUN : idr core method
+# TIT : title
+# NTS : need time stamps columns
+# PBZ : predict by zone -> don't add zone column
+
+IDR_ON_ALL <- list(FUN = idrOnAll, TIT = "General IDR",
+                   DES = c("Apply","IDR","on","the","whole","training","set"),
+                   NTS = FALSE, PBZ = TRUE)
+IDR_BY_HOUR <- list(FUN = idrOnHour, TIT = "Hourly IDR",
+                    DES = c("Group","training","set","by","hour","and","apply",
+                            "IDR","on","every","group","separately"),
+                    NTS = TRUE, PBZ = TRUE)
+
+# Variable selections
+# VAR : list of variables that are used
+# SGN : with which sign are the variables used
+#       (1 for positive relation, -1 for negative)
+
+SUN_1 <- list(VAR = "VAR169", SGN = 1)
+SUN_2 <- list(VAR = "VAR178", SGN = 1)
+SUN_BOTH <- list(VAR = c("VAR169", "VAR178"), SGN = c(1, 1))
+SUN_T <- list(VAR = c("VAR169", "VAR178", "VAR167"), SGN = c(1, 1, 1))
+SUN_T_H <- list(VAR = c("VAR169", "VAR178", "VAR167", "VAR157"),
+                SGN = c(1, 1, 1, -1))
+
+# Preprocess methods
+NO_PR <- list(FUN = no_preprocessing, TIT = "None")
+
+# ID is a tripel, first element identifying the idr variant, second the
+# variable selection, third number defining preprocess method
+
+getVariant <- function(id) {
+  return(switch(id[1], IDR_ON_ALL, IDR_BY_HOUR))
 }
 
+getVariableSelection <- function(id) {
+  return(switch(id[2], SUN_1, SUN_2, SUN_BOTH, SUN_T, SUN_T_H))
+}
 
-unleashIDR <- function(X_train, y_train, X_test, version, variableVersion,
-                print=FALSE) {
+getPreprocessing <- function(id) {
+  return(switch(id[3], NO_PR))
+}
+
+getVariantName <- function(id) {
+  return(getVariant(id)$TIT)
+}
+
+getVariablesName <- function(id) {
+  variables <- getVariableSelection(id)
+  return(paste0(variables$VAR, "(", variables$SGN, ") "))
+}
+
+getPreprocessName <- function(id) {
+  return(getPreprocessing(id)$TIT)
+}
+
+# wrapper ======================================================================
+
+unleashIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
+  idr_v <- getVariant(id)
+  variables <- getVariableSelection(id)
+  preprocessing <- getPreprocessing(id)
+  # if init print, then output information and return important information
+  if (init) {
+    outputForecastingMethod(idr_v$TIT, idr_v$DES, getVariablesName(id),
+                            preprocessing$TIT)
+    return(list(TIT=idr_v$TIT, VAR=variables$VAR, PP=preprocessing$TIT,
+                PBZ=idr_v$PBZ))
+  }
   # get variable list that is used and signs of that variables
-  vars <- getAttr("VAR", variableVersion)
-  signs <- getAttr("SGN", variableVersion)
+  vars <- variables$VAR
+  signs <- variables$SGN
+
   groups <- setNames(rep(1, length(vars)), vars)
   orders <- c("comp" = 1)
-  # if version needs timestamps extend variable list by timestamps
-  if (getAttr("NTS", version)) {
+
+  # if version needs timestamps or zones extend variable list by timestamps
+  if (idr_v$NTS) {
     vars <- c("TIMESTAMP", vars)
     signs <- c(1, signs)
   }
-  # if print, then output information and do nothing else
-  if (print) {
-    outputForecastingMethod(getAttr("TIT", version),
-                            paste0(getAttr("VAR", variableVersion), "(",
-                                   getAttr("SGN", variableVersion), ")"),
-                            getAttr("DES", version))
-    return("")
+  if (!idr_v$PBZ) {
+    vars <- c(vars, "ZONE")
+    signs <- c(signs, 1)
   }
 
   # take care about signs => -1 means change sign of covariates
   X_train[vars[signs == -1]] <- (-1) * X_train[vars[signs == -1]]
   X_test[vars[signs == -1]] <- (-1) * X_test[vars[signs == -1]]
+  # apply preprocessing
+  X_train <- preprocessing$FUN(X_train)
+  X_test <- preprocessing$FUN(X_test)
+
   # get IDR method
-  fcn <- getAttr("FUN", version)
-  return(fcn(X_train[vars], y_train, X_test[vars], groups, orders))
+  return(idr_v$FUN(X_train[vars], y_train, X_test[vars], groups, orders))
 }

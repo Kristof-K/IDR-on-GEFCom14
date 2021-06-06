@@ -1,7 +1,7 @@
 # define preprocess methods getting X_train and X_test and applying data
 # transformation on both
 
-no_preprocessing <- function(X_train, X_test) {
-  return(c(X_train, X_test))
+no_preprocessing <- function(X) {
+  return(X)
 }
 
