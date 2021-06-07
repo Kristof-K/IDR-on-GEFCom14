@@ -81,7 +81,7 @@ plot(predict(fit1, data=data.frame(X=2)), main="P(Y | X = 2)")
 predict(fit1, data=data.frame(X=0.5))
 
 # Create long data frame containing columns X, value, cdfs, color, in which
-# jumps of a cdf belonging to one value in pred are listed
+# jumps of a cdf belonging to one value in val are listed
 # groups assigns every cdf a unique name and color contains for every group
 # the prediction value, which can be used to color every cdf
 get_pred_df <- function(fit, val) {
@@ -198,7 +198,8 @@ for(t in predict_val) {
 ggplot(mapping = aes(x=X, y=value, group=cdfs, color=color)) +
   geom_step(data=idr_cdfs, linetype = "dashed", show.legend = FALSE) +
   geom_line(data=true_cdfs) +
-  ggtitle(label = "true cdf (solid,continuous) vs. predicted cdf (dashed,step)")
+  ggtitle(label = paste0("true cdf (solid,continuous) vs. ",
+                         "predicted cdf (dashed,stepfunction)"))
 
 
 
