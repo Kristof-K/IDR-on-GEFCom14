@@ -1,8 +1,5 @@
 #setwd("D:/Studium/Semester6/BachelorArbeit/Code")
 
-library(dplyr)
-library(tidyr)      # for pivot_wider and pivot_longer
-
 library(foreach)    # to parallel central task loop
 library(doParallel)
 
@@ -43,8 +40,6 @@ evaluation <- function(predictionfct, scoringfct, id) {
   info <- predictionfct(NA, NA, NA, id, init=TRUE)
   scoringfct(NA, NA, print=TRUE)
   start_ts <- now()       # saving timestamp
-  # distinguish whether predicitionfct wants all data or data by zone
-  makePred <- if(info$PBZ) predictPerZone else predictAllZones
 
   # since files could be accessed from multiple threads, read it sequentially
   dataList <- foreach(task=TASKS) %do% {
@@ -52,16 +47,65 @@ evaluation <- function(predictionfct, scoringfct, id) {
   }
   # run in parallel through tasks and store results in scoreList
   scoreList <- foreach(task=TASKS,
-                       .packages=c("lubridate", "dplyr", "tidyr")) %dopar% {
+                       .export=c("goParallel", "predAndEval")) %dopar% {
     source("util.R") # source necessary files (thread starts in empty env)
     source("solarIDR.R")
-    saveScores <- makePred(predictionfct, scoringfct, dataList[[task]], id)
-    saveScores
+    saveScores <- goParallel(predictionfct, scoringfct, dataList[[task]], id,
+                             info$PBZ)
+    saveScores      # store result in list
   }
   stopCluster(cl)   # due to parallel programming
   end_ts <- now()
   duration <- as.numeric(difftime(end_ts, start_ts, unit="mins"))
   outputAndLog(scoreList, duration, info)
+}
+
+goParallel <- function(predictionfct, scoringfct, data, id, goByZone) {
+    lastTrainTS <- data$LastTrain_TS
+    saveScores <- data.frame()
+    z <- 1
+    # distinguish whether predicitionfct wants all data or data by zone
+    if (goByZone) {
+      for (zone in SOLAR_ZONES) {
+        newScores <- predAndEval(predictionfct, scoringfct, data[[zone]], id,
+                                 lastTrainTS, zone=z)
+        saveScores <- rbind(saveScores, newScores)
+        z <- z+1
+      }
+    } else {
+      unite_data <- data.frame()
+      for (zone in SOLAR_ZONES) {
+        unite_data <- rbind(unite_data, cbind(data[[zone]], ZONE=z))
+        z <- z+1
+      }
+      saveScores <- predAndEval(predictionfct, scoringfct, unite_data, id,
+                                lastTrainTS)
+    }
+  return(saveScores)
+}
+
+predAndEval <- function(predictionfct, scoringfct, data, id, lastTrainTS,
+                        zone=NA) {
+  lastTestTS <- data$TIMESTAMP[length(data$TIMESTAMP)]
+
+  i_train <- (data$TIMESTAMP <= lastTrainTS)
+  i_test <- (data$TIMESTAMP > lastTrainTS & data$TIMESTAMP <= lastTestTS)
+
+  y <- subset(data, i_test)[["POWER"]]
+  y_train <- subset(data, i_train)[["POWER"]]
+  X_train <- subset(data, i_train, select=-POWER)
+  X_test <- subset(data, i_test, select=-POWER)
+  times <- subset(data, i_test)[["TIMESTAMP"]]
+
+  # conduct prediction
+  prediction <- predictionfct(X_train, y_train, X_test, id)
+  # conduct scoring
+  scores <- scoringfct(prediction, y)
+  if (is.na(zone)) {
+    zone <- X_test$ZONE     # in this case, assume data has already ZONE column
+  }
+  # get them into a data.frame and add to previous scores
+  return(data.frame(TIMESTAMP=times, ZONE=zone, SCORE=scores))
 }
 
 outputAndLog <- function(scoreList, duration, info) {
@@ -72,9 +116,10 @@ outputAndLog <- function(scoreList, duration, info) {
   print(results)
   finalScore <- mean(as.numeric(results[1, FIRST_EVAL_TASK:length(TASKS)]))
   cat("\n[AVERAGED SCORE]:", finalScore, "\n")
+  cat("[TIME]:", duration, "min\n")
 
   # Lastly save the results in log file by extending previous results
-  results <- cbind(X = 0, Name = info$TIT, Vars = info$VAR,
+  results <- cbind(X = 0, Name = info$TIT, Vars = paste(info$VAR, collapse="_"),
                    Preprocess = info$PP, results,
                    Mean_A = finalScore, Minutes=duration)
   rownames(results)[1] <- 1
@@ -88,150 +133,13 @@ outputAndLog <- function(scoreList, duration, info) {
   write.csv2(results[-1], SOLAR_CSV)
 }
 
-predictPerZone <- function(predictionfct, scoringfct, data, id) {
-  lastTrainTS <- data$LastTrain_TS
-  saveScores <- data.frame()
-  z <- 1
-    for (zone in SOLAR_ZONES) {
-      current <- data[[zone]]  # restrict focus to one zone each iteration
-      lastTestTS <- current$TIMESTAMP[length(current$TIMESTAMP)]
-      i_train <- (current$TIMESTAMP <= lastTrainTS)
-      i_test <- (current$TIMESTAMP > lastTrainTS &
-                 current$TIMESTAMP <= lastTestTS)
-      # get true observations (y) and train and test covariates, response var
-      y <- subset(current, i_test)[["POWER"]]
-      y_train <- subset(current, i_train)[["POWER"]]
-      X_train <- subset(current, i_train, select=-POWER)
-      X_test <- subset(current, i_test, select=-POWER)
-      times <- subset(current, i_test)[["TIMESTAMP"]]
-      # conduct prediction
-      prediction <- predictionfct(X_train, y_train, X_test, id)
-      # conduct scoring
-      scores <- scoringfct(prediction, y)
-      # get them into a data.frame and add to previous scores
-      newScores <- data.frame(TIMESTAMP=times, ZONE=z, SCORE=scores)
-      saveScores <- rbind(saveScores, newScores)
-      z <- z+1
-    }
-  return(saveScores)
-}
-
-predictAllZones <- function(predictionfct, scoringfct, data, id) {
-  lastTrainTS <- data$LastTrain_TS
-  # assume data.frames for different zones have same length
-  lastTestTS <- data[["ZONE1"]]$TIMESTAMP[length(data[["ZONE1"]]$TIMESTAMP)]
-
-  unite_data <- data.frame()
-  z <- 1
-  for (zone in SOLAR_ZONES) {
-    unite_data <- rbind(unite_data, cbind(data[[zone]], ZONE=z))
-    z <- z+1
-  }
-
-  i_train <- (unite_data$TIMESTAMP <= lastTrainTS)
-  i_test <- (unite_data$TIMESTAMP > lastTrainTS &
-    unite_data$TIMESTAMP <= lastTestTS)
-
-  y <- subset(unite_data, i_test)[["POWER"]]
-  y_train <- subset(unite_data, i_train)[["POWER"]]
-  X_train <- subset(unite_data, i_train, select=-POWER)
-  X_test <- subset(unite_data, i_test, select=-POWER)
-  times <- subset(unite_data, i_test)[["TIMESTAMP"]]
-
-  # conduct prediction
-  prediction <- predictionfct(X_train, y_train, X_test, id)
-  # conduct scoring
-  scores <- scoringfct(prediction, y)
-  # get them into a data.frame and add to previous scores
-  saveScores <- data.frame(TIMESTAMP=times, ZONE=X_test$ZONE, SCORE=scores)
-  return(saveScores)
-}
-
-# Method output consistently a specific forecasting method
-# - name : name of the forecasting method
-# - description : short text descripbing the method further (it should be a
-#   vector of words in order to print correctly)
-# - vars : vector of variable nems that are incorporated
-# - preprocess : vecotr of preprocess methods used
-outputForecastingMethod <- function(name, description, vars="", preprocess="") {
-  cat("\n\n=================================================================\n")
-  cat(" ", name,"\n")
-  cat("=================================================================\n")
-  cat(description, "\n", fill = PRINT_WIDTH)
-  cat("[VARIABLES]:", vars, "\n")
-  cat("[PREPROCESSING]:", preprocess, "\n")
-}
-
-# Make a trivial forecast by using the empirical qauntiles of past obervations
-# belonging to the hour for which a forecast is issued
-trivialForecast <- function(X_train, y_train, X_test, id=1, init=FALSE) {
-  PBZ <- (if(id == 1) TRUE else FALSE)
-  if (init) {
-    outputForecastingMethod("trivial forecast",
-                            c("Calculate", "for", "every", "hour", "the",
-                            "empirical", "quantiles", "and", "return", "them",
-                            "irrespective", "of", "any", "variable", "values"))
-    return(list(TIT=paste0("empirical quantiles ", PBZ), VAR="None", PP="None",
-                PBZ=PBZ))
-  }
-  # function: calculate all quantiles and return data.frame
-  getAllQuantiles <- function(x) {
-    return(data.frame(PROBS=QUANTILES, Q=quantile(x, QUANTILES)))
-  }
-  # get for every hour the 99 empirical quantiles which we will use as forecast
-  # pivot_wider transforms the long data table into a wide one
-  quantiles_by_hour <- X_train %>%
-    mutate(Y = y_train, HOUR = hour(TIMESTAMP)) %>%
-    group_by(HOUR) %>% summarise(getAllQuantiles(Y)) %>%
-    pivot_wider(names_from=PROBS, values_from=Q)
-
-  hours <- hour(X_test$TIMESTAMP)
-  # pick the respective forecast
-  getForecast <- function(hour) {
-    # get according to the hour the respective quantiles (one row)
-    predicted_q <- quantiles_by_hour %>% ungroup() %>% filter(HOUR == hour) %>%
-      select(-HOUR) %>% as.numeric()
-    return(predicted_q)
-  }
-  joinedForecast <- sapply(hours, getForecast)
-  # sapply puts outputs of getForecast in columns, but we want them in rows
-  return(t(joinedForecast))
-}
-
-
-# GEFCOM14 Benchmark forecast : predict for all quantiles (1% up to 99%) the
-# power generation value of last year at exactly the same date
-# Therefore train has to comprise the one year past of test
-benchmark <- function(X_train, y_train, X_test, id=1, init=FALSE) {
-  if (init) {
-    outputForecastingMethod("benchmark forecast",
-                            c("Issue", "for", "every", "timestamp", "the",
-                              "power", "production", "of", "last", "year",
-                              "ago", "as", "all", "quantiles", "(point-measure",
-                            "on", "value", "one", "year", "ago)"))
-    return(list(TIT="benchmark", VAR="None", PP="None", PBZ=TRUE))
-  }
-  forecast_in <- X_test$TIMESTAMP
-
-  # predict for all quantiles the one year past power generation
-  getLastYearVal <- function(date) {
-    year(date) <- year(date) - 1
-    power <- X_train %>% mutate(POWER = y_train) %>% filter(TIMESTAMP == date)
-    # it could be that train doesn't contain last year's value, then return NA
-    out <-if(!identical(power$POWER, numeric(0)))  power$POWER  else NA
-    return(rep(out, length(QUANTILES)))
-  }
-
-  joinedForecast <- sapply(forecast_in, getLastYearVal)
-  # sapply puts outputs of getLastYearVal in columns, we want that in rows
-  return(t(joinedForecast))
-}
 
 #evaluation(trivialForecast, pinBallLoss, 2)
-#evaluation(benchmark, pinBallLoss, 1)
+evaluation(benchmark, pinBallLoss, 1)
 #evaluation(unleashIDR, pinBallLoss, c(1, 1, 1))
 #evaluation(unleashIDR, pinBallLoss, c(1, 2, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 1, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 2, 1))
-evaluation(unleashIDR, pinBallLoss, c(2, 3, 1))
+#evaluation(unleashIDR, pinBallLoss, c(2, 3, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 4, 1))
+#evaluation(unleashIDR, pinBallLoss, c(2, 5, 1))
