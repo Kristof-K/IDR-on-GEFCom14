@@ -46,7 +46,7 @@ loadSolar <- function(task) {
   # read all necessary data and transform timestamps into clear format
   # understood from functions in lubridate
   X <- read.table(paste(path, track, predictors, sep=slash), header=TRUE,
-                     dec=".", sep=",")
+                  dec=".", sep=",")
   X$TIMESTAMP = ymd_hm(X$TIMESTAMP)
   Y_train <- read.table(paste(path, track, targetVariable, sep=slash),
                         header=TRUE, dec=".", sep=",")

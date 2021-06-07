@@ -3,16 +3,16 @@
 library(dplyr)
 library(tidyr)      # for pivot_wider and pivot_longer
 
+library(foreach)    # to parallel central task loop
+library(doParallel)
+
 source("loadData.R")
 source("util.R")
-
 source("solarIDR.R")
 
 SOLAR_CSV <- "../solarResults.csv"
 
 # TODO
-# - paralize
-# - rewrite code with on version tupel (IDR version, varibale version, group version, preprocess version)
 # - deaccumulate solar energy
 # - forecast trained on all zone
 # - extended hour model
@@ -34,36 +34,45 @@ SOLAR_CSV <- "../solarResults.csv"
 #   2nd is vector of true observation. It should return an average score over
 #   all quantiles. If print=TRUE is passed, the function should print some
 #   explaining text
-# - id : id to give predicitionfct
+# - id : id (argument for predicitionfct)
 evaluation <- function(predictionfct, scoringfct, id) {
+  # in order to run the foeach loop in parallel
+  cl <- makeCluster(3)
+  registerDoParallel(cl)
   # use print / init functionality to output and store important information
   info <- predictionfct(NA, NA, NA, id, init=TRUE)
   scoringfct(NA, NA, print=TRUE)
-  # saving timestamp
-  start_ts <- now()
-  # list containing for every task data.frames with timestamps, zones and scores
-  scoreList <- list()
-  averageScores <- rep(0, length(TASKS))
+  start_ts <- now()       # saving timestamp
   # distinguish whether predicitionfct wants all data or data by zone
   makePred <- if(info$PBZ) predictPerZone else predictAllZones
 
-  for (task in TASKS) {
-    data <- loadSolar(task)   # read data
-    saveScores <- makePred(predictionfct, scoringfct, data, id)
-
-    scoreList[[paste0("Task", task)]] <- saveScores
-    averageScores[task] <- mean(saveScores[["SCORE"]])
-    cat("- Finished task", task, "\n")
+  # since files could be accessed from multiple threads, read it sequentially
+  dataList <- foreach(task=TASKS) %do% {
+    loadSolar(task)
   }
-  # print results
+  # run in parallel through tasks and store results in scoreList
+  scoreList <- foreach(task=TASKS,
+                       .packages=c("lubridate", "dplyr", "tidyr")) %dopar% {
+    source("util.R") # source necessary files (thread starts in empty env)
+    source("solarIDR.R")
+    saveScores <- makePred(predictionfct, scoringfct, dataList[[task]], id)
+    saveScores
+  }
+  stopCluster(cl)   # due to parallel programming
+  end_ts <- now()
+  duration <- as.numeric(difftime(end_ts, start_ts, unit="mins"))
+  outputAndLog(scoreList, duration, info)
+}
+
+outputAndLog <- function(scoreList, duration, info) {
+  # average over scores
+  averageScores <- sapply(scoreList, function(df) { return(mean(df$SCORE)) })
   results <- data.frame(rbind(averageScores))
   colnames(results) <- paste0("Task", TASKS)
   print(results)
   finalScore <- mean(as.numeric(results[1, FIRST_EVAL_TASK:length(TASKS)]))
   cat("\n[AVERAGED SCORE]:", finalScore, "\n")
 
-  end_ts <- now()
-  duration <- as.numeric(difftime(end_ts, start_ts, unit="mins"))
   # Lastly save the results in log file by extending previous results
   results <- cbind(X = 0, Name = info$TIT, Vars = info$VAR,
                    Preprocess = info$PP, results,
@@ -193,14 +202,14 @@ trivialForecast <- function(X_train, y_train, X_test, id=1, init=FALSE) {
 # GEFCOM14 Benchmark forecast : predict for all quantiles (1% up to 99%) the
 # power generation value of last year at exactly the same date
 # Therefore train has to comprise the one year past of test
-benchmark <- function(X_train, y_train, X_test, id=1, print=FALSE) {
-  if (print) {
+benchmark <- function(X_train, y_train, X_test, id=1, init=FALSE) {
+  if (init) {
     outputForecastingMethod("benchmark forecast",
                             c("Issue", "for", "every", "timestamp", "the",
                               "power", "production", "of", "last", "year",
                               "ago", "as", "all", "quantiles", "(point-measure",
-                            "on", "value", "last", "year", "ago"))
-    return(list(TIT="empirical quantiles", VAR="None", PP="None", PBZ=TRUE))
+                            "on", "value", "one", "year", "ago)"))
+    return(list(TIT="benchmark", VAR="None", PP="None", PBZ=TRUE))
   }
   forecast_in <- X_test$TIMESTAMP
 
@@ -219,10 +228,10 @@ benchmark <- function(X_train, y_train, X_test, id=1, print=FALSE) {
 }
 
 #evaluation(trivialForecast, pinBallLoss, 2)
-#evaluation(benchmark, pinBallLoss)
-evaluation(unleashIDR, pinBallLoss, c(1, 1, 1))
+#evaluation(benchmark, pinBallLoss, 1)
+#evaluation(unleashIDR, pinBallLoss, c(1, 1, 1))
 #evaluation(unleashIDR, pinBallLoss, c(1, 2, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 1, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 2, 1))
-#evaluation(unleashIDR, pinBallLoss, c(2, 3, 1))
+evaluation(unleashIDR, pinBallLoss, c(2, 3, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 4, 1))
