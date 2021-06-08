@@ -51,6 +51,14 @@ idrOnHour <- function(X_train, y_train, X_test, groups, orders) {
   return(t(joinedForecast))
 }
 
+# Version3 : Apply idr on data grouped by hour, but use data from all zones
+# for training
+idrOnHourAllZones <- function(X_train, y_train, X_test, groups, orders) {
+  X_train <- X_train[!(names(X_train) == "ZONE")]
+  X_test <- X_test[!(names(X_train) == "ZONE")]
+  return(idrOnHour(X_train, y_train, X_test, groups, orders))
+}
+
 # IDR variants and variable combinations =======================================
 
 # current idr versions
@@ -75,6 +83,13 @@ IDR_BY_HOUR <- list(FUN = idrOnHour, TIT = "Hourly IDR",
                     DES = c("Group","training","set","by","hour","and","apply",
                             "IDR","on","every","group","separately"),
                     NTS = TRUE, PBZ = TRUE)
+IDR_BY_HOUR_ALL_ZONES <- list(FUN = idrOnHourAllZones,
+                              TIT = "Hourly IDR all zones",
+                              DES = c("Combine","all","zones","to","one",
+                                      "training","set","and","group","it","by",
+                                      "hour","before","applying", "IDR","on",
+                                      "every","group","separately"),
+                              NTS = TRUE, PBZ = FALSE)
 
 # Variable selections
 # VAR : list of variables that are used
@@ -97,7 +112,7 @@ ICX <- "icx"
 # variable selection, third number defining group
 
 getVariant <- function(id) {
-  return(switch(id[1], IDR_ON_ALL, IDR_BY_HOUR))
+  return(switch(id[1], IDR_ON_ALL, IDR_BY_HOUR, IDR_BY_HOUR_ALL_ZONES))
 }
 
 getVariableSelection <- function(id) {

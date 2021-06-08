@@ -11,11 +11,8 @@ source("preprocess.R")
 SOLAR_CSV <- "../solarResults.csv"
 
 # TODO
-# - deaccumulate solar energy
-# - forecast trained on all zone
 # - extended hour model
 # - Loss-plot
-# - general IDR application
 
 
 # Routine conducting evaluation for a given prediciton and scoring method
@@ -52,7 +49,7 @@ evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp) {
   }
   # run in parallel through tasks and store results in scoreList
   scoreList <- foreach(task=TASKS,
-                       .export=c("goParallel", "predAndEval")) %dopar% {
+                       .export=c("goParallel", "predAndEval")) %do% {
     source("util.R") # source necessary files (thread starts in empty env)
     source("solarIDR.R")
     saveScores <- goParallel(predictionfct, scoringfct, dataList[[task]], id,
@@ -149,4 +146,4 @@ outputAndLog <- function(scoreList, duration, info) {
 #evaluation(unleashIDR, pinBallLoss, c(2, 4, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 5, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulateSun)
-evaluation(unleashIDR, pinBallLoss, c(2, 5, 1), preprocessfct=deaccumulateSun)
+evaluation(unleashIDR, pinBallLoss, c(3, 4, 1), preprocessfct=deaccumulateSun)
