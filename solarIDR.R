@@ -1,6 +1,5 @@
 library(isodistrreg)
 
-source("preprocess.R")
 
 # core functions ===============================================================
 
@@ -89,11 +88,13 @@ SUN_T <- list(VAR = c("VAR169", "VAR178", "VAR167"), SGN = c(1, 1, 1))
 SUN_T_H <- list(VAR = c("VAR169", "VAR178", "VAR167", "VAR157"),
                 SGN = c(1, 1, 1, -1))
 
-# Preprocess methods
-NO_PR <- list(FUN = no_preprocessing, TIT = "None")
+# ORDERs
+COMP <- "comp"
+SD <- "sd"
+ICX <- "icx"
 
 # ID is a tripel, first element identifying the idr variant, second the
-# variable selection, third number defining preprocess method
+# variable selection, third number defining group
 
 getVariant <- function(id) {
   return(switch(id[1], IDR_ON_ALL, IDR_BY_HOUR))
@@ -103,8 +104,8 @@ getVariableSelection <- function(id) {
   return(switch(id[2], SUN_1, SUN_2, SUN_BOTH, SUN_T, SUN_T_H))
 }
 
-getPreprocessing <- function(id) {
-  return(switch(id[3], NO_PR))
+getOrder <- function(id) {
+  return(switch(id[3], COMP, ICX))
 }
 
 getVariantName <- function(id) {
@@ -116,29 +117,24 @@ getVariablesName <- function(id) {
   return(paste0(variables$VAR, "(", variables$SGN, ") "))
 }
 
-getPreprocessName <- function(id) {
-  return(getPreprocessing(id)$TIT)
-}
 
 # wrapper ======================================================================
 
 unleashIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
   idr_v <- getVariant(id)
   variables <- getVariableSelection(id)
-  preprocessing <- getPreprocessing(id)
+  pOrder <- getOrder(id)
   # if init print, then output information and return important information
   if (init) {
-    outputForecastingMethod(idr_v$TIT, idr_v$DES, getVariablesName(id),
-                            preprocessing$TIT)
-    return(list(TIT=idr_v$TIT, VAR=variables$VAR, PP=preprocessing$TIT,
-                PBZ=idr_v$PBZ))
+    outputForecastingMethod(idr_v$TIT, idr_v$DES, getVariablesName(id))
+    return(list(TIT=idr_v$TIT, VAR=variables$VAR, OR=pOrder, PBZ=idr_v$PBZ))
   }
   # get variable list that is used and signs of that variables
   vars <- variables$VAR
   signs <- variables$SGN
 
   groups <- setNames(rep(1, length(vars)), vars)
-  orders <- c("comp" = 1)
+  orders <- setNames(1, pOrder)
 
   # if version needs timestamps or zones extend variable list by timestamps
   if (idr_v$NTS) {
@@ -153,9 +149,6 @@ unleashIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
   # take care about signs => -1 means change sign of covariates
   X_train[vars[signs == -1]] <- (-1) * X_train[vars[signs == -1]]
   X_test[vars[signs == -1]] <- (-1) * X_test[vars[signs == -1]]
-  # apply preprocessing
-  X_train <- preprocessing$FUN(X_train)
-  X_test <- preprocessing$FUN(X_test)
 
   # get IDR method
   return(idr_v$FUN(X_train[vars], y_train, X_test[vars], groups, orders))

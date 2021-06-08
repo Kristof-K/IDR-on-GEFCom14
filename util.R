@@ -8,6 +8,7 @@ TASKS <- 1:15
 FIRST_EVAL_TASK <- 4        # in GEFCom14 the first 3 tasks weren't evaluated
 
 PRINT_WIDTH <- 70
+NONE <- "None"
 
 # Calculate the pearson, spearman and kendall correlation coefficient for every
 # variable for every category in list
@@ -40,11 +41,11 @@ getCorrelationCoefficients <- function(list, categories, numOfVariables) {
 # - x : matrix containing prediction for the 1% up to 99% quantile in every row
 # - y : vector containg the respective observations
 # - print : output information if True otherwise calc score
-pinBallLoss <- function(x, y, print=FALSE) {
-  if (print) {
+pinBallLoss <- function(x, y, init=FALSE) {
+  if (init) {
     outputScoringFunction(c("Pinball-Loss /", "asymmetric", "piecewise",
                           "linear", "scoring", "fct."))
-    return("")
+    return("pinball-loss")
   }
   singlePinBallLoss <- function(vec) {
     # separate y and x again
@@ -72,13 +73,12 @@ outputScoringFunction <- function(name) {
 #   vector of words in order to print correctly)
 # - vars : vector of variable nems that are incorporated
 # - preprocess : vecotr of preprocess methods used
-outputForecastingMethod <- function(name, description, vars="", preprocess="") {
+outputForecastingMethod <- function(name, description, vars=NONE) {
   cat("\n\n=================================================================\n")
   cat(" ", name,"\n")
   cat("=================================================================\n")
   cat(description, "\n", fill = PRINT_WIDTH)
   cat("[VARIABLES]:", vars, "\n")
-  cat("[PREPROCESSING]:", preprocess, "\n")
 }
 
 # Make a trivial forecast by using the empirical qauntiles of past obervations
@@ -90,7 +90,7 @@ trivialForecast <- function(X_train, y_train, X_test, id=1, init=FALSE) {
                             c("Calculate", "for", "every", "hour", "the",
                             "empirical", "quantiles", "and", "return", "them",
                             "irrespective", "of", "any", "variable", "values"))
-    return(list(TIT=paste0("empirical quantiles ", PBZ), VAR="None", PP="None",
+    return(list(TIT=paste0("empirical quantiles ", PBZ), VAR="None", OR="None",
                 PBZ=PBZ))
   }
   # function: calculate all quantiles and return data.frame
@@ -128,7 +128,7 @@ benchmark <- function(X_train, y_train, X_test, id=1, init=FALSE) {
                               "power", "production", "of", "last", "year",
                               "ago", "as", "all", "quantiles", "(point-measure",
                             "on", "value", "one", "year", "ago)"))
-    return(list(TIT="benchmark", VAR="None", PP="None", PBZ=TRUE))
+    return(list(TIT="benchmark", VAR="None", OR="None", PBZ=TRUE))
   }
   forecast_in <- X_test$TIMESTAMP
 

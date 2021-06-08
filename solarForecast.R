@@ -6,6 +6,7 @@ library(doParallel)
 source("loadData.R")
 source("util.R")
 source("solarIDR.R")
+source("preprocess.R")
 
 SOLAR_CSV <- "../solarResults.csv"
 
@@ -29,21 +30,25 @@ SOLAR_CSV <- "../solarResults.csv"
 # - scoringfct : function getting matrix as 1st and vector as 2nd argument,
 #   whereby 1st list in rows predictions for 1% up to 99% quantiles and
 #   2nd is vector of true observation. It should return an average score over
-#   all quantiles. If print=TRUE is passed, the function should print some
+#   all quantiles. If init=TRUE is passed, the function should print some
 #   explaining text
 # - id : id (argument for predicitionfct)
-evaluation <- function(predictionfct, scoringfct, id) {
+# - preprocessfct : function getting data after it was loaded (i.e. it expects
+#   list with ZONE referring to data.frames), preprocess and return it
+#   If init=TRUE, then print text and return name of this preprocess method
+evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp) {
   # in order to run the foeach loop in parallel
   cl <- makeCluster(3)
   registerDoParallel(cl)
   # use print / init functionality to output and store important information
   info <- predictionfct(NA, NA, NA, id, init=TRUE)
-  scoringfct(NA, NA, print=TRUE)
+  info[["PP"]] <- preprocessfct(NA, init=TRUE)
+  info[["SF"]] <- scoringfct(NA, NA, init=TRUE)
   start_ts <- now()       # saving timestamp
 
   # since files could be accessed from multiple threads, read it sequentially
   dataList <- foreach(task=TASKS) %do% {
-    loadSolar(task)
+    preprocessfct(loadSolar(task))   # return value is stored in dataList
   }
   # run in parallel through tasks and store results in scoreList
   scoreList <- foreach(task=TASKS,
@@ -120,8 +125,8 @@ outputAndLog <- function(scoreList, duration, info) {
 
   # Lastly save the results in log file by extending previous results
   results <- cbind(X = 0, Name = info$TIT, Vars = paste(info$VAR, collapse="_"),
-                   Preprocess = info$PP, results,
-                   Mean_A = finalScore, Minutes=duration)
+                   Order = info$OR, Scoringfct = info$SF, Preprocess = info$PP,
+                   results, Mean_A = finalScore, Minutes=duration)
   rownames(results)[1] <- 1
   if (file.exists(SOLAR_CSV)) {
     previous <- read.csv2(SOLAR_CSV)
