@@ -140,7 +140,7 @@ outputAndLog <- function(scoreList, duration, info) {
 
 
 #evaluation(trivialForecast, pinBallLoss, 2)
-evaluation(benchmark, pinBallLoss, 1)
+#evaluation(benchmark, pinBallLoss, 1)
 #evaluation(unleashIDR, pinBallLoss, c(1, 1, 1))
 #evaluation(unleashIDR, pinBallLoss, c(1, 2, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 1, 1))
@@ -148,3 +148,5 @@ evaluation(benchmark, pinBallLoss, 1)
 #evaluation(unleashIDR, pinBallLoss, c(2, 3, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 4, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 5, 1))
+#evaluation(unleashIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulateSun)
+evaluation(unleashIDR, pinBallLoss, c(2, 5, 1), preprocessfct=deaccumulateSun)

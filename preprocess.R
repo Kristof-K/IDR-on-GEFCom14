@@ -1,6 +1,8 @@
 # define preprocess methods getting X_train and X_test and applying data
 # transformation on both
 
+library(dplyr)    # for lag in deaccumulateSun
+
 source("util.R")
 
 # Method output description consistently for a preprocessing function
@@ -19,3 +21,27 @@ no_pp <- function(data, init=FALSE) {
   return(data)
 }
 
+deaccumulateSun <- function(data, init=FALSE) {
+  vars <- c("VAR169", "VAR178")
+  name <- paste("deacc", paste(vars, collapse="_"), sep="_")
+  if (init) {
+    outputPreprocessing(name)
+    return(name)
+  }
+  subShifted <- function(col) {
+    return(col - lag(col, default=0))
+  }
+  # assume that data is ordered in time and conitnuous and first entry starts
+  # at 1:00, since there starts the daily sun accumulation
+  for (zone in SOLAR_ZONES) {
+    for(var in vars) {
+      current <- data[[zone]][[var]]
+      asMatrix <- matrix(current, nrow=24)    # every column contains one day
+      # deaccumulate every day individually
+      deacc <- apply(asMatrix, 2, subShifted)
+
+      data[[zone]][[var]] <- as.vector(deacc)
+    }
+  }
+  return(data)
+}
