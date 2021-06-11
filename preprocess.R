@@ -5,6 +5,8 @@ library(dplyr)    # for lag in deaccumulateSun
 
 source("util.R")
 
+ACCUMULATED <- c("VAR169", "VAR178", "VAR175", "VAR228")
+
 # Method output description consistently for a preprocessing function
 # - name : name of the forecasting method (it should be a vector of words in
 #   order to be printed correctly)
@@ -21,9 +23,9 @@ no_pp <- function(data, init=FALSE) {
   return(data)
 }
 
-deaccumulateSun <- function(data, init=FALSE) {
-  vars <- c("VAR169", "VAR178")
-  name <- paste("deacc", paste(vars, collapse="_"), sep="_")
+# expect data to be of format definied in load.R
+deaccumulate <- function(data, init=FALSE) {
+  name <- paste("deacc", paste(ACCUMULATED, collapse="_"), sep="_")
   if (init) {
     outputPreprocessing(name)
     return(name)
@@ -34,7 +36,7 @@ deaccumulateSun <- function(data, init=FALSE) {
   # assume that data is ordered in time and conitnuous and first entry starts
   # at 1:00, since there starts the daily sun accumulation
   for (zone in SOLAR_ZONES) {
-    for(var in vars) {
+    for(var in ACCUMULATED) {
       current <- data[[zone]][[var]]
       asMatrix <- matrix(current, nrow=24)    # every column contains one day
       # deaccumulate every day individually

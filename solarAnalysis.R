@@ -3,6 +3,8 @@
 source("loadData.R")
 source("util.R")
 source("plot.R")
+source("preprocess.R")
+
 
 
 # implement the whole process of examination solar track
@@ -10,6 +12,8 @@ examineSolar <- function() {
   # data is a list containing for every string in zones a data frame
   data <- loadSolar(15)
   numOfVars <- length(variableNames)  # variableNames is defined in plot.R
+  deacc <- deaccumulate(data)
+  deacc_vars <- c(ACCUMULATED, "POWER")
 
   # EXAMINE DATA GROUPED BY HOUR
   cat("Examing data grouped by hour:\n")
@@ -17,10 +21,12 @@ examineSolar <- function() {
     cat("\t-", zone, "\n")
     hours <- paste0(0:23)   # categories by which is grouped
     groupByHour <- list()       # list containing data.frame for every category
+    groupByHour_d <- list()
     # get the data
     for (h in hours) {
       indices <- hour(data[[zone]]$TIMESTAMP) == h
       groupByHour[[h]] <- subset(data[[zone]], indices, select=-TIMESTAMP)
+      groupByHour_d[[h]] <- subset(deacc[[zone]], indices, select=deacc_vars)
     }
     min <- sapply(data[[zone]][-1], min) # get for every column min and max
     max <- sapply(data[[zone]][-1], max) # drop timestamp => -1
@@ -34,6 +40,14 @@ examineSolar <- function() {
     # plot time series
     plotAgainstTime(data[[zone]], "2013-09-09 00:00:00 UTC",
                     "2013-09-19 00:00:00 UTC", zone)
+    # consider deaccumulated
+    plotAgainstTime(deacc[[zone]], "2013-09-09 00:00:00 UTC",
+                    "2013-09-19 00:00:00 UTC", zone, suf="deacc")
+    min <- sapply(deacc[[zone]][deacc_vars], min)
+    max <- sapply(deacc[[zone]][deacc_vars], max)
+    for(var in ACCUMULATED) {
+      scatterSingleHours(groupByHour_d, hours, zone, min, max, var, suf="deacc")
+    }
   }
   
   # EXAMINE DATA GROUPED BY MONTH

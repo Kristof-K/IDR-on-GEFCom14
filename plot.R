@@ -146,15 +146,18 @@ correlationPlot <- function(coefficients, categories, zone, title="", append="",
 # - zone : current zone (only label for plotting)
 # - min / max : data.frame containg for every variable min and max value
 # - name : name of the varibale that should be plotted
-scatterSingleHours <- function(list, categories, zone, min, max, name) {
-  png(file=paste0("plots/scatterByHours_", name, "_", zone, ".png"), width=1600, height=900)
+# - suf : text that should be appended to the name
+scatterSingleHours <- function(list, categories, zone, min, max, name, suf="") {
+  suf <- if (suf != "") paste0("_", suf) else suf
+  png(file=paste0("plots/scatterByHours_", name, "_", zone, suf, ".png"), width=1600, height=900)
   scatterSingle(list, categories, zone, min, max, name, append="h", 
               title=paste0(name, ", grouped by hour"), grid=c(4,6))
   dev.off()
 }
 
-scatterSingleMonths <- function(list, categories, zone, min, max, name) {
-  png(file=paste0("plots/scatterByMonth_", name, "_", zone, ".png"), width=1600, height=900)
+scatterSingleMonths <- function(list, categories, zone, min, max, name, suf="") {
+  suf <- if (suf != "") paste0("_", suf) else suf
+  png(file=paste0("plots/scatterByMonth_", name, "_", zone, suf, ".png"), width=1600, height=900)
   scatterSingle(list, categories, zone, min, max, name, labels=monthsLabel,
               title=paste0(name, ", grouped by month"), grid=c(3,4))
   dev.off()
@@ -205,9 +208,11 @@ scatterSingle <- function(list, categories, zone, min, max, name, append="",
 # - start : first timestamp, from what time we should start plotting
 # - end : last timestamp, up to what time we should plot
 # - zone : current zone for naming the plot
-plotAgainstTime <- function(data, start, end, zone) {
+# - suf : text that should be appended to the name
+plotAgainstTime <- function(data, start, end, zone, suf="") {
+  suf <- if (suf != "") paste0("_", suf) else suf
   plotTimeSeries(data, start, end,
-                 name=paste0("TimeSeries_", zone, ".png"))
+                 name=paste0("TimeSeries_", zone, suf, ".png"))
 }
 
 plotTimeSeries <- function(data, start, end, name) {
@@ -235,7 +240,7 @@ plotTimeSeries <- function(data, start, end, name) {
   # with which variable and create column power to indicate whether this is
   # the power graph for the respective variable or the variable itsself
   plotData <- plotData %>% pivot_longer(cols = -X, names_to = "var") %>%
-    mutate(POWER = str_detect(var, "_p"),
+    mutate(Line = ifelse(str_detect(var, "_p"), "Power", "VAR*"),
            VAR = str_replace(var, "_p", "")) %>%
     select(-var)
 
@@ -243,8 +248,8 @@ plotTimeSeries <- function(data, start, end, name) {
   # get the labels with new line between date und time and drop time zone
   labels <- str_replace(substr(t[ticks], 1, 16), " ", "\n")
   ggplot(data = plotData, mapping = aes(x = X, y = value)) +
-    geom_line(mapping = aes(color = POWER)) +
+    geom_line(mapping = aes(color = Line)) +
     scale_x_continuous(breaks = ticks, labels = labels, name = "") +
     facet_wrap(~ VAR) +
-    ggsave(name, path="plots/")
+    ggsave(name, path="plots/", width=17.5, height=10.5)
 }
