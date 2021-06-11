@@ -244,7 +244,7 @@ plotTimeSeries <- function(data, start, end, name) {
            VAR = str_replace(var, "_p", "")) %>%
     select(-var)
 
-  ticks <- as.integer(seq(1, n, (n - 1) / 3))   # positions of the x-ticks
+  ticks <- as.integer(seq(1, 0.75 * n, (0.75 * n - 1) / 2))   # positions of the x-ticks
   # get the labels with new line between date und time and drop time zone
   labels <- str_replace(substr(t[ticks], 1, 16), " ", "\n")
   ggplot(data = plotData, mapping = aes(x = X, y = value)) +
@@ -252,4 +252,32 @@ plotTimeSeries <- function(data, start, end, name) {
     scale_x_continuous(breaks = ticks, labels = labels, name = "") +
     facet_wrap(~ VAR) +
     ggsave(name, path="plots/", width=17.5, height=10.5)
+}
+
+
+# Plot a heatmap of the POWER values whereby the heatmap should be a 24xn iamge
+# with each row representing an hour, each column a day
+# - data : data.frame containing the two colums "TIMESTAMP" and "POWER"
+# - zone : current zone for naming the plot
+plotPowerHeatMap <- function(data, zone) {
+  # we want day times to be in the mid of the plot
+  hour_order <- c(15:23, 0:14)
+  # but then the first day just comprises 'first' hours
+  first <- 24 - which(hour_order == hour(data$TIMESTAMP[1])) + 1
+  n <- dim(data)[1]
+  ticks <- as.integer(seq(1, n, (n - 1) / 6))
+  labels <- paste0(month(data$TIMESTAMP[ticks], label=TRUE),
+                   year(data$TIMESTAMP[ticks]))
+  n <- n - first
+  # X should count the days
+  data %>% mutate(Hour=factor(hour(TIMESTAMP), ordered=TRUE, levels=hour_order),
+                  X=c(rep(1, first), rep(2:(n%/%24 + 1), each=24),
+                       rep(n%/%24 + 2, n%%24))) %>%
+    select(-TIMESTAMP) %>%
+    ggplot() +
+      geom_tile(mapping = aes(x=X, y=Hour, fill=POWER)) +
+      ggtitle(paste("Heatmap of solar power production in", zone)) +
+      scale_x_continuous(breaks = ticks %/% 24, labels = labels, name = "") +
+      ggsave(paste0("PowerHeatmap_", zone, ".png"), path="plots/", width=18,
+             height=8)
 }

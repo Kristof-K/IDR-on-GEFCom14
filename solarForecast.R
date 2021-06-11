@@ -49,7 +49,7 @@ evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp) {
   }
   # run in parallel through tasks and store results in scoreList
   scoreList <- foreach(task=TASKS,
-                       .export=c("goParallel", "predAndEval")) %do% {
+                       .export=c("goParallel", "predAndEval")) %dopar% {
     source("util.R") # source necessary files (thread starts in empty env)
     source("solarIDR.R")
     saveScores <- goParallel(predictionfct, scoringfct, dataList[[task]], id,
@@ -138,12 +138,14 @@ outputAndLog <- function(scoreList, duration, info) {
 
 #evaluation(trivialForecast, pinBallLoss, 2)
 #evaluation(benchmark, pinBallLoss, 1)
-#evaluation(unleashIDR, pinBallLoss, c(1, 1, 1))
-#evaluation(unleashIDR, pinBallLoss, c(1, 2, 1))
-#evaluation(unleashIDR, pinBallLoss, c(2, 1, 1))
+#evaluation(unleashIDR, pinBallLoss, c(1, 3, 1))
+#evaluation(unleashIDR, pinBallLoss, c(1, 4, 1))
+#evaluation(unleashIDR, pinBallLoss, c(2, 5, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 2, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 3, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 4, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 5, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulateSun)
-evaluation(unleashIDR, pinBallLoss, c(3, 4, 1), preprocessfct=deaccumulateSun)
+evaluation(unleashIDR, pinBallLoss, c(3, 3, 1), preprocessfct=deaccumulate)
+evaluation(unleashIDR, pinBallLoss, c(3, 4, 1), preprocessfct=deaccumulate)
+evaluation(unleashIDR, pinBallLoss, c(3, 5, 1), preprocessfct=deaccumulate)
