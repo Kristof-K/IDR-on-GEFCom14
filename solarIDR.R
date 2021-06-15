@@ -14,41 +14,41 @@ idrOnAll <- function(X_train, y_train, X_test, groups, orders) {
 
 # Version2 : Apply idr on data grouped by hour
 idrOnHour <- function(X_train, y_train, X_test, groups, orders) {
+  return(idrByGroup(X_train, y_train, X_test, groups, orders))
+}
+
+idrByGroup <- function(X_train, y_train, X_test, groups, orders, bag_number=NA,
+                       bag_size=NA) {
   train <- cbind(POWER = y_train, X_train)
+  # matrix containing in every row quantile forecast for a row in X_test
+  output <- matrix(0, nrow = nrow(X_test), ncol = length(QUANTILES))
   # breakdown data by hour
   hours <- paste0(0:23)   # categories by which is grouped
-  idr_models <- list()        # for every category fit the model
+
+  # for every category fit the model and predict
   for (h in hours) {
-    indices <- (hour(train$TIMESTAMP) == h)
-    y <- subset(train, indices)$POWER
+    train_indices <- (hour(train$TIMESTAMP) == h)
+    test_indices <- (hour(X_test$TIMESTAMP) == h)
+    y <- subset(train, train_indices)$POWER
     # idr cannot handle if y is constant
     if (max(y) == min(y)) {
-      idr_models[[h]] <- y[1]  # make constant predictions if y is constant
+      output[test_indices,] <- y[1]     # constant predictions if y is constant
       next
     }
-    trainByHour <- subset(train, indices, select=c(-TIMESTAMP, -POWER))
-    idr_models[[h]] <- idr(y = y, X = trainByHour,  groups = groups,
-                           orders = orders, progress = FALSE)
-  }
-  # reduce timestamps in X_test to hours
-  X_test$TIMESTAMP <- hour(X_test$TIMESTAMP)
-  notTime <- !(names(X_test) == "TIMESTAMP")
-  # function that makes a right prediction for every row in X_test, assume that
-  # timestamp is first column in X_test (find the respective idr model)
-  getQuantiles <- function(row) {
-    idr <- idr_models[[paste0(row[1])]]
-    # if idr_model is a number, make constant predictions
-    if (is.numeric(idr)) {
-      return(rep(idr, length(QUANTILES)))
+    trainByHour <- subset(train, train_indices, select=c(-TIMESTAMP, -POWER))
+    makePred <- subset(X_test, test_indices, select=-TIMESTAMP)
+    if (any(is.na(c(bag_number, bag_size)))) {
+      model <- idr(y=y, X=trainByHour,  groups=groups, orders=orders,
+                   progress=FALSE)
+      predictions <- predict(model, data=makePred)
+    } else {
+      predictions <- idrbag(y=y, X=trainByHour,  groups=groups, orders=orders,
+                          newdata=makePred, b=bag_number, p=bag_size,
+                          progress=FALSE)
     }
-    # convert row[notTime] into a data.frame
-    cdf_prediction <- predict(idr, data = data.frame(as.list(row[notTime])))
-    quantile_predictions <- qpred(cdf_prediction, quantiles = QUANTILES)
-    return(quantile_predictions)
+    output[test_indices,] <- qpred(predictions, quantiles=QUANTILES)
   }
-  joinedForecast <- apply(X_test, 1, getQuantiles)
-  # appyl writes results (quantiles) in columns, we want it in rows
-  return(t(joinedForecast))
+  return(output)
 }
 
 # Version3 : Apply idr on data grouped by hour, but use data from all zones
@@ -57,6 +57,14 @@ idrOnHourAllZones <- function(X_train, y_train, X_test, groups, orders) {
   X_train <- X_train[!(names(X_train) == "ZONE")]
   X_test <- X_test[!(names(X_train) == "ZONE")]
   return(idrOnHour(X_train, y_train, X_test, groups, orders))
+}
+
+# Version4 : Apply idr subagging on data grouped by hour
+idrsubOnHour <- function(X_train, y_train, X_test, groups, orders) {
+  bag_number <- 100
+  bag_size <- 0.5
+  return(idrByGroup(X_train, y_train, X_test, groups, orders,
+                        bag_number=bag_number, bag_size=bag_size))
 }
 
 # IDR variants and variable combinations =======================================
@@ -90,6 +98,11 @@ IDR_BY_HOUR_ALL_ZONES <- list(FUN = idrOnHourAllZones,
                                       "hour","before","applying", "IDR","on",
                                       "every","group","separately"),
                               NTS = TRUE, PBZ = FALSE)
+IDR_SUB_BY_HOUR <- list(FUN = idrsubOnHour, TIT = "Hourly IDR subagging",
+                        DES = c("Group","training","set","by","hour","and",
+                                "apply","IDR","in","subagging","manner","on",
+                                "every","group","separately"),
+                        NTS = TRUE, PBZ = TRUE)
 
 # Variable selections
 # VAR : list of variables that are used
@@ -102,25 +115,36 @@ SUN_BOTH <- list(VAR = c("VAR169", "VAR178"), SGN = c(1, 1))
 SUN_T <- list(VAR = c("VAR169", "VAR178", "VAR167"), SGN = c(1, 1, 1))
 SUN_T_H <- list(VAR = c("VAR169", "VAR178", "VAR167", "VAR157"),
                 SGN = c(1, 1, 1, -1))
+SUN_H <- list(VAR = c("VAR169", "VAR178", "VAR157"), SGN = c(1, 1, -1))
+SUN_1_H <- list(VAR = c("VAR169", "VAR157"), SGN = c(1, -1))
+SUN_1_W <- list(VAR = c("VAR169", "VAR157", "VAR228"), SGN = c(1, -1, -1))
+S1_W_I <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79"),
+               SGN = c(1, -1, -1, -1))
+S1_W_L <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR78"),
+               SGN = c(1, -1, -1, -1))
+S1_W_I_T <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR164"),
+               SGN = c(1, -1, -1, -1, -1))
 
 # ORDERs
 COMP <- "comp"
-SD <- "sd"
 ICX <- "icx"
+SD <- "sd"
 
 # ID is a tripel, first element identifying the idr variant, second the
 # variable selection, third number defining group
 
 getVariant <- function(id) {
-  return(switch(id[1], IDR_ON_ALL, IDR_BY_HOUR, IDR_BY_HOUR_ALL_ZONES))
+  return(switch(id[1], IDR_ON_ALL, IDR_BY_HOUR, IDR_BY_HOUR_ALL_ZONES,
+                IDR_SUB_BY_HOUR))
 }
 
 getVariableSelection <- function(id) {
-  return(switch(id[2], SUN_1, SUN_2, SUN_BOTH, SUN_T, SUN_T_H))
+  return(switch(id[2], SUN_1, SUN_2, SUN_BOTH, SUN_T, SUN_T_H, SUN_H,
+                SUN_1_H, SUN_1_W, S1_W_I, S1_W_L, S1_W_I_T))
 }
 
 getOrder <- function(id) {
-  return(switch(id[3], COMP, ICX))
+  return(switch(id[3], COMP, ICX, SD))
 }
 
 getVariantName <- function(id) {
