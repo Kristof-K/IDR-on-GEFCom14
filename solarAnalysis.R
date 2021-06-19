@@ -14,7 +14,7 @@ examineHour <- function() {
 
   # EXAMINE DATA GROUPED BY HOUR
   cat("Examing data grouped by hour:\n")
-  for (zone in SOLAR_ZONES) {
+  for (zone in data$Zones) {
     cat("\t-", zone, "\n")
     hours <- paste0(0:23)   # categories by which is grouped
     groupByHour <- list()       # list containing data.frame for every category
@@ -40,12 +40,12 @@ examineHour <- function() {
 
 examineHourDeacc <- function() {
   # data is a list containing for every string in zones a data frame
-  deacc <- deaccumulate(loadSolar(15))
+  deacc <- deaccumulateSol(loadSolar(15))
   deacc_vars <- c(ACCUMULATED, "POWER")
 
   # EXAMINE DATA GROUPED BY HOUR
   cat("Examing deacccumulated data grouped by hour:\n")
-  for (zone in SOLAR_ZONES) {
+  for (zone in deacc$Zones) {
     cat("\t-", zone, "\n")
     hours <- paste0(0:23)   # categories by which is grouped
     groupByHour <- list()       # list containing data.frame for every category
@@ -71,7 +71,7 @@ examineMonth <- function() {
   numOfVars <- length(variableNames)  # variableNames is defined in plot.R
   # EXAMINE DATA GROUPED BY MONTH
   cat("Examing data grouped by month:\n")
-  for (zone in SOLAR_ZONES) {
+  for (zone in data$Zones) {
     cat("\t-", zone, "\n")
     months <- paste0(1:12)   # categories by which is grouped
     groupByMonth <- list()       # list containing data.frame for every category
@@ -95,7 +95,7 @@ examineMonth <- function() {
 examinePower <- function() {
   data <- loadSolar(15)
 
-  for (zone in SOLAR_ZONES) {
+  for (zone in data$Zones) {
     plotPowerHeatMap(data[[zone]][c("TIMESTAMP", "POWER")], zone)
   }
 }

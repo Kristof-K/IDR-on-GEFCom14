@@ -68,7 +68,7 @@ goParallel <- function(predictionfct, scoringfct, data, id, goByZone) {
     z <- 1
     # distinguish whether predicitionfct wants all data or data by zone
     if (goByZone) {
-      for (zone in SOLAR_ZONES) {
+      for (zone in data$Zones) {
         newScores <- predAndEval(predictionfct, scoringfct, data[[zone]], id,
                                  lastTrainTS, zone=z)
         saveScores <- rbind(saveScores, newScores)
@@ -76,7 +76,7 @@ goParallel <- function(predictionfct, scoringfct, data, id, goByZone) {
       }
     } else {
       unite_data <- data.frame()
-      for (zone in SOLAR_ZONES) {
+      for (zone in data$Zones) {
         unite_data <- rbind(unite_data, cbind(data[[zone]], ZONE=z))
         z <- z+1
       }
@@ -145,9 +145,9 @@ outputAndLog <- function(scoreList, duration, info) {
 #evaluation(unleashIDR, pinBallLoss, c(2, 3, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 4, 1))
 #evaluation(unleashIDR, pinBallLoss, c(2, 5, 1))
-#evaluation(unleashIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulate)
-#evaluation(unleashIDR, pinBallLoss, c(3, 3, 1), preprocessfct=deaccumulate)
+evaluation(unleashIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulateSol)
+#evaluation(unleashIDR, pinBallLoss, c(3, 3, 1), preprocessfct=deaccumulateSol)
 #evaluation(unleashIDR, pinBallLoss, c(2, 7, 1))
-#evaluation(unleashIDR, pinBallLoss, c(2, 9, 2), preprocessfct=deaccumulate)
-evaluation(unleashIDR, pinBallLoss, c(4, 14, 1), preprocessfct=deaccumulate)
-#evaluation(unleashIDR, pinBallLoss, c(4, 1, 1), preprocessfct=deaccumulate)
+#evaluation(unleashIDR, pinBallLoss, c(2, 9, 2), preprocessfct=deaccumulateSol)
+#evaluation(unleashIDR, pinBallLoss, c(4, 14, 1), preprocessfct=deaccumulateSol)
+#evaluation(unleashIDR, pinBallLoss, c(4, 1, 1), preprocessfct=deaccumulateSol)

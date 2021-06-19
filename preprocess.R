@@ -24,7 +24,7 @@ no_pp <- function(data, init=FALSE) {
 }
 
 # expect data to be of format definied in load.R
-deaccumulate <- function(data, init=FALSE) {
+deaccumulateSol <- function(data, init=FALSE) {
   name <- paste("deacc", paste(ACCUMULATED, collapse="_"), sep="_")
   if (init) {
     outputPreprocessing(name)
@@ -35,7 +35,7 @@ deaccumulate <- function(data, init=FALSE) {
   }
   # assume that data is ordered in time and conitnuous and first entry starts
   # at 1:00, since there starts the daily sun accumulation
-  for (zone in SOLAR_ZONES) {
+  for (zone in data$Zones) {
     for(var in ACCUMULATED) {
       current <- data[[zone]][[var]]
       asMatrix <- matrix(current, nrow=24)    # every column contains one day

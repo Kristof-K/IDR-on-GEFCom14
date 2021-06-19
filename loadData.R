@@ -31,6 +31,7 @@ loadSolar <- function(task) {
   subfolder <- paste("Task", task)
   csv <- ".csv"
   slash <- "\\"
+  zones <- c("ZONE1", "ZONE2", "ZONE3")
   
   # file containing explaining variables
   predictors <- paste0(subfolder, slash, "predictors", task, csv)
@@ -47,29 +48,28 @@ loadSolar <- function(task) {
   # understood from functions in lubridate
   X <- read.table(paste(path, track, predictors, sep=slash), header=TRUE,
                   dec=".", sep=",")
-  X$TIMESTAMP = ymd_hm(X$TIMESTAMP)
+  X$TIMESTAMP <- ymd_hm(X$TIMESTAMP)
   Y_train <- read.table(paste(path, track, targetVariable, sep=slash),
                         header=TRUE, dec=".", sep=",")
-  Y_train$TIMESTAMP = ymd_hm(Y_train$TIMESTAMP)
+  Y_train$TIMESTAMP <- ymd_hm(Y_train$TIMESTAMP)
   Y_test <- read.table(paste(path, track, observation, sep=slash),
                        header=TRUE, dec=".", sep=",")
-  Y_test$TIMESTAMP = ymd_hm(Y_test$TIMESTAMP)
+  Y_test$TIMESTAMP <- ymd_hm(Y_test$TIMESTAMP)
   # order data in a sensible format
   output <- list("LastTrain_TS" = Y_train$TIMESTAMP[length(Y_train$TIMESTAMP)],
-              "ZONE1" = data.frame(), "ZONE2" = data.frame(),
-              "ZONE3" = data.frame())
+                 "Zones" = zones)
   # and fill the data frames
-  for (i in 1:3) {
+  for (i in 1:length(zones)) {
     if (task < 15) {
-      zone = subset(X, ZONEID==i, select=-ZONEID)
+      zoneData <- subset(X, ZONEID==i, select=-ZONEID)
     } else {   # in task 15 X has own POWER column. but with less decimals
-      zone = subset(X, ZONEID==i, select=c(-ZONEID, -POWER))
+      zoneData <- subset(X, ZONEID==i, select=c(-ZONEID, -POWER))
     }
-    y = c(subset(Y_train, ZONEID == i)$POWER, 
+    y <- c(subset(Y_train, ZONEID == i)$POWER,
           subset(Y_test, 
                  (ZONEID==i) & (TIMESTAMP>output[["LastTrain_TS"]]))$POWER)
     # first name is lastTest_TS, so start at 2
-    output[[names(output)[i+1]]] = cbind(zone, POWER=y)
+    output[[zones[i]]] <- cbind(zoneData, POWER=y)
   }
   
   return(output)
