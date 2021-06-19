@@ -61,8 +61,8 @@ idrOnHourAllZones <- function(X_train, y_train, X_test, groups, orders) {
 
 # Version4 : Apply idr subagging on data grouped by hour
 idrsubOnHour <- function(X_train, y_train, X_test, groups, orders) {
-  bag_number <- 100
-  bag_size <- 0.5
+  bag_number <- 75
+  bag_size <- 0.25
   return(idrByGroup(X_train, y_train, X_test, groups, orders,
                         bag_number=bag_number, bag_size=bag_size))
 }
@@ -122,8 +122,14 @@ S1_W_I <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79"),
                SGN = c(1, -1, -1, -1))
 S1_W_L <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR78"),
                SGN = c(1, -1, -1, -1))
-S1_W_I_T <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR164"),
+S1_W_I_C <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR164"),
                SGN = c(1, -1, -1, -1, -1))
+S1_W_I_L <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR78"),
+               SGN = c(1, -1, -1, -1, -1))
+S1_W_I_T <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR175"),
+               SGN = c(1, -1, -1, -1, 1))
+SUN_W_I <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR178"),
+               SGN = c(1, -1, -1, -1, 1))
 
 # ORDERs
 COMP <- "comp"
@@ -140,7 +146,8 @@ getVariant <- function(id) {
 
 getVariableSelection <- function(id) {
   return(switch(id[2], SUN_1, SUN_2, SUN_BOTH, SUN_T, SUN_T_H, SUN_H,
-                SUN_1_H, SUN_1_W, S1_W_I, S1_W_L, S1_W_I_T))
+                SUN_1_H, SUN_1_W, S1_W_I, S1_W_L, S1_W_I_C, S1_W_I_L, S1_W_I_T,
+                SUN_W_I))
 }
 
 getOrder <- function(id) {

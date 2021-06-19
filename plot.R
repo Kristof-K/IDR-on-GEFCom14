@@ -259,7 +259,9 @@ plotTimeSeries <- function(data, start, end, name) {
 # with each row representing an hour, each column a day
 # - data : data.frame containing the two colums "TIMESTAMP" and "POWER"
 # - zone : current zone for naming the plot
-plotPowerHeatMap <- function(data, zone) {
+# - suf : text that should be appended to the name
+plotPowerHeatMap <- function(data, zone, suf="") {
+  suf <- if (suf != "") paste0("_", suf) else suf
   # we want day times to be in the mid of the plot
   hour_order <- c(15:23, 0:14)
   # but then the first day just comprises 'first' hours
@@ -278,6 +280,6 @@ plotPowerHeatMap <- function(data, zone) {
       geom_tile(mapping = aes(x=X, y=Hour, fill=POWER)) +
       ggtitle(paste("Heatmap of solar power production in", zone)) +
       scale_x_continuous(breaks = ticks %/% 24, labels = labels, name = "") +
-      ggsave(paste0("PowerHeatmap_", zone, ".png"), path="plots/", width=18,
+      ggsave(paste0("PowerHeatmap_", zone, suf, ".png"), path="plots/", width=18,
              height=8)
 }

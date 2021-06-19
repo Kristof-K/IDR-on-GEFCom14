@@ -116,4 +116,3 @@ examinePower()
 # negative proportionality to Power
 # [strong]  :
 # [weak]    : relative humidity (VAR 157)
-# 
