@@ -137,6 +137,10 @@ S1_W_I_T <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR175"),
 SUN_W_I <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR178"),
                SGN = c(1, -1, -1, -1, 1))
 
+W10 <- list(VAR = "W10", SGN = 1)
+W100 <- list(VAR = "W100", SGN = 1)
+W110 <- list(VAR = c("W10", "W100"), SGN = c(1, 1))
+
 # ORDERs
 COMP <- "comp"
 ICX <- "icx"
@@ -150,10 +154,14 @@ getVariant <- function(id) {
                 IDR_SUB_BY_HOUR))
 }
 
-getVariableSelection <- function(id) {
-  return(switch(id[2], SUN_1, SUN_2, SUN_BOTH, SUN_T, SUN_T_H, SUN_H,
-                SUN_1_H, SUN_1_W, S1_W_I, S1_W_L, S1_W_I_C, S1_W_I_L, S1_W_I_T,
-                SUN_W_I))
+getVariableSelection <- function(id, track) {
+  if (track == "Solar") {
+    return(switch(id[2], SUN_1, SUN_2, SUN_BOTH, SUN_T, SUN_T_H, SUN_H,
+                  SUN_1_H, SUN_1_W, S1_W_I, S1_W_L, S1_W_I_C, S1_W_I_L, S1_W_I_T,
+                  SUN_W_I))
+  } else if (track == "Wind") {
+    return(switch(id[2], W10, W100, W110))
+  }
 }
 
 getOrder <- function(id) {
@@ -164,22 +172,23 @@ getVariantName <- function(id) {
   return(getVariant(id)$TIT)
 }
 
-getVariablesName <- function(id) {
-  variables <- getVariableSelection(id)
+getVariablesName <- function(id, track) {
+  variables <- getVariableSelection(id, track)
   return(paste0(variables$VAR, "(", variables$SGN, ") "))
 }
 
 
 # wrapper ======================================================================
 
-unleashIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
+unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
   idr_v <- getVariant(id)
-  variables <- getVariableSelection(id)
+  variables <- getVariableSelection(id, track)
   pOrder <- getOrder(id)
   # if init print, then output information and return important information
   if (init) {
-    outputForecastingMethod(idr_v$TIT, idr_v$DES, getVariablesName(id))
-    return(list(TIT=idr_v$TIT, VAR=variables$VAR, OR=pOrder, PBZ=idr_v$PBZ))
+    outputForecastingMethod(idr_v$TIT, idr_v$DES, getVariablesName(id, track))
+    return(list(TRACK=track, TIT=idr_v$TIT, VAR=variables$VAR, OR=pOrder,
+                PBZ=idr_v$PBZ))
   }
   # get variable list that is used and signs of that variables
   vars <- variables$VAR
@@ -204,4 +213,12 @@ unleashIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
 
   # get IDR method
   return(idr_v$FUN(X_train[vars], y_train, X_test[vars], groups, orders))
+}
+
+unleashSolIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
+  return(unleashIDR("Solar", X_train, y_train, X_test, id, init))
+}
+
+unleashWinIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
+  return(unleashIDR("Wind", X_train, y_train, X_test, id, init))
 }

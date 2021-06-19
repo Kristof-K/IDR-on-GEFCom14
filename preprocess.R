@@ -1,7 +1,7 @@
 # define preprocess methods getting X_train and X_test and applying data
 # transformation on both
 
-library(dplyr)    # for lag in deaccumulateSun
+library(dplyr)    # for lag in deaccumulateSun and transmute in
 
 source("util.R")
 
@@ -44,6 +44,19 @@ deaccumulateSol <- function(data, init=FALSE) {
 
       data[[zone]][[var]] <- as.vector(deacc)
     }
+  }
+  return(data)
+}
+
+getWindVelocities <- function(data, init=FALSE) {
+  name <- "CalcWindVelocities"
+  if (init) {
+    outputPreprocessing(name)
+    return(name)
+  }
+  for(zone in data$Zones) {
+    data[[zone]] <- mutate(data[[zone]], W10 = sqrt(U10^2 + V10^2),
+                              W100 = sqrt(U100^2 + V100^2), .keep="unused")
   }
   return(data)
 }

@@ -1,14 +1,10 @@
-#setwd("D:/Studium/Semester6/BachelorArbeit/Code")
-
 library(foreach)    # to parallel central task loop
 library(doParallel)
 
 source("loadData.R")
 source("util.R")
-source("solarIDR.R")
+source("applyIDR.R")
 source("preprocess.R")
-
-SOLAR_CSV <- "../solarResults.csv"
 
 # TODO
 # - extended hour model
@@ -45,13 +41,13 @@ evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp) {
 
   # since files could be accessed from multiple threads, read it sequentially
   dataList <- foreach(task=TASKS) %do% {
-    preprocessfct(loadSolar(task))   # return value is stored in dataList
+    preprocessfct(loadSet(info[["TRACK"]], task))
   }
   # run in parallel through tasks and store results in scoreList
   scoreList <- foreach(task=TASKS,
                        .export=c("goParallel", "predAndEval")) %dopar% {
     source("util.R") # source necessary files (thread starts in empty env)
-    source("solarIDR.R")
+    source("applyIDR.R")
     saveScores <- goParallel(predictionfct, scoringfct, dataList[[task]], id,
                              info$PBZ)
     saveScores      # store result in list
@@ -111,6 +107,7 @@ predAndEval <- function(predictionfct, scoringfct, data, id, lastTrainTS,
 }
 
 outputAndLog <- function(scoreList, duration, info) {
+  file <- paste0("../", info$Track, "Results.csv")
   # average over scores
   averageScores <- sapply(scoreList, function(df) { return(mean(df$SCORE)) })
   results <- data.frame(rbind(averageScores))
@@ -125,7 +122,7 @@ outputAndLog <- function(scoreList, duration, info) {
                    Order = info$OR, Scoringfct = info$SF, Preprocess = info$PP,
                    results, Mean_A = finalScore, Minutes=duration)
   rownames(results)[1] <- 1
-  if (file.exists(SOLAR_CSV)) {
+  if (file.exists(file)) {
     previous <- read.csv2(SOLAR_CSV)
     # make sure that new determined result receives the next row number
     rownames(results)[1] <- dim(previous)[1] + 1
@@ -138,16 +135,18 @@ outputAndLog <- function(scoreList, duration, info) {
 
 #evaluation(trivialForecast, pinBallLoss, 2)
 #evaluation(benchmark, pinBallLoss, 1)
-#evaluation(unleashIDR, pinBallLoss, c(1, 3, 1))
-#evaluation(unleashIDR, pinBallLoss, c(1, 4, 1))
-#evaluation(unleashIDR, pinBallLoss, c(2, 5, 1))
-#evaluation(unleashIDR, pinBallLoss, c(2, 2, 1))
-#evaluation(unleashIDR, pinBallLoss, c(2, 3, 1))
-#evaluation(unleashIDR, pinBallLoss, c(2, 4, 1))
-#evaluation(unleashIDR, pinBallLoss, c(2, 5, 1))
-evaluation(unleashIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulateSol)
-#evaluation(unleashIDR, pinBallLoss, c(3, 3, 1), preprocessfct=deaccumulateSol)
-#evaluation(unleashIDR, pinBallLoss, c(2, 7, 1))
-#evaluation(unleashIDR, pinBallLoss, c(2, 9, 2), preprocessfct=deaccumulateSol)
-#evaluation(unleashIDR, pinBallLoss, c(4, 14, 1), preprocessfct=deaccumulateSol)
-#evaluation(unleashIDR, pinBallLoss, c(4, 1, 1), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(1, 3, 1))
+#evaluation(unleashSolIDR, pinBallLoss, c(1, 4, 1))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 5, 1))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 2, 1))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 3, 1))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 4, 1))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 5, 1))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(3, 3, 1), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 7, 1))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 9, 2), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(4, 14, 1), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(4, 1, 1), preprocessfct=deaccumulateSol)
+
+evaluation(unleashWinIDR, pinBallLoss, c(2, 1, 1), preprocessfct=getWindVelocities)
