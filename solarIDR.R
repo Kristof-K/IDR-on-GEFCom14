@@ -20,20 +20,21 @@ idrOnHour <- function(X_train, y_train, X_test, groups, orders) {
 idrByGroup <- function(X_train, y_train, X_test, groups, orders, bag_number=NA,
                        bag_size=NA) {
   train <- cbind(POWER = y_train, X_train)
-  # matrix containing in every row quantile forecast for a row in X_test
-  output <- matrix(0, nrow = nrow(X_test), ncol = length(QUANTILES))
   # breakdown data by hour
-  hours <- paste0(0:23)   # categories by which is grouped
+  hours <- 0:23
 
-  # for every category fit the model and predict
-  for (h in hours) {
+  # for every hour fit the model and predict
+  predictByHour <- function(h) {
     train_indices <- (hour(train$TIMESTAMP) == h)
     test_indices <- (hour(X_test$TIMESTAMP) == h)
     y <- subset(train, train_indices)$POWER
+    # matrix containing in every row quantile forecast plus original indices
+    output <- matrix(0, nrow=sum(test_indices), ncol=length(QUANTILES)+1)
+    output[,1] <- which(test_indices)   # original indices in 1st column
     # idr cannot handle if y is constant
     if (max(y) == min(y)) {
-      output[test_indices,] <- y[1]     # constant predictions if y is constant
-      next
+      output[,-1] <- y[1]     # constant predictions if y is constant
+      return(output)
     }
     trainByHour <- subset(train, train_indices, select=c(-TIMESTAMP, -POWER))
     makePred <- subset(X_test, test_indices, select=-TIMESTAMP)
@@ -46,9 +47,14 @@ idrByGroup <- function(X_train, y_train, X_test, groups, orders, bag_number=NA,
                           newdata=makePred, b=bag_number, p=bag_size,
                           progress=FALSE)
     }
-    output[test_indices,] <- qpred(predictions, quantiles=QUANTILES)
+    output[,-1] <- qpred(predictions, quantiles=QUANTILES)
+    return(output)   # eveything worked
   }
-  return(output)
+  # apply puts output of predictByHour in columns => apply over columns
+  quantilesPred <- apply(sapply(hours, predictByHour, simplify="array"), 2,
+                                              cbind)  # predict for every hour
+  # return rows ordered in original order X_test (and remove index column)
+  return(quantilesPred[order(quantilesPred[,1]), -1])
 }
 
 # Version3 : Apply idr on data grouped by hour, but use data from all zones
