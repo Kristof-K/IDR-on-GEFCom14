@@ -107,9 +107,11 @@ predAndEval <- function(predictionfct, scoringfct, data, id, lastTrainTS,
 }
 
 outputAndLog <- function(scoreList, duration, info) {
-  file <- paste0("../", info$Track, "Results.csv")
+  logFile <- paste0("../Results", info$TRACK, ".csv")
   # average over scores
-  averageScores <- sapply(scoreList, function(df) { return(mean(df$SCORE)) })
+  averageScores <- sapply(scoreList, function(df) {
+                                        return(mean(df$SCORE, na.rm=TRUE))
+                                      })
   results <- data.frame(rbind(averageScores))
   colnames(results) <- paste0("Task", TASKS)
   print(results)
@@ -122,19 +124,19 @@ outputAndLog <- function(scoreList, duration, info) {
                    Order = info$OR, Scoringfct = info$SF, Preprocess = info$PP,
                    results, Mean_A = finalScore, Minutes=duration)
   rownames(results)[1] <- 1
-  if (file.exists(file)) {
-    previous <- read.csv2(SOLAR_CSV)
+  if (file.exists(logFile)) {
+    previous <- read.csv2(logFile)
     # make sure that new determined result receives the next row number
     rownames(results)[1] <- dim(previous)[1] + 1
     results <- rbind(previous, results)
   }
   # X (1st) column in results is dummy column and should not be saved in result
-  write.csv2(results[-1], SOLAR_CSV)
+  write.csv2(results[-1], logFile)
 }
 
 
-#evaluation(trivialForecast, pinBallLoss, 2)
-#evaluation(benchmark, pinBallLoss, 1)
+#evaluation(trivialForecast, pinBallLoss, c(2,1))
+#evaluation(benchmarkSolar, pinBallLoss, 1)
 #evaluation(unleashSolIDR, pinBallLoss, c(1, 3, 1))
 #evaluation(unleashSolIDR, pinBallLoss, c(1, 4, 1))
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 5, 1))
@@ -149,4 +151,7 @@ outputAndLog <- function(scoreList, duration, info) {
 #evaluation(unleashSolIDR, pinBallLoss, c(4, 14, 1), preprocessfct=deaccumulateSol)
 #evaluation(unleashSolIDR, pinBallLoss, c(4, 1, 1), preprocessfct=deaccumulateSol)
 
-evaluation(unleashWinIDR, pinBallLoss, c(2, 1, 1), preprocessfct=getWindVelocities)
+#evaluation(benchmarkWind, pinBallLoss, 1)
+evaluation(unleashWinIDR, pinBallLoss, c(1, 2, 1), preprocessfct=getWindVelocities)
+evaluation(unleashWinIDR, pinBallLoss, c(1, 3, 1), preprocessfct=getWindVelocities)
+evaluation(unleashWinIDR, pinBallLoss, c(6, 2, 1), preprocessfct=getWindVelocities)

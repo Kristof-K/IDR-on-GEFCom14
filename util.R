@@ -82,15 +82,16 @@ outputForecastingMethod <- function(name, description, vars=NONE) {
 
 # Make a trivial forecast by using the empirical qauntiles of past obervations
 # belonging to the hour for which a forecast is issued
-trivialForecast <- function(X_train, y_train, X_test, id=1, init=FALSE) {
-  PBZ <- (if(id == 1) TRUE else FALSE)
+trivialForecast <- function(X_train, y_train, X_test, id=c(1, 1), init=FALSE) {
+  track <- switch(id[1], "Solar", "Wind")
+  PBZ <- (if(id[2] == 1) TRUE else FALSE)
   if (init) {
     outputForecastingMethod("trivial forecast",
                             c("Calculate", "for", "every", "hour", "the",
                             "empirical", "quantiles", "and", "return", "them",
                             "irrespective", "of", "any", "variable", "values"))
     return(list(TIT=paste0("empirical quantiles ", PBZ), VAR="None", OR="None",
-                PBZ=PBZ))
+                PBZ=PBZ, TRACK=track))
   }
   # function: calculate all quantiles and return data.frame
   getAllQuantiles <- function(x) {
@@ -99,7 +100,7 @@ trivialForecast <- function(X_train, y_train, X_test, id=1, init=FALSE) {
   # get for every hour the 99 empirical quantiles which we will use as forecast
   # pivot_wider transforms the long data table into a wide one
   quantiles_by_hour <- X_train %>%
-    mutate(Y = y_train, HOUR = hour(TIMESTAMP)) %>%
+    mutate(Y = y_train, HOUR = hour(TIMESTAMP)) %>% filter(!is.na(Y)) %>%
     group_by(HOUR) %>% summarise(getAllQuantiles(Y)) %>%
     pivot_wider(names_from=PROBS, values_from=Q)
 
@@ -117,17 +118,18 @@ trivialForecast <- function(X_train, y_train, X_test, id=1, init=FALSE) {
 }
 
 
-# GEFCOM14 Benchmark forecast : predict for all quantiles (1% up to 99%) the
-# power generation value of last year at exactly the same date
+# GEFCOM14 solar benchmark forecast : predict for all quantiles (1% up to 99%)
+# the power generation value of last year at exactly the same date
 # Therefore train has to comprise the one year past of test
-benchmark <- function(X_train, y_train, X_test, id=1, init=FALSE) {
+benchmarkSolar <- function(X_train, y_train, X_test, id=1, init=FALSE) {
   if (init) {
-    outputForecastingMethod("benchmark forecast",
+    outputForecastingMethod("solar benchmark forecast",
                             c("Issue", "for", "every", "timestamp", "the",
                               "power", "production", "of", "last", "year",
                               "ago", "as", "all", "quantiles", "(point-measure",
                             "on", "value", "one", "year", "ago)"))
-    return(list(TIT="benchmark", VAR="None", OR="None", PBZ=TRUE))
+    return(list(TIT="benchmark", VAR="None", OR="None", PBZ=TRUE,
+                TRACK="Solar"))
   }
   forecast_in <- X_test$TIMESTAMP
 
@@ -143,4 +145,53 @@ benchmark <- function(X_train, y_train, X_test, id=1, init=FALSE) {
   joinedForecast <- sapply(forecast_in, getLastYearVal)
   # sapply puts outputs of getLastYearVal in columns, we want that in rows
   return(t(joinedForecast))
+}
+
+# GEFCOM14 wind benchmark forecast : use empirical quantiles of training data
+# as (climatological) prediction
+benchmarkWind <- function(X_train, y_train, X_test, id=1, init=FALSE) {
+  if (init) {
+    outputForecastingMethod("wind benchmark forecast",
+                            c("Issue", "for", "every", "timestamp", "the",
+                              "empirical", "quantiles", "as", "quantile",
+                              "predictions"))
+    return(list(TIT="benchmark", VAR="None", OR="None", PBZ=TRUE, TRACK="Wind"))
+  }
+  quantiles <- quantile(y_train, probs=QUANTILES, na.rm=TRUE)
+  return(matrix(rep(quantiles, each=nrow(X_test)), nrow=nrow(X_test)))
+}
+
+
+
+# GROUPING FUNCTIONS
+
+# Group data in categories: these functions should return a vector of categories
+# if getCategories is TRUE, otherwise return boolean vector assigning each
+# timestamp a value inidicating whether it belongs to given group or not
+
+getHours <- function(timestamps, hour, getCategories=FALSE) {
+  hours <- 0:23
+  if (getCategories) {
+    return(hours)
+  }
+  return(hour(timestamps) == hour)
+}
+
+getMonths <- function(timestamps, month, getCategories=FALSE) {
+  months <- 1:12
+  if (getCategories) {
+    return(months)
+  }
+  return(month(timestamps) == month)
+}
+
+getSeasons <- function(timestamps, season, getCategories=FALSE) {
+  seasons <- c(1,2,3)
+  if (getCategories) {
+    return(seasons)
+  }
+  seasonized <- 1 * (month(timestamps) %in% c(12, 1, 2)) +
+                2 * (month(timestamps) %in% c(3, 4, 5, 9, 10, 11)) +
+                3 * (month(timestamps) %in% c(6, 7, 8))
+  return(seasonized == season)
 }
