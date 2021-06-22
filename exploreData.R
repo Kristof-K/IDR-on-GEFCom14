@@ -7,7 +7,7 @@ source("preprocess.R")
 
 
 # implement the whole process of examination solar track
-examineHour <- function() {
+examineSolarHour <- function() {
   # data is a list containing for every string in zones a data frame
   data <- loadSolar(15)
   numOfVars <- length(variableNames)  # variableNames is defined in plot.R
@@ -38,7 +38,7 @@ examineHour <- function() {
   }
 }
 
-examineHourDeacc <- function() {
+examineSolarHourDeacc <- function() {
   # data is a list containing for every string in zones a data frame
   deacc <- deaccumulateSol(loadSolar(15))
   deacc_vars <- c(ACCUMULATED, "POWER")
@@ -65,7 +65,7 @@ examineHourDeacc <- function() {
   }
 }
 
-examineMonth <- function() {
+examineSolarMonth <- function() {
   # data is a list containing for every string in zones a data frame
   data <- loadSolar(15)
   numOfVars <- length(variableNames)  # variableNames is defined in plot.R
@@ -92,7 +92,7 @@ examineMonth <- function() {
   }
 }
 
-examinePower <- function() {
+examineSolarPower <- function() {
   data <- loadSolar(15)
 
   for (zone in data$Zones) {
@@ -101,13 +101,13 @@ examinePower <- function() {
 }
 
 examineSolar <- function() {
-  examineHour()
-  examineMonth()
-  examineHourDeacc()
-  examinePower()
+  examineSolarHour()
+  examineSolarMonth()
+  examineSolarHourDeacc()
+  examineSolarPower()
 }
 
-examinePower()
+examineSolarPower()
 
 # VISUAL RESULT:
 # positive propotionality to Power
@@ -116,3 +116,16 @@ examinePower()
 # negative proportionality to Power
 # [strong]  :
 # [weak]    : relative humidity (VAR 157)
+
+
+examineWind <- function() {
+  data <- getWindVelocities(loadWind(15))
+
+  for(zone in data$Zones) {
+     plotTimeSeries(data[[zone]], "2012-09-09 00:00:00 UTC",
+                    "2012-09-19 00:00:00 UTC",
+                    name=paste0("TimeSeries_Wind_", zone, ".png"))
+  }
+}
+
+examineWind()
