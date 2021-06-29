@@ -298,8 +298,23 @@ plotPowerHeatMap <- function(data, track, zone, suf="") {
     select(-TIMESTAMP) %>%
     ggplot() +
       geom_tile(mapping = aes(x=X, y=Hour, fill=POWER)) +
-      ggtitle(paste("Heatmap of solar power production in", zone)) +
+      ggtitle(paste("Heatmap of", track, "power production in", zone)) +
       scale_x_continuous(breaks = ticks %/% 24, labels = labels, name = "") +
       ggsave(paste0("PowerHeatmap_", zone, suf, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=8)
+}
+
+# Scatter wind power production against wind speed and color wind directions
+plotWindPower <- function(data, track, zone) {
+  rbind(data.frame(Power=data$POWER, Height=10, Speed=data$W10,
+                   Direction=data$A10),
+        data.frame(Power=data$POWER, Height=100, Speed=data$W100,
+                               Direction=data$A100)) %>%
+    ggplot(mapping = aes(x=Speed, y=Power, color=Direction)) +
+      geom_point(na.rm = TRUE) +
+      scale_color_gradientn(colors = c("blue", "red", "blue")) +
+      facet_wrap(~ Height) +
+      ggtitle("Wind Power ~ Wind speed, colored in wind direction") +
+      ggsave(paste0("ScatterWindPower_", zone, ".png"),
+             path=paste0("plots/", track, "/"), width=24, height=8)
 }

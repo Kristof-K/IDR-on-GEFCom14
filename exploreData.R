@@ -122,13 +122,14 @@ examineSolar <- function() {
 # [weak]    : relative humidity (VAR 157)
 
 
-examineWindTime <- function() {
+examineWindFeatures <- function() {
   data <- getWindAttributes(loadWind(15))
 
   for(zone in data$Zones) {
      plotTimeSeries(data[[zone]], "2012-09-09 00:00:00 UTC",
                     "2012-09-19 00:00:00 UTC", "Wind",
                     name=paste0("TimeSeries_Wind_", zone, ".png"))
+    plotWindPower(data[[zone]], "Wind", zone)
   }
 }
 
@@ -141,4 +142,4 @@ examineWind <- function() {
   examinePower(track)
 }
 
-examineWind()
+examineWindFeatures()
