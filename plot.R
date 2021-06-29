@@ -4,23 +4,29 @@ library(tidyr)      # for pivot_longer
 library(stringr)    # for string manipulations
 library(lubridate)  # for working with dates
 
-variableNames <- c("VAR78" = "liquid water",
-                   "VAR79" = "Ice water", 
-                   "VAR134" = "surface pressure", 
-                   "VAR157" = "relative humidity", 
-                   "VAR164" = "total cloud cover", 
-                   "VAR165" = "10-meter u-wind",
-                   "VAR166" = "10-meter v-wind", 
-                   "VAR167" = "2-meter temperature",
-                   "VAR169" = "surface solar rad down", 
-                   "VAR175" = "surface thermal rad down",
-                   "VAR178" = "top net solar rad", 
-                   "VAR228" = "total precipitation")
+solarVars <- c("VAR78" = "liquid water",
+               "VAR79" = "Ice water",
+               "VAR134" = "surface pressure",
+               "VAR157" = "relative humidity",
+               "VAR164" = "total cloud cover",
+               "VAR165" = "10-meter u-wind",
+               "VAR166" = "10-meter v-wind",
+               "VAR167" = "2-meter temperature",
+               "VAR169" = "surface solar rad down",
+               "VAR175" = "surface thermal rad down",
+               "VAR178" = "top net solar rad",
+               "VAR228" = "total precipitation")
+windVars <- c("U10"="U10", "V10"="V10", "U100"="U100", "V100"="V100",
+              "W10" = "10m wind speed", "W100" = "100m wind speed",
+              "A10" = "10m wind direction", "A100" = "100m wind direction")
 
 corr_c <- c("pearson", "spearman", "kendall")
 
+months <- paste(1:12)
+hours <- paste(0:23)
 monthsLabel <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
       "Nov", "Dez")
+hoursLabel <- paste(hours, "h")
 
 powerLim <- c(0, 1.1) # power is normalized, i.e it lives in the unit interval
 
@@ -34,36 +40,47 @@ getLimits <- function(var, min, max) {
   return(c(myMin, myMax))
 }
 
+# Get the variables belonging to a track
+# - track : name of the track
+getVars <- function(track) {
+  return(switch(track, "Solar"=solarVars, "Wind"=windVars))
+}
+# Get a grid to plot all variables (dependent on number of vars in the track)
+# - track : name of the track
+getGrid <- function(track) {
+  return(switch(track, "Solar"=c(3,4), "Wind"=c(2,4)))
+}
 
 # Plot scatter plots for every variable in variableNames
 # - list : list of data.frames for every category
-# - categroies : vector of names defining the categories
+# - track : current track for naming the plots
 # - zone : current zone (only label for plotting)
 # - min / max : data.frame containg for every variable min and max value
-scatterHours <- function(list, categories, zone, min, max) {
-  png(paste0(file="plots/scatterByHours_", zone, ".png"), width=1600, height=900)
-  scatterFull(list, categories, zone, min, max, append="h", 
+scatterHours <- function(list, track, zone, min, max) {
+  png(paste0(file="plots/", track, "/scatterByHours_", zone, ".png"), width=1600, height=900)
+  scatterFull(list, categories=hours, track, zone, min, max, labels=hoursLabel,
               title="grouped by hour")
   dev.off()
 }
 
-scatterMonths <- function(list, categories, zone, min, max) {
-  png(file=paste("plots/scatterByMonths_", zone, ".png"), width=1600, height=900)
-  scatterFull(list, categories, zone, min, max, labels=monthsLabel,
+scatterMonths <- function(list, track, zone, min, max) {
+  png(file=paste0("plots/", track, "/scatterByMonths_", zone, ".png"), width=1600, height=900)
+  scatterFull(list, categories=months, track, zone, min, max, labels=monthsLabel,
               title="grouped by month")
   dev.off()
 }
 
-scatterFull <- function(list, categories, zone, min, max, append="", 
-                        labels=NULL, title="") {
+scatterFull <- function(list, categories, track, zone, min, max, labels,
+                        title="") {
   colors <- rainbow(length(categories))
+  vars <- getVars(track)
   
-  par(mfrow=c(3,4), mar=c(4, 0, 0, 0), oma=c(3,2,3,2), mgp=c(1.4,0.6,0))
+  par(mfrow=getGrid(track), mar=c(4, 0, 0, 0), oma=c(3,2,3,2), mgp=c(1.4,0.6,0))
   j <- 0
-  for (var in names(variableNames)) {
+  for (var in names(vars)) {
     y_axis <- if(j %% 4 == 0) "s" else "n"      # plot y axis or not
     
-    plot(0, type="n", ylab="Power", yaxt=y_axis, xlab=variableNames[[var]], 
+    plot(0, type="n", ylab="Power", yaxt=y_axis, xlab=vars[[var]],
          xlim=getLimits(var, min, max), ylim=powerLim)
     c <- 1
     for (element in categories) {
@@ -75,8 +92,7 @@ scatterFull <- function(list, categories, zone, min, max, append="",
   }
   add <- if (title != "") paste(",", title) else ""
   mtext(paste0(zone, ": Power ~ variables", add), outer=TRUE, line=0.5, cex=1.5)
-  text <- if (is.null(labels)) categories else labels
-  mtext(paste0(text, append), side=1, outer=TRUE, line=0.5, col=colors, 
+  mtext(labels, side=1, outer=TRUE, line=0.5, col=colors,
         at=seq(0.1, 0.9, 0.8 / (length(categories) - 1)))
   # set parameters back to default
   par(mfrow=c(1,1), mar=c(5, 4, 4, 2) + 0.1, oma=c(0,0,0,0), mgp=c(3 ,1 ,0))
@@ -87,25 +103,26 @@ scatterFull <- function(list, categories, zone, min, max, append="",
 # - coefficients : 3-dim array containing the correlation coefficients (on 1st
 #   axis variables, 2nd coefficient type (pearson, spearman, kendall) and on 3rd
 #   the categories)
-# - categories : vector of names defining the categories
+# - tracl : name of the current track (only for naming the plot)
 # - zone : current zone (only label for plotting)
-correlationPlotHours <- function(coefficients, categories, zone) {
-  png(file=paste0("plots/correlationByHours_", zone, ".png"), width=900, height=600)
-  correlationPlot(coefficients, categories, zone, title="grouped by hour", 
-                  append="h")
+correlationPlotHours <- function(coefficients, track, zone) {
+  png(file=paste0("plots/", track, "/correlationByHours_", zone, ".png"), width=900, height=600)
+  correlationPlot(coefficients, categories=hours, track, zone,
+                  title="grouped by hour", label=hoursLabel)
   dev.off()
 }
 
-correlationPlotMonths <- function(coefficients, categories, zone) {
-  png(file=paste0("plots/correlationByMonths_", zone, ".png"), width=900, height=600)
-  correlationPlot(coefficients, categories, zone, title="grouped by month", 
-                  labels=monthsLabel)
+correlationPlotMonths <- function(coefficients, track, zone) {
+  png(file=paste0("plots/", track, "/correlationByMonths_", zone, ".png"), width=900, height=600)
+  correlationPlot(coefficients, categories=months, track, zone,
+                  title="grouped by month", labels=monthsLabel)
   dev.off()
 }
 
-correlationPlot <- function(coefficients, categories, zone, title="", append="", 
-                            labels=NULL) {
-  n <- length(names(variableNames))
+correlationPlot <- function(coefficients, categories, track, zone, title="",
+                            labels) {
+  vars <- getVars(track)
+  n <- length(vars)
   x <- 1:n
   colors <- rainbow(length(categories))
   shapes <- c(15, 16, 17)
@@ -116,23 +133,22 @@ correlationPlot <- function(coefficients, categories, zone, title="", append="",
   plot(c(0.5,n+0.5), c(0,0), type="l", lty=3, xaxt="n", xlim=c(0,13), xlab="", 
        ylab="", ylim=c(-1.2,1.2))
   
-  for(var in 1:length(variableNames)) {   # iterate through 1st axis of coeff
+  for(var in 1:n) {   # iterate through 1st axis of coeff
     for(i in 1:3) {                       # iterate through 2nd axis of coeff
       lines(rep(var + shift[i], length(categories)), coefficients[var, i, ],
             type="p", cex=1.2, col=colors, pch=shapes[i])
     }
     # draw separation line
-    if (var < length(variableNames)) {
+    if (var < n) {
       lines(rep(var + 0.5, 2), c(-1, 1), type="l", lty=3)
     }
   }
   
-  axis(1, at=x, labels=names(variableNames), cex.axis=0.8, las=2)
+  axis(1, at=x, labels=names(vars), cex.axis=0.8, las=2)
   add <- if (title != "") paste(",", title) else ""
   mtext(paste0(zone, ": Correlation(Power,variables)", add), outer=TRUE, 
         line=0.5, cex=1.5)
-  text <- if (is.null(labels)) categories else labels
-  mtext(paste0(text, append), side=1, outer=TRUE, line=0, col=colors, 
+  mtext(labels, side=1, outer=TRUE, line=0, col=colors,
         at=seq(0.1, 0.9, 0.8 / (length(categories) - 1)))
   mtext(paste(corr_c, c("(square)", "(circle)", "(triangle)")), side=1,  
         outer=TRUE, line=1, at=c(0.3, 0.5, 0.7))
@@ -142,40 +158,44 @@ correlationPlot <- function(coefficients, categories, zone, title="", append="",
 
 # Plot scatter plots for a single variable, every category gets an own plot
 # - list : list of data.frames for every category
-# - categroies : vector of names defining the categories
+# - track : name of the track (for naming the plot)
 # - zone : current zone (only label for plotting)
 # - min / max : data.frame containg for every variable min and max value
 # - name : name of the varibale that should be plotted
 # - suf : text that should be appended to the name
-scatterSingleHours <- function(list, categories, zone, min, max, name, suf="") {
+scatterSingleHours <- function(list, track, zone, min, max, name, suf="") {
   suf <- if (suf != "") paste0("_", suf) else suf
-  png(file=paste0("plots/scatterByHours_", name, "_", zone, suf, ".png"), width=1600, height=900)
-  scatterSingle(list, categories, zone, min, max, name, append="h", 
-              title=paste0(name, ", grouped by hour"), grid=c(4,6))
+  png(file=paste0("plots/", track, "/scatterByHours_", name, "_", zone, suf, ".png"), width=1600, height=900)
+  scatterSingle(list, categories=hours, track, zone, min, max, name,
+                label=hoursLabel, title=paste0(name, ", grouped by hour"),
+                grid=c(4,6))
   dev.off()
 }
 
-scatterSingleMonths <- function(list, categories, zone, min, max, name, suf="") {
+scatterSingleMonths <- function(list, track, zone, min, max, name, suf="") {
   suf <- if (suf != "") paste0("_", suf) else suf
-  png(file=paste0("plots/scatterByMonth_", name, "_", zone, suf, ".png"), width=1600, height=900)
-  scatterSingle(list, categories, zone, min, max, name, labels=monthsLabel,
-              title=paste0(name, ", grouped by month"), grid=c(3,4))
+  png(file=paste0("plots/", track, "/scatterByMonth_", name, "_", zone, suf, ".png"), width=1600, height=900)
+  scatterSingle(list, categories=months, track, zone, min, max, name,
+                labels=monthsLabel, title=paste0(name, ", grouped by month"),
+                grid=c(3,4))
   dev.off()
 }
 
-scatterAllSingle <- function(list, categories, zone, min, max, hour=TRUE) {
-  for (var in names(variableNames)) {
+scatterAllSingle <- function(list, track, zone, min, max, hour=TRUE) {
+  vars <- getVars(track)
+  for (var in names(vars)) {
     if (hour) {
-      scatterSingleHours(list, categories, zone, min, max, var)
+      scatterSingleHours(list, track, zone, min, max, var)
     } else {
-      scatterSingleMonths(list, categories, zone, min, max, var)
+      scatterSingleMonths(list, track, zone, min, max, var)
     }
   }
 }
 
-scatterSingle <- function(list, categories, zone, min, max, name, append="", 
-                        labels=NULL, title="", grid=c(1,1)) {
+scatterSingle <- function(list, categories, track, zone, min, max, name,
+                       labels, title="", grid=c(1,1)) {
   colors <- rainbow(length(categories))
+  vars <- getVars(track)
   
   par(mfrow=grid, mar=c(0, 0, 0, 0), oma=c(4,4,4,2), mgp=c(1.2,0.6,0))
   
@@ -187,17 +207,15 @@ scatterSingle <- function(list, categories, zone, min, max, name, append="",
     limits <- getLimits(name, min, max)
     
     plot(list[[element]][[name]], list[[element]][["POWER"]], type="p", pch=20,   
-         ylab="Power", yaxt=y_axis, xaxt=x_axis, xlab=variableNames[[name]], 
+         ylab="Power", yaxt=y_axis, xaxt=x_axis, xlab=vars[[name]],
          xlim=limits, ylim=powerLim, col=colors[j+1], cex=2)
-    descriptionList <- if (is.null(labels)) categories else labels
-    description <- paste0(descriptionList[j+1], append)
-    text(x=0.1*limits[1] + 0.9*limits[2], y=0.9*powerLim[2], description, 
+    text(x=0.1*limits[1] + 0.9*limits[2], y=0.9*powerLim[2], labels[j + 1],
          cex=1.7)
     j <- j+1
   }
   add <- if (title != "") paste(",", title) else ""
-  mtext(paste0(zone, ": Power ~ ", variableNames[[name]], add), outer=TRUE, 
-        line=0.5, cex=1.5)
+  mtext(paste0(zone, ": Power ~ ", vars[[name]], add), outer=TRUE, line=0.5,
+        cex=1.5)
   # set parameters back to default
   par(mfrow=c(1,1), mar=c(5, 4, 4, 2) + 0.1, oma=c(0,0,0,0), mgp=c(3 ,1 ,0))
 }
@@ -207,15 +225,16 @@ scatterSingle <- function(list, categories, zone, min, max, name, append="",
 # - data : data.frame with TIMESTAMPS as one solumn and other variables
 # - start : first timestamp, from what time we should start plotting
 # - end : last timestamp, up to what time we should plot
+# - track : current track for naming the plot
 # - zone : current zone for naming the plot
 # - suf : text that should be appended to the name
-plotAgainstTime <- function(data, start, end, zone, suf="") {
+plotAgainstTime <- function(data, start, end, track, zone, suf="") {
   suf <- if (suf != "") paste0("_", suf) else suf
-  plotTimeSeries(data, start, end,
+  plotTimeSeries(data, start, end, track,
                  name=paste0("TimeSeries_", zone, suf, ".png"))
 }
 
-plotTimeSeries <- function(data, start, end, name) {
+plotTimeSeries <- function(data, start, end, track, name) {
   # restrict data to timestamps of interest
   plotData <- filter(data, TIMESTAMP %within% interval(start, end))
   # get timestamps and replace them in the data frame with the values 1,...,n
@@ -251,16 +270,17 @@ plotTimeSeries <- function(data, start, end, name) {
     geom_line(mapping = aes(color = Line)) +
     scale_x_continuous(breaks = ticks, labels = labels, name = "") +
     facet_wrap(~ VAR) +
-    ggsave(name, path="plots/", width=17.5, height=10.5)
+    ggsave(name, path=paste0("plots/", track, "/"), width=17.5, height=10.5)
 }
 
 
 # Plot a heatmap of the POWER values whereby the heatmap should be a 24xn iamge
 # with each row representing an hour, each column a day
 # - data : data.frame containing the two colums "TIMESTAMP" and "POWER"
+# - track : current track for naming the plot
 # - zone : current zone for naming the plot
 # - suf : text that should be appended to the name
-plotPowerHeatMap <- function(data, zone, suf="") {
+plotPowerHeatMap <- function(data, track, zone, suf="") {
   suf <- if (suf != "") paste0("_", suf) else suf
   # we want day times to be in the mid of the plot
   hour_order <- c(15:23, 0:14)
@@ -280,6 +300,6 @@ plotPowerHeatMap <- function(data, zone, suf="") {
       geom_tile(mapping = aes(x=X, y=Hour, fill=POWER)) +
       ggtitle(paste("Heatmap of solar power production in", zone)) +
       scale_x_continuous(breaks = ticks %/% 24, labels = labels, name = "") +
-      ggsave(paste0("PowerHeatmap_", zone, suf, ".png"), path="plots/", width=18,
-             height=8)
+      ggsave(paste0("PowerHeatmap_", zone, suf, ".png"),
+             path=paste0("plots/", track, "/"), width=18, height=8)
 }

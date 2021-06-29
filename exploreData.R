@@ -7,10 +7,10 @@ source("preprocess.R")
 
 
 # implement the whole process of examination solar track
-examineSolarHour <- function() {
+examineHour <- function(track, preprocess=no_pp) {
   # data is a list containing for every string in zones a data frame
-  data <- loadSolar(15)
-  numOfVars <- length(variableNames)  # variableNames is defined in plot.R
+  data <- preprocess(loadSet(track,15))
+  numOfVars <- length(getVars(track))  # variableNames is defined in plot.R
 
   # EXAMINE DATA GROUPED BY HOUR
   cat("Examing data grouped by hour:\n")
@@ -27,14 +27,14 @@ examineSolarHour <- function() {
     max <- sapply(data[[zone]][-1], max) # drop timestamp => -1
     
     # now plot
-    scatterHours(groupByHour, hours, zone, min, max)
-    scatterAllSingle(groupByHour, hours, zone, min, max, hour=TRUE)
+    scatterHours(groupByHour, track, zone, min, max)
+    scatterAllSingle(groupByHour, track, zone, min, max, hour=TRUE)
     # and examine the correlation coefficients
     coeffs <- getCorrelationCoefficients(groupByHour, hours, numOfVars)
-    correlationPlotHours(coeffs, hours, zone)
+    correlationPlotHours(coeffs, track, zone)
     # plot time series
     plotAgainstTime(data[[zone]], "2013-09-09 00:00:00 UTC",
-                    "2013-09-19 00:00:00 UTC", zone)
+                    "2013-09-19 00:00:00 UTC", track, zone)
   }
 }
 
@@ -56,19 +56,21 @@ examineSolarHourDeacc <- function() {
     }
     # consider deaccumulated
     plotAgainstTime(deacc[[zone]], "2013-09-09 00:00:00 UTC",
-                    "2013-09-19 00:00:00 UTC", zone, suf="deacc")
+                    "2013-09-19 00:00:00 UTC", track="Solar", zone,
+                    suf="deacc")
     min <- sapply(deacc[[zone]][deacc_vars], min)
     max <- sapply(deacc[[zone]][deacc_vars], max)
     for(var in ACCUMULATED) {
-      scatterSingleHours(groupByHour, hours, zone, min, max, var, suf="deacc")
+      scatterSingleHours(groupByHour, "Solar", zone, min, max, var,
+                         suf="deacc")
     }
   }
 }
 
-examineSolarMonth <- function() {
+examineMonth <- function(track, preprocess=no_pp) {
   # data is a list containing for every string in zones a data frame
-  data <- loadSolar(15)
-  numOfVars <- length(variableNames)  # variableNames is defined in plot.R
+  data <- preprocess(loadSet(track,15))
+  numOfVars <- length(getVars(track))  # variableNames is defined in plot.R
   # EXAMINE DATA GROUPED BY MONTH
   cat("Examing data grouped by month:\n")
   for (zone in data$Zones) {
@@ -84,30 +86,32 @@ examineSolarMonth <- function() {
     max <- sapply(data[[zone]][-1], max)# drop timestamp => -1
     
     # now plot
-    scatterMonths(groupByMonth, months, zone, min, max)
-    scatterAllSingle(groupByMonth, months, zone, min, max, hour=FALSE)
+    scatterMonths(groupByMonth, track, zone, min, max)
+    scatterAllSingle(groupByMonth, track, zone, min, max, hour=FALSE)
     # and examine the correlation coefficients
     coeffs <- getCorrelationCoefficients(groupByMonth, months, numOfVars)
-    correlationPlotMonths(coeffs, months, zone)
+    correlationPlotMonths(coeffs, track, zone)
   }
 }
 
-examineSolarPower <- function() {
-  data <- loadSolar(15)
+examinePower <- function(track) {
+  data <- loadSet(track,15)
 
   for (zone in data$Zones) {
-    plotPowerHeatMap(data[[zone]][c("TIMESTAMP", "POWER")], zone)
+    plotPowerHeatMap(data[[zone]][c("TIMESTAMP", "POWER")], track, zone)
   }
 }
 
 examineSolar <- function() {
-  examineSolarHour()
-  examineSolarMonth()
+  cat("Solar:\n")
+  track <- "Solar"
+  examineHour(track)
+  examineMonth(track)
   examineSolarHourDeacc()
-  examineSolarPower()
+  examinePower(track)
 }
 
-examineSolarPower()
+#examineSolar()
 
 # VISUAL RESULT:
 # positive propotionality to Power
@@ -118,14 +122,23 @@ examineSolarPower()
 # [weak]    : relative humidity (VAR 157)
 
 
-examineWind <- function() {
-  data <- getWindVelocities(loadWind(15))
+examineWindTime <- function() {
+  data <- getWindAttributes(loadWind(15))
 
   for(zone in data$Zones) {
      plotTimeSeries(data[[zone]], "2012-09-09 00:00:00 UTC",
-                    "2012-09-19 00:00:00 UTC",
+                    "2012-09-19 00:00:00 UTC", "Wind",
                     name=paste0("TimeSeries_Wind_", zone, ".png"))
   }
+}
+
+examineWind <- function() {
+  cat("Wind:\n")
+  track <- "Wind"
+  examineHour(track, preprocess=getWindAttributes)
+  examineMonth(track, preprocess=getWindAttributes)
+  examineWindTime()
+  examinePower(track)
 }
 
 examineWind()
