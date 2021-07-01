@@ -304,24 +304,109 @@ plotPowerHeatMap <- function(data, track, zone, suf="") {
              path=paste0("plots/", track, "/"), width=18, height=8)
 }
 
+# help function for scatterWindPower and estimatePowerDistribution
+# discretize wind direction
+  makeDiscrete <- function(x, n, interval=TRUE) {
+    boundaries <- 0:n / n * 360 - 180
+    binned <- floor((x + 180) / 360 * n)
+    dropLastBin <- (binned - 1 * (binned == n)) + 1  # merge last two bins
+    if (interval) {
+      b <- round(boundaries)
+      order <- paste0("[", b[1:n], ",", b[drop(1:n)+1], ")")
+      vals <- paste0("[", b[dropLastBin], ",", b[dropLastBin+1], ")")
+      return(factor(vals, ordered=TRUE, levels=order))
+    } else {
+      # return midpoints
+      return((boundaries[dropLastBin] + boundaries[dropLastBin+1]) / 2)
+    }
+  }
+
 # Scatter wind power production against wind speed and color wind directions
 # - data : data.frame containing the colums "POWER" and wind speed and direction
 #   in 10m and 100m height
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
-plotWindPower <- function(data, track, zone) {
-  rbind(data.frame(Power=data$POWER, Height=10, Speed=data$W10,
-                   Direction=data$A10),
-        data.frame(Power=data$POWER, Height=100, Speed=data$W100,
-                               Direction=data$A100)) %>%
-    ggplot(mapping = aes(x=Speed, y=Power, color=Direction)) +
-      geom_point(na.rm = TRUE) +
-      scale_color_gradientn(colors = c("blue", "red", "blue")) +
-      facet_wrap(~ Height) +
-      ggtitle("Wind Power ~ Wind speed, colored in wind direction") +
-      ggsave(paste0("ScatterWindPower_", zone, ".png"),
+# - bins : number of bins to discretize wind direction (by default NA, i.e. no
+#   binning and use continous cloring instead
+scatterWindPower <- function(data, track, zone, bins=NA) {
+  add <- "Cont_"
+  plotData <- rbind(data.frame(Power=data$POWER, Height=10, Speed=data$W10,
+                               Direction=data$A10),
+                    data.frame(Power=data$POWER, Height=100, Speed=data$W100,
+                               Direction=data$A100))
+  plotData <- na.omit(plotData)   # remove NA values
+  if (!is.na(bins)) {
+    add <- paste0(bins, "Bins_")
+
+    plotData <- mutate(plotData, Direction=makeDiscrete(Direction, bins))
+  }
+  # scatter plot power against speed
+  scatter <- ggplot(data = plotData, mapping = aes(x=Speed, y=Power,
+                                                   color=Direction)) +
+              geom_point(na.rm = TRUE) +
+              facet_wrap(~ Height) +
+              ggtitle("Wind Power ~ Wind speed, colored in wind direction")
+  # adapt colors
+  if(is.na(bins)) {
+    scatter <- scatter +
+      scale_color_gradientn(colors = c("blue", "red", "blue"))
+  } else {
+    scatter <- scatter +
+      scale_color_manual(values = rainbow(bins))
+  }
+  scatter +
+    ggsave(paste0("ScatterWindPower_", add, zone, ".png"),
              path=paste0("plots/", track, "/"), width=24, height=8)
 }
+
+# Plot boxplots (discrete case) or estimated median and quartils (cont. case) of
+# wind power production  as function of the wind direction
+# - data : data.frame containing the colums POWER and direction in 10m and 100m
+#   height
+# - track : current track for naming the plot
+# - zone : current zone for naming the plot
+# - bins : number of bins to discretize wind direction (by default NA, i.e. no
+#   binning and use continous cloring instead
+estimatePowerDistribution <- function(data, track, zone, bins=NA) {
+  getFeatures <- function(x) {
+    return(data.frame(Name=c("Median", "lQuartil", "uQuartil"),
+                      Power=unname(quantile(x, probs=c(0.5, 0.25, 0.75)))))
+  }
+
+  add <- "Cont_"
+  plotData <- rbind(data.frame(Power=data$POWER, Height=10, Speed=data$W10,
+                               Direction=data$A10),
+                    data.frame(Power=data$POWER, Height=100, Speed=data$W100,
+                               Direction=data$A100))
+  plotData <- na.omit(plotData)   # remove NA values
+  if (!is.na(bins)) {
+    add <- paste0(bins, "Bins_")
+
+    plotData <- mutate(plotData, Direction=makeDiscrete(Direction, bins))
+  }
+  box_dens <- ggplot(data = plotData, mapping = aes(x=Direction, y=Power))
+  # adapt colors
+  if(is.na(bins)) {
+    features <- mutate(plotData, Direction=makeDiscrete(Direction, 100,
+                                                        interval=FALSE)) %>%
+      group_by(Direction) %>% summarise(getFeatures(Power), .groups="drop")
+
+    box_dens <- box_dens +
+      geom_point() +
+      geom_smooth(data = features, mapping = aes(color=Name), method=loess,
+                  se=FALSE, size=1.3, formula=y~x) +
+      ggtitle("Point cloud and smoothed quantiles")
+  } else {
+    box_dens <- box_dens +
+      geom_boxplot(mapping = aes(color=Direction)) +
+      ggtitle("Boxplots for different dsicretized wind directions")
+  }
+  box_dens +
+    ggsave(paste0("WindPowerDistributions_", add, zone, ".png"),
+             path=paste0("plots/", track, "/"), width=24, height=8)
+}
+
+
 
 # plot hourly expected (or median) power wind production with data grouped by
 # month
