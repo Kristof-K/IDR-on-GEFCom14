@@ -357,27 +357,32 @@ plotPowerAreaCurves <- function(data, track, zone) {
                      month(t) %in% c(6, 7, 8) ~ "Jun,Jul,Aug",
                      month(t) %in% c(9, 10, 11) ~ "Sep,Oct,Nov"))
   }
+  getConfidence <- function(x) {
+    intervals <- c("100%", "80%", "60%", "40%", "20%")
+    lowerVals <- c(min(x), unname(quantile(x, probs=1:4 * 0.1)))
+    upperVals <- c(max(x), unname(quantile(x, probs=9:6 * 0.1)))
+    return(data.frame(Width=intervals, L=lowerVals, U=upperVals))
+  }
   plotData <- data %>% filter(!is.na(POWER)) %>%
     mutate(HOUR = hour(TIMESTAMP), SEASON = seasonize(TIMESTAMP)) %>%
     select(-TIMESTAMP) %>% group_by(HOUR, SEASON)
 
   meanAndMedian <-  summarise(plotData, Mean=mean(POWER), Median=median(POWER),
-                              .groups="drop")
-  quartiles <- summarise(plotData, lQuartil=quantile(POWER, probs=0.25),
-                         uQuartil=quantile(POWER, probs=0.75), .groups="drop")
+                  .groups="drop")
+  c_intervals <- summarise(plotData, getConfidence(POWER), .groups="drop")
 
-  ggplot(mapping = aes(x=HOUR, color=SEASON)) +
-    geom_ribbon(data = quartiles, mapping=aes(ymin=lQuartil, ymax=uQuartil,
-                                              fill=SEASON),
-                alpha = 0.3, show.legend = FALSE) +
-    geom_line(data = meanAndMedian, mapping = aes(y=Mean), size = 1.2,
-              linetype = 1, show.legend = FALSE) +
-    geom_line(data = meanAndMedian, mapping = aes(y=Median), size = 1.2,
-              linetype = 2, show.legend = FALSE) +
+  ggplot(mapping = aes(x=HOUR)) +
     facet_wrap(~SEASON) +
+    geom_ribbon(data = c_intervals, mapping=aes(ymin=L, ymax=U, group=Width,
+                                                fill=SEASON),
+                alpha = 0.15, show.legend=FALSE) +
+    geom_line(data = meanAndMedian, mapping = aes(y=Mean, color=SEASON),
+              linetype=1, size=1.2, show.legend=FALSE) +
+    geom_line(data = meanAndMedian, mapping = aes(y=Median, color=SEASON),
+              linetype=2, size=1.2, show.legend=FALSE) +
     ylab("Power") +
     xlab("Hour") +
-    ggtitle(paste("Mean (solid), median (dashed) and centered 50% interval of",
+    ggtitle(paste("Mean (solid), median (dashed) and confidence intervals of",
                   track, "power production in", zone)) +
     ggsave(paste0("PowerAreaCurves_", zone, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=8)
