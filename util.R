@@ -101,7 +101,7 @@ trivialForecast <- function(X_train, y_train, X_test, id=c(1, 1), init=FALSE) {
   # pivot_wider transforms the long data table into a wide one
   quantiles_by_hour <- X_train %>%
     mutate(Y = y_train, HOUR = hour(TIMESTAMP)) %>% filter(!is.na(Y)) %>%
-    group_by(HOUR) %>% summarise(getAllQuantiles(Y)) %>%
+    group_by(HOUR) %>% summarise(getAllQuantiles(Y), .groups="drop") %>%
     pivot_wider(names_from=PROBS, values_from=Q)
 
   hours <- hour(X_test$TIMESTAMP)
@@ -193,5 +193,17 @@ getSeasons <- function(timestamps, season, getCategories=FALSE) {
   seasonized <- 1 * (month(timestamps) %in% c(12, 1, 2)) +
                 2 * (month(timestamps) %in% c(3, 4, 5, 9, 10, 11)) +
                 3 * (month(timestamps) %in% c(6, 7, 8))
+  return(seasonized == season)
+}
+
+get4Seasons <- function(timestamps, season, getCategories=FALSE) {
+  seasons <- c(1,2,3,4)
+  if (getCategories) {
+    return(seasons)
+  }
+  seasonized <- 1 * (month(timestamps) %in% c(12, 1, 2)) +
+                2 * (month(timestamps) %in% c(3, 4, 5)) +
+                3 * (month(timestamps) %in% c(6, 7, 8)) +
+                4 * (month(timestamps) %in% c(9, 10, 11))
   return(seasonized == season)
 }

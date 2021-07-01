@@ -99,6 +99,9 @@ examinePower <- function(track) {
 
   for (zone in data$Zones) {
     plotPowerHeatMap(data[[zone]][c("TIMESTAMP", "POWER")], track, zone)
+    plotPowerCurves(data[[zone]][c("TIMESTAMP", "POWER")], track, zone, e=TRUE)
+    plotPowerCurves(data[[zone]][c("TIMESTAMP", "POWER")], track, zone, e=FALSE)
+    plotPowerAreaCurves(data[[zone]][c("TIMESTAMP", "POWER")], track, zone)
   }
 }
 

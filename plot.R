@@ -305,6 +305,10 @@ plotPowerHeatMap <- function(data, track, zone, suf="") {
 }
 
 # Scatter wind power production against wind speed and color wind directions
+# - data : data.frame containing the colums "POWER" and wind speed and direction
+#   in 10m and 100m height
+# - track : current track for naming the plot
+# - zone : current zone for naming the plot
 plotWindPower <- function(data, track, zone) {
   rbind(data.frame(Power=data$POWER, Height=10, Speed=data$W10,
                    Direction=data$A10),
@@ -317,4 +321,64 @@ plotWindPower <- function(data, track, zone) {
       ggtitle("Wind Power ~ Wind speed, colored in wind direction") +
       ggsave(paste0("ScatterWindPower_", zone, ".png"),
              path=paste0("plots/", track, "/"), width=24, height=8)
+}
+
+# plot hourly expected (or median) power wind production with data grouped by
+# month
+# - data : data.frame containing the two colums "TIMESTAMP" and "POWER"
+# - track : current track for naming the plot
+# - zone : current zone for naming the plot
+# - e : if true plot expectation, if false plot median
+plotPowerCurves <- function(data, track, zone, e) {
+  fnc_label <- if(e) "Mean" else "Median"
+  fnc <- if (e) mean else function(x) {return(quantile(x, probs=0.5)[["50%"]])}
+  data %>% filter(!is.na(POWER)) %>%
+    mutate(HOUR = hour(TIMESTAMP), MONTH = month(TIMESTAMP, label=TRUE,
+                                                 abbr=TRUE)) %>%
+    select(-TIMESTAMP) %>% group_by(HOUR, MONTH) %>%
+    summarise(POWER = fnc(POWER), .groups="drop") %>%
+    ggplot(mapping = aes(x=HOUR, y=POWER, color=MONTH)) +
+      geom_line(size = 1.2) +
+      scale_color_manual(values = rainbow(12)) +
+      ggtitle(paste(fnc_label, "power curves of", track, "in", zone)) +
+      ggsave(paste0(fnc_label, "_PowerCurves_", zone, ".png"),
+             path=paste0("plots/", track, "/"), width=18, height=8)
+}
+
+# plot hourly expected and median power wind production with centered 50%
+# intervals, whereby data is grouped by season
+# - data : data.frame containing the two colums "TIMESTAMP" and "POWER"
+# - track : current track for naming the plot
+# - zone : current zone for naming the plot
+plotPowerAreaCurves <- function(data, track, zone) {
+  seasonize <- function(t) {
+    return(case_when(month(t) %in% c(12, 1, 2) ~ "Dez,Jan,Feb",
+                     month(t) %in% c(3, 4, 5) ~ "Mar,Apr,May",
+                     month(t) %in% c(6, 7, 8) ~ "Jun,Jul,Aug",
+                     month(t) %in% c(9, 10, 11) ~ "Sep,Oct,Nov"))
+  }
+  plotData <- data %>% filter(!is.na(POWER)) %>%
+    mutate(HOUR = hour(TIMESTAMP), SEASON = seasonize(TIMESTAMP)) %>%
+    select(-TIMESTAMP) %>% group_by(HOUR, SEASON)
+
+  meanAndMedian <-  summarise(plotData, Mean=mean(POWER), Median=median(POWER),
+                              .groups="drop")
+  quartiles <- summarise(plotData, lQuartil=quantile(POWER, probs=0.25),
+                         uQuartil=quantile(POWER, probs=0.75), .groups="drop")
+
+  ggplot(mapping = aes(x=HOUR, color=SEASON)) +
+    geom_ribbon(data = quartiles, mapping=aes(ymin=lQuartil, ymax=uQuartil,
+                                              fill=SEASON),
+                alpha = 0.3, show.legend = FALSE) +
+    geom_line(data = meanAndMedian, mapping = aes(y=Mean), size = 1.2,
+              linetype = 1, show.legend = FALSE) +
+    geom_line(data = meanAndMedian, mapping = aes(y=Median), size = 1.2,
+              linetype = 2, show.legend = FALSE) +
+    facet_wrap(~SEASON) +
+    ylab("Power") +
+    xlab("Hour") +
+    ggtitle(paste("Mean (solid), median (dashed) and centered 50% interval of",
+                  track, "power production in", zone)) +
+    ggsave(paste0("PowerAreaCurves_", zone, ".png"),
+             path=paste0("plots/", track, "/"), width=18, height=8)
 }
