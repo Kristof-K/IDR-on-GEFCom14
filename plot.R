@@ -17,15 +17,15 @@ solarVars <- c("VAR78" = "liquid water",
                "VAR178" = "top net solar rad",
                "VAR228" = "total precipitation")
 windVars <- c("U10"="U10", "V10"="V10", "U100"="U100", "V100"="V100",
-              "W10" = "10m wind speed", "W100" = "100m wind speed",
-              "A10" = "10m wind direction", "A100" = "100m wind direction")
+              "S10" = "10m wind speed", "S100" = "100m wind speed",
+              "A10" = "10m wind angle", "A100" = "100m wind angle")
 
 corr_c <- c("pearson", "spearman", "kendall")
 
 months <- paste(1:12)
 hours <- paste(0:23)
-monthsLabel <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
-      "Nov", "Dez")
+monthsLabel <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
+                 "Oct", "Nov", "Dez")
 hoursLabel <- paste(hours, "h")
 
 powerLim <- c(0, 1.1) # power is normalized, i.e it lives in the unit interval
@@ -222,7 +222,7 @@ scatterSingle <- function(list, categories, track, zone, min, max, name,
 
 
 # plot variables against time in one plot to assess the development
-# - data : data.frame with TIMESTAMPS as one solumn and other variables
+# - data : data.frame with TIMESTAMPS as one column and other variables
 # - start : first timestamp, from what time we should start plotting
 # - end : last timestamp, up to what time we should plot
 # - track : current track for naming the plot
@@ -312,7 +312,7 @@ plotPowerHeatMap <- function(data, track, zone, suf="") {
     dropLastBin <- (binned - 1 * (binned == n)) + 1  # merge last two bins
     if (interval) {
       b <- round(boundaries)
-      order <- paste0("[", b[1:n], ",", b[drop(1:n)+1], ")")
+      order <- paste0("[", b[1:n], ",", b[(1:n)+1], ")")
       vals <- paste0("[", b[dropLastBin], ",", b[dropLastBin+1], ")")
       return(factor(vals, ordered=TRUE, levels=order))
     } else {
@@ -471,4 +471,21 @@ plotPowerAreaCurves <- function(data, track, zone) {
                   track, "power production in", zone)) +
     ggsave(paste0("PowerAreaCurves_", zone, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=8)
+}
+
+# plot histogram of every variable
+# - data : data.frame with all variables as columns
+# - track : current track for naming the plot
+# - zone : current zone for naming the plot
+plotHistograms <- function(data, track, zone) {
+  vars <- c(getVars(track), "POWER"="POWER")
+  data %>% select(names(vars)) %>%
+    pivot_longer(cols=names(vars), names_to="Variable") %>%
+    ggplot(mapping = aes(x=value)) +
+      geom_histogram(bins = 50, na.rm=TRUE) +
+      facet_wrap(~Variable, scales="free") +
+      xlab("") +
+      ggtitle(paste("Histogram of all", track, "variables in", zone)) +
+      ggsave(paste0("Histograms_", zone, ".png"),
+             path=paste0("plots/", track, "/"), width=18, height=12)
 }

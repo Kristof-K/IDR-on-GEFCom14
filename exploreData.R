@@ -132,6 +132,7 @@ examineWindFeatures <- function() {
      plotTimeSeries(data[[zone]], "2012-09-09 00:00:00 UTC",
                     "2012-09-19 00:00:00 UTC", "Wind",
                     name=paste0("TimeSeries_Wind_", zone, ".png"))
+    plotHistograms(data[[zone]], "Wind", zone)
     for (n in c(NA, 4, 8, 12)) {
       scatterWindPower(data[[zone]], "Wind", zone, bins=n)
       estimatePowerDistribution(data[[zone]], "Wind", zone, bins=n)

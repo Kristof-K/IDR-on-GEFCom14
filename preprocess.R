@@ -55,8 +55,8 @@ getWindAttributes <- function(data, init=FALSE) {
     return(name)
   }
   for(zone in data$Zones) {
-    data[[zone]] <- mutate(data[[zone]], W10 = sqrt(U10^2 + V10^2),
-                           W100 = sqrt(U100^2 + V100^2),
+    data[[zone]] <- mutate(data[[zone]], S10 = sqrt(U10^2 + V10^2),
+                           S100 = sqrt(U100^2 + V100^2),
                            A10 = atan2(V10, U10) * 360 / (2*pi),
                            A100 = atan2(V100, U100) * 360 / (2*pi)) %>%
       relocate(POWER, .after = last_col())
