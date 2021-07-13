@@ -149,4 +149,76 @@ examineWind <- function() {
   examinePower(track)
 }
 
-examineWindFeatures()
+plotsForSlides <- function() {
+  data <- deaccumulateSol(loadSolar(15))
+
+  for(zone in "ZONE3") {
+    plotData <- transmute(data[[zone]], Power=POWER, Radiation=VAR169,
+                          Hour=as.factor(hour(TIMESTAMP)))
+    print(ggplot(plotData, aes(x=Radiation, y=Power)) +
+      geom_point() +
+      scale_color_manual(values = rainbow(24)) +
+      theme_bw()+
+      ggtitle("Scatterplot: Power ~ Solar radiation downwards"))
+
+    print(ggplot(plotData, aes(x=Radiation, y=Power, color=Hour)) +
+      geom_point() +
+      scale_color_manual(values = rainbow(24)) +
+      theme_bw() +
+      ggtitle("Scatterplot: Power ~ Solar radiation downwards"))
+
+    print(ggplot(plotData, aes(x=Radiation, y=Power, color=Hour)) +
+      geom_point() +
+      facet_wrap(~Hour) +
+      scale_color_manual(values = rainbow(24)) +
+      theme_bw() +
+      ggtitle("Scatterplot: Power ~ Solar radiation downwards"))
+  }
+
+  S <- data.frame(score=c(0.012132, 0.012247, 0.012785, 0.013342, 0.014166,
+                          0.014288, 0.014294, 0.0149964, 0.0154773, 0.01549,
+                          0.015977, 0.0165608, 0.0166733, 0.01755, 0.0178692,
+                          0.0184789, 0.0208583, 0.02128, 0.025524, 0.0317609,
+                          0.0375917, 0.014839771, 0.013732111),
+                  group=c(rep("par", 20), "ben", rep("idr", 2)),
+                  name=c(rep("1st - 4th", 4), rep("5th - 7th", 3),
+                         rep("8th - 20th", 13), "Benchmark", "IDR 1", "IDR 5"),
+                  label=c(rep("", 20), "last year's value",
+                          "one variable", "five variables\n+ subagging")) %>%
+    arrange(desc(score)) %>%
+    mutate(name = factor(name, ordered=TRUE, levels=c("Benchmark", "8th - 20th",
+                                                      "IDR 1", "5th - 7th",
+                                                      "IDR 5", "1st - 4th")))
+
+  W <- data.frame(score=c(0.03711091, 0.03827364, 0.03831, 0.03834417,
+                          0.0389725, 0.03946167, 0.04149818, 0.04473917,
+                          0.04532083, 0.04657583, 0.0629325, 0.06853833,
+                          0.08670583, 0.04476315, 0.04505536, 0.044895936),
+                  group=c(rep("par", 12), "ben", rep("idr", 3)),
+                  name=c(rep("1st - 8th", 8), rep("9th - 12th", 4),
+                         "Benchmark", "IDR", "IDR hours", "IDR seasons"),
+                  label=c(rep("", 12), "empirical quantiles",
+                          "all data", "data grouped by hour",
+                          "data grouped by season")) %>%
+    arrange(desc(score)) %>%
+    mutate(name = factor(name, ordered=TRUE, levels=c("Benchmark", "9th - 12th",
+                                                      "IDR hours", "IDR seasons",
+                                                      "IDR", "1st - 8th")))
+
+  plotResults <- function(data, track) {
+    ggplot(data) +
+      geom_col(aes(x=name, y=score, color=group), show.legend=FALSE,
+              position="dodge2") +
+      geom_text(aes(x=name, y=score/2, label=label, color=group), size=5,
+                show.legend=FALSE) +
+      xlab("") +
+      ylab("") +
+      ggtitle(paste("Mean pinball scores", track, "track")) +
+      coord_flip() +
+      theme_bw() +
+      theme(text = element_text(size = 15))
+  }
+  library(gridExtra)    # for multiple plots
+  grid.arrange(plotResults(S, "solar"), plotResults(W, "wind"), ncol=2)
+}
+
