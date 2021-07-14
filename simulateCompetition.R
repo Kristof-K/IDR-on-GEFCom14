@@ -7,7 +7,8 @@ source("applyIDR.R")
 source("preprocess.R")
 
 # TODO
-# - extended hour model
+# - extended hour model / combine two solar locations (1 and 3) / hour + season
+#   / solar only 4 hour groups?
 # - Loss-plot
 
 
@@ -152,6 +153,9 @@ outputAndLog <- function(scoreList, duration, info) {
 #evaluation(unleashSolIDR, pinBallLoss, c(4, 1, 1), preprocessfct=deaccumulateSol)
 
 #evaluation(benchmarkWind, pinBallLoss, 1)
-evaluation(unleashWinIDR, pinBallLoss, c(1, 2, 1), preprocessfct=getWindVelocities)
-evaluation(unleashWinIDR, pinBallLoss, c(1, 3, 1), preprocessfct=getWindVelocities)
-evaluation(unleashWinIDR, pinBallLoss, c(6, 2, 1), preprocessfct=getWindVelocities)
+evaluation(unleashWinIDR, pinBallLoss, c(7, 3, 1), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(1, 3, 1), preprocessfct=getWindAttributes)
+
+#evaluation(unleashWinIDR, pinBallLoss, c(6, 3, 2), preprocessfct=getWindAttributes)
+
+

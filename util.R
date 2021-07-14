@@ -169,41 +169,73 @@ benchmarkWind <- function(X_train, y_train, X_test, id=1, init=FALSE) {
 # if getCategories is TRUE, otherwise return boolean vector assigning each
 # timestamp a value inidicating whether it belongs to given group or not
 
-getHours <- function(timestamps, hour, getCategories=FALSE) {
+getHours <- function(data, hour, getCategories=FALSE, getGroupVar=FALSE) {
   hours <- 0:23
   if (getCategories) {
     return(hours)
   }
+  if (getGroupVar) {
+    return("TIMESTAMP")
+  }
+  timestamps <- data$TIMESTAMP
   return(hour(timestamps) == hour)
 }
 
-getMonths <- function(timestamps, month, getCategories=FALSE) {
+getMonths <- function(data, month, getCategories=FALSE, getGroupVar=FALSE) {
   months <- 1:12
   if (getCategories) {
     return(months)
   }
+  if (getGroupVar) {
+    return("TIMESTAMP")
+  }
+  timestamps <- data$TIMESTAMP
   return(month(timestamps) == month)
 }
 
-getSeasons <- function(timestamps, season, getCategories=FALSE) {
+getSeasons <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
   seasons <- c(1,2,3)
   if (getCategories) {
     return(seasons)
   }
+  if (getGroupVar) {
+    return("TIMESTAMP")
+  }
+  timestamps <- data$TIMESTAMP
   seasonized <- 1 * (month(timestamps) %in% c(12, 1, 2)) +
                 2 * (month(timestamps) %in% c(3, 4, 5, 9, 10, 11)) +
                 3 * (month(timestamps) %in% c(6, 7, 8))
   return(seasonized == season)
 }
 
-get4Seasons <- function(timestamps, season, getCategories=FALSE) {
+get4Seasons <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
   seasons <- c(1,2,3,4)
   if (getCategories) {
     return(seasons)
   }
+  if (getGroupVar) {
+    return("TIMESTAMP")
+  }
+  timestamps <- data$TIMESTAMP
   seasonized <- 1 * (month(timestamps) %in% c(12, 1, 2)) +
                 2 * (month(timestamps) %in% c(3, 4, 5)) +
                 3 * (month(timestamps) %in% c(6, 7, 8)) +
                 4 * (month(timestamps) %in% c(9, 10, 11))
   return(seasonized == season)
+}
+
+getWind100Directions <- function(data, direction, getCategories=FALSE,
+                                 getGroupVar=FALSE) {
+  directions <- 1:12
+  if (getCategories) {
+    return(directions)
+  }
+  if (getGroupVar) {
+    return("A100")
+  }
+  bins <- length(directions)
+  # bin wind directions (method from dplyr)
+  binWinDir <- ceiling((data$A100 + 180) / 360 * bins)
+  windDirections <- binWinDir + 1 * (binWinDir == 0) # forget
+  return(windDirections == direction)
 }
