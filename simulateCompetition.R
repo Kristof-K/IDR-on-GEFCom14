@@ -7,8 +7,8 @@ source("applyIDR.R")
 source("preprocess.R")
 
 # TODO
-# - extended hour model / combine two solar locations (1 and 3) / hour + season
-#   / solar only 4 hour groups?
+# - extended hour model  / hour + season  / solar only 4 hour groups?
+# - wind speed linear interpolated for different heights?
 # - Loss-plot
 
 
@@ -123,7 +123,7 @@ outputAndLog <- function(scoreList, duration, info) {
   # Lastly save the results in log file by extending previous results
   results <- cbind(X = 0, Name = info$TIT, Vars = paste(info$VAR, collapse="_"),
                    Order = info$OR, Scoringfct = info$SF, Preprocess = info$PP,
-                   results, Mean_A = finalScore, Minutes=duration)
+                   Id=info$ID, results, Mean_A = finalScore, Minutes=duration)
   rownames(results)[1] <- 1
   if (file.exists(logFile)) {
     previous <- read.csv2(logFile)
@@ -146,16 +146,21 @@ outputAndLog <- function(scoreList, duration, info) {
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 4, 1))
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 5, 1))
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(3, 3, 1), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulateSol)
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 7, 1))
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 9, 2), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(4, 14, 1), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(4, 1, 1), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(3, 14, 1), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(3, 1, 1), preprocessfct=deaccumulateSol)
+evaluation(unleashSolIDR, pinBallLoss, c(8, 1, 1), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 0.95), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 0.9), preprocessfct=deaccumulateSol)
 
 #evaluation(benchmarkWind, pinBallLoss, 1)
-evaluation(unleashWinIDR, pinBallLoss, c(7, 3, 1), preprocessfct=getWindAttributes)
-#evaluation(unleashWinIDR, pinBallLoss, c(1, 3, 1), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(6, 2, 1, 1), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(1, 3, 1, 1), preprocessfct=getWindAttributes)
 
-#evaluation(unleashWinIDR, pinBallLoss, c(6, 3, 2), preprocessfct=getWindAttributes)
-
+#evaluation(unleashWinIDR, pinBallLoss, c(5, 3, 2, 1), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(6, 2, 1, 1), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(6, 2, 1), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(6, 2, 1, 0.8), preprocessfct=getWindAttributes)
 

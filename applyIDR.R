@@ -15,6 +15,7 @@ idrOnAll <- function(X_train, y_train, X_test, groups, orders) {
 }
 
 # Version2 : Apply idr on data grouped by hour
+# Version3 : Version 2, on data of all zones combined
 idrOnHour <- function(X_train, y_train, X_test, groups, orders) {
   return(idrByGroup(X_train, y_train, X_test, groups, orders, getHours))
 }
@@ -41,8 +42,8 @@ idrByGroup <- function(X_train, y_train, X_test, groups, orders, groupingfct,
     output <- matrix(0, nrow=sum(test_indices), ncol=length(QUANTILES)+1)
     output[,1] <- which(test_indices)   # original indices in 1st column
     # idr cannot handle if y is constant
-    if (max(y) == min(y)) {
-      output[,-1] <- y[1]     # constant predictions if y is constant
+    if (max(y) - min(y) <= 0.01) {
+      output[,-1] <- (max(y) + min(y)) / 2     # constant predictions if y is constant
       return(output)
     }
     trainByGroup <- subset(train, train_indices)[!(names(train) %in% c("POWER", removeVars))]
@@ -65,15 +66,7 @@ idrByGroup <- function(X_train, y_train, X_test, groups, orders, groupingfct,
   return(quantilesPred[order(quantilesPred[,1]), -1])
 }
 
-# Version3 : Apply idr on data grouped by hour, but use data from all zones
-# for training
-idrOnHourAllZones <- function(X_train, y_train, X_test, groups, orders) {
-  X_train <- X_train[!(names(X_train) == "ZONE")]
-  X_test <- X_test[!(names(X_train) == "ZONE")]
-  return(idrOnHour(X_train, y_train, X_test, groups, orders))
-}
-
-# Version4 : Apply idr subagging on data grouped by hour
+# Version3 : Apply idr subagging on data grouped by hour
 idrsubOnHour <- function(X_train, y_train, X_test, groups, orders) {
   bag_number <- 75
   bag_size <- 0.25
@@ -81,23 +74,23 @@ idrsubOnHour <- function(X_train, y_train, X_test, groups, orders) {
                         bag_number=bag_number, bag_size=bag_size))
 }
 
-# Version5 : Apply idr on data grouped by month
+# Version4 : Apply idr on data grouped by month
 idrOnMonth <- function(X_train, y_train, X_test, groups, orders) {
   return(idrByGroup(X_train, y_train, X_test, groups, orders, getMonths))
 }
 
-# Version6 : Apply idr on data grouped by season (winder, summer and inbetween)
+# Version5 : Apply idr on data grouped by season (winder, summer and inbetween)
 idrOnSeason <- function(X_train, y_train, X_test, groups, orders) {
   return(idrByGroup(X_train, y_train, X_test, groups, orders, getSeasons))
 }
 
-# Version7 : Apply idr on data grouped by wind angle
+# Version6 : Apply idr on data grouped by wind angle
 idrOnWindDirection <- function(X_train, y_train, X_test, groups, orders) {
   return(idrByGroup(X_train, y_train, X_test, groups, orders,
                     getWind100Directions))
 }
 
-# Version8 : Apply idr subagging on data grouped by wind angle
+# Version7 : Apply idr subagging on data grouped by wind angle
 idrsubOnWindDirection <- function(X_train, y_train, X_test, groups, orders) {
   bag_number <- 75
   bag_size <- 0.25
@@ -105,63 +98,60 @@ idrsubOnWindDirection <- function(X_train, y_train, X_test, groups, orders) {
                     getWind100Directions, bag_number=bag_number,
                     bag_size=bag_size))
 }
+
+# Version5 : Apply idr on data grouped by season (winder, summer and inbetween)
+idrOnSeasonHour <- function(X_train, y_train, X_test, groups, orders) {
+  return(idrByGroup(X_train, y_train, X_test, groups, orders, getSeasonHours))
+}
+
 # IDR variants and variable combinations =======================================
 
-# current idr versions
-# 1 IDR on all data
-# 2 IDR on every hour
+# idr version ideas
 # * IDR on every hour +- 1 hour (~extended probabilistoc climatological)
 # * IDR on every astronomical hour (same sunposition)
-# * IDR on every hour all zones at once
-# * IDR subbagging
-# * IDR other orders
 
 # IDR variants:
 # FUN : idr core method
 # TIT : title
 # NTS : need time stamps columns
-# PBZ : predict by zone -> don't add zone column
 
 IDR_ON_ALL <- list(FUN = idrOnAll, TIT = "General IDR",
                    DES = c("Apply","IDR","on","the","whole","training","set"),
-                   ADD = list(), PBZ = TRUE)
+                   ADD = list())
 IDR_BY_HOUR <- list(FUN = idrOnHour, TIT = "Hourly IDR",
                     DES = c("Group","training","set","by","hour","and","apply",
                             "IDR","on","every","group","separately"),
-                    ADD = list(VAR="TIMESTAMP", SGN=1), PBZ = TRUE)
-IDR_BY_HOUR_ALL_ZONES <- list(FUN = idrOnHourAllZones,
-                              TIT = "Hourly IDR all zones",
-                              DES = c("Combine","all","zones","to","one",
-                                      "training","set","and","group","it","by",
-                                      "hour","before","applying", "IDR","on",
-                                      "every","group","separately"),
-                              ADD = list(VAR="TIMESTAMP", SGN=1), PBZ = FALSE)
+                    ADD = list(VAR="TIMESTAMP", SGN=1))
 IDR_SUB_BY_HOUR <- list(FUN = idrsubOnHour, TIT = "Hourly IDR subagging",
                         DES = c("Group","training","set","by","hour","and",
                                 "apply","IDR","subagging","on","every","group",
                                 "separately"),
-                        ADD = list(VAR="TIMESTAMP", SGN=1), PBZ = TRUE)
+                        ADD = list(VAR="TIMESTAMP", SGN=1))
 IDR_BY_MONTH <- list(FUN = idrOnMonth, TIT = "Monthly IDR",
                     DES = c("Group","training","set","by","month","and","apply",
                             "IDR","on","every","group","separately"),
-                    ADD = list(VAR="TIMESTAMP", SGN=1), PBZ = TRUE)
+                    ADD = list(VAR="TIMESTAMP", SGN=1))
 IDR_BY_SEASON <- list(FUN = idrOnSeason, TIT = "Seasonly IDR",
                     DES = c("Group","training","set","by","season","and","apply",
                             "IDR","on","every","group","separately"),
-                    ADD = list(VAR="TIMESTAMP", SGN=1), PBZ = TRUE)
+                    ADD = list(VAR="TIMESTAMP", SGN=1))
 IDR_BY_WINDDIR100 <- list(FUN = idrOnWindDirection, TIT = "100m wind dir IDR",
                           DES = c("Group","training","set","by","binned","wind",
                                   "direction","(12)","at","100m","height","and",
                                   "apply","IDR", "on","every","group",
                                   "separately"),
-                          ADD = list(VAR="A100", SGN=1), PBZ = TRUE)
+                          ADD = list(VAR="A100", SGN=1))
 IDR_SUB_BY_WINDDIR100 <- list(FUN = idrsubOnWindDirection,
                               TIT = "100m wind dir IDR subagging",
                               DES = c("Group","training","set","by","binned",
                                       "wind","direction","at","100m","height",
                                       "and","apply","IDR","subagging","on",
                                       "every","group","separately"),
-                              ADD = list(VAR="A100", SGN=1), PBZ = TRUE)
+                              ADD = list(VAR="A100", SGN=1))
+IDR_BY_SEASON_HOUR <- list(FUN = idrOnSeasonHour, TIT = "Season+hour IDR",
+                    DES = c("Group","training","set","by","season","and","apply",
+                            "IDR","on","every","group","separately"),
+                    ADD = list(VAR="TIMESTAMP", SGN=1))
 
 # Variable selections
 # VAR : list of variables that are used
@@ -199,13 +189,15 @@ COMP <- "comp"
 ICX <- "icx"
 SD <- "sd"
 
-# ID is a tripel, first element identifying the idr variant, second the
-# variable selection, third number defining partial order
+
+# ID is a 4-tupel, first element identifying the idr variant, second the
+# variable selection, third number defining partial order and 4th a value
+# between
 
 getVariant <- function(id) {
-  return(switch(id[1], IDR_ON_ALL, IDR_BY_HOUR, IDR_BY_HOUR_ALL_ZONES,
-                IDR_SUB_BY_HOUR, IDR_BY_MONTH, IDR_BY_SEASON, IDR_BY_WINDDIR100,
-                IDR_SUB_BY_WINDDIR100))
+  return(switch(id[1], IDR_ON_ALL, IDR_BY_HOUR, IDR_SUB_BY_HOUR, IDR_BY_MONTH,
+                IDR_BY_SEASON, IDR_BY_WINDDIR100, IDR_SUB_BY_WINDDIR100,
+                IDR_BY_SEASON_HOUR))
 }
 
 getVariableSelection <- function(id, track) {
@@ -231,18 +223,59 @@ getVariablesName <- function(id, track) {
   return(paste0(variables$VAR, "(", variables$SGN, ") "))
 }
 
+getIDStr <- function(id) {
+  return(paste0(id, collapse="_"))
+}
+
 
 # wrapper ======================================================================
+
+# combine data with highly correlated (target time series) (correlation higher
+# than threshold) and then train idr model with combined data
+idr_by_zone <- function(idr_fcn, X_train, y_train, X_test, groups, orders,
+                        thresh) {
+  train <- cbind(POWER=y_train, X_train)
+
+  applyIDRonZone <- function(zone) {
+    test_indices <- (X_test$ZONE == zone)
+    X_test_zone <- subset(X_test, test_indices, select=-ZONE)
+    X_train_col <- subset(X_train, ZONE==zone, select=-ZONE)
+    y_col <- subset(train, ZONE==zone)$POWER
+    y_zone <- y_col
+    output <- matrix(0, nrow=sum(test_indices), ncol=length(QUANTILES)+1)
+    output[,1] <- which(test_indices)   # original indices in 1st column
+
+    for(z in unique(X_train$ZONE)) {
+      if (z == zone) next
+      y_z <- subset(train, ZONE==z)$POWER
+      # removing NA rows can lead to different long blocks for each zone
+      minIndex <- min(length(y_z), length(y_zone))
+      # add all zones with Power correlation greater than threshold
+      if (cor(y_z[1:minIndex], y_zone[1:minIndex]) >= thresh) {
+        X_train_add <- subset(train, ZONE==z, select=c(-ZONE, -POWER))
+        y_col <- c(y_col, y_z)    # add new y values
+        X_train_col <- rbind(X_train_col, X_train_add)
+      }
+    }
+    output[,-1] <- idr_fcn(X_train_col, y_col, X_test_zone, groups, orders)
+    return(output)
+  }
+  pred <- do.call(rbind, lapply(unique(X_test$ZONE), applyIDRonZone))
+  return(pred[order(pred[,1]), -1])   # restore original order
+}
 
 unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
   idr_v <- getVariant(id)
   variables <- getVariableSelection(id, track)
   pOrder <- getOrder(id)
+  thresh <- if(is.na(id[4])) 1 else id[4]
+  pbz <- if(thresh >= 1) TRUE else FALSE
   # if init print, then output information and return important information
   if (init) {
-    outputForecastingMethod(idr_v$TIT, idr_v$DES, getVariablesName(id, track))
+    tit <- paste0(idr_v$TIT, " (", getIDStr(id),")")
+    outputForecastingMethod(tit, idr_v$DES, getVariablesName(id, track))
     return(list(TRACK=track, TIT=idr_v$TIT, VAR=variables$VAR, OR=pOrder,
-                PBZ=idr_v$PBZ))
+                PBZ=pbz, ID=getIDStr(id)))
   }
   # get variable list that is used and signs of that variables
   vars <- variables$VAR
@@ -255,17 +288,17 @@ unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
     vars <- c(idr_v$ADD$VAR, vars)
     signs <- c(idr_v$ADD$SGN, signs)
   }
-  if (!idr_v$PBZ) {
-    vars <- c(vars, "ZONE")
-    signs <- c(signs, 1)
-  }
-
   # take care about signs => -1 means change sign of covariates
   X_train[vars[signs == -1]] <- (-1) * X_train[vars[signs == -1]]
   X_test[vars[signs == -1]] <- (-1) * X_test[vars[signs == -1]]
 
-  # get IDR method
-  return(idr_v$FUN(X_train[vars], y_train, X_test[vars], groups, orders))
+  if (!pbz) {        # idr by zone gets all data
+    vars <- c(vars, "ZONE")
+    return(idr_by_zone(idr_v$FUN, X_train[vars], y_train, X_test[vars], groups,
+                       orders, thresh))
+  } else {
+    return(idr_v$FUN(X_train[vars], y_train, X_test[vars], groups, orders))
+  }
 }
 
 unleashSolIDR <- function(X_train, y_train, X_test, id, init=FALSE) {

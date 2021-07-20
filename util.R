@@ -203,9 +203,8 @@ getSeasons <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
     return("TIMESTAMP")
   }
   timestamps <- data$TIMESTAMP
-  seasonized <- 1 * (month(timestamps) %in% c(12, 1, 2)) +
-                2 * (month(timestamps) %in% c(3, 4, 5, 9, 10, 11)) +
-                3 * (month(timestamps) %in% c(6, 7, 8))
+  m <- month(timestamps)
+  seasonized <- 1 * (m %in% c(12, 1, 2)) + 2 * (m %in% 3:11) + 3 * (m %in% 6:8)
   return(seasonized == season)
 }
 
@@ -218,10 +217,9 @@ get4Seasons <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
     return("TIMESTAMP")
   }
   timestamps <- data$TIMESTAMP
-  seasonized <- 1 * (month(timestamps) %in% c(12, 1, 2)) +
-                2 * (month(timestamps) %in% c(3, 4, 5)) +
-                3 * (month(timestamps) %in% c(6, 7, 8)) +
-                4 * (month(timestamps) %in% c(9, 10, 11))
+  m <- month(timestamps)
+  seasonized <- 1 * (m %in% c(12, 1, 2)) + 2 * (m %in% 3:5) + 3 * (m %in% 6:8) +
+    4 * (m %in% 9:11)
   return(seasonized == season)
 }
 
@@ -239,4 +237,55 @@ getWind100Directions <- function(data, direction, getCategories=FALSE,
   binWinDir <- ceiling((data$A100 + 180) / 360 * bins)
   windDirections <- binWinDir + 1 * (binWinDir == 0) # forget
   return(windDirections == direction)
+}
+
+getSeasonHours <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
+  groups <- 1:(4*24)
+  if (getCategories) {
+    return(groups)
+  }
+  if (getGroupVar) {
+    return("TIMESTAMP")
+  }
+  timestamps <- data$TIMESTAMP
+  m <- month(timestamps)
+  grouped <- 1 * (m %in% c(12, 1, 2)) + 25 * (m %in% 3:5) + 49 * (m %in% 6:8) +
+    73 * (m %in% 9:11) + hour(timestamps)
+  return(grouped == season)
+}
+
+getSeasonLargeHours <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
+  groups <- 1:(4*24)
+  if (getCategories) {
+    return(groups)
+  }
+  if (getGroupVar) {
+    return("TIMESTAMP")
+  }
+  timestamps <- data$TIMESTAMP
+  m <- month(timestamps)
+  group <- 1 * (m %in% c(12, 1, 2)) + 25 * (m %in% 3:5) + 49 * (m %in% 6:8) +
+    73 * (m %in% 9:11) + hour(timestamps)
+  prev <- if(group == 1) 4*24 else group - 1
+  succ <- if(group == 4*24) 1 else group + 1
+  return(grouped %in% c(prev, season, succ))
+}
+
+getSeasonDayTime <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
+  groups <- 1:(4*6)
+  if (getCategories) {
+    return(groups)
+  }
+  if (getGroupVar) {
+    return("TIMESTAMP")
+  }
+  timestamps <- data$TIMESTAMP
+  m <- month(timestamps)
+  h <- hour(timestamps)
+  seasonGroup <- 1 * (m %in% c(12, 1, 2)) + 7 * (m %in% c(3, 4, 5)) +
+    13 * (m %in% c(6, 7, 8)) + 19 * (m %in% c(9, 10, 11))
+  hourGroup <- 0 * (h %in% 0:3) + 1 * (h %in% 4:7) + 2 * (h %in% 8:11) +
+    3 * (h %in% 12:15) + 4 * (h %in% 16:19) + 5 * (h %in% 20:23)
+
+  return(grouped == (seasonGroup + hourGroup))
 }
