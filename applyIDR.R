@@ -6,7 +6,8 @@ source("util.R")
 # core functions ===============================================================
 
 # Version1 : Apply idr on the whole data set
-idrOnAll <- function(X_train, y_train, X_test, groups, orders) {
+idrOnAll <- function(X_train, y_train, X_test, groups, orders, thresh=1,
+                     groupingfct=getHours, bag_number=NA, bag_size=NA) {
   # apply idr, by fitting, prediction and extracting the quantiles
   fit <- idr(y = y_train, X = X_train, groups = groups, order = orders)
   cdf_predictions <- predict(fit, data = X_test)
@@ -14,14 +15,9 @@ idrOnAll <- function(X_train, y_train, X_test, groups, orders) {
   return(quantile_predictions)
 }
 
-# Version2 : Apply idr on data grouped by hour
-# Version3 : Version 2, on data of all zones combined
-idrOnHour <- function(X_train, y_train, X_test, groups, orders) {
-  return(idrByGroup(X_train, y_train, X_test, groups, orders, getHours))
-}
-
-idrByGroup <- function(X_train, y_train, X_test, groups, orders, groupingfct,
-                       bag_number=NA, bag_size=NA) {
+# Version2: Apply idr an data grouped by a groupingfct
+idrByGroup <- function(X_train, y_train, X_test, groups, orders, thresh=1,
+                       groupingfct=getHours, bag_number=NA, bag_size=NA) {
   train <- cbind(POWER = y_train, X_train)
   # breakdown data by hour
   categories <- groupingfct(NA, NA, getCategories=TRUE)
@@ -30,7 +26,7 @@ idrByGroup <- function(X_train, y_train, X_test, groups, orders, groupingfct,
   # for every hour fit the model and predict
   predictByGroup <- function(g) {
     train_indices <- groupingfct(train, g)
-    test_indices <- groupingfct(X_test, g)
+    test_indices <- groupingfct(X_test, g, test=TRUE)
     if(sum(test_indices) == 0) {    # test_data belongs to other group
       return(numeric(0))
     }
@@ -41,23 +37,11 @@ idrByGroup <- function(X_train, y_train, X_test, groups, orders, groupingfct,
     # matrix containing in every row quantile forecast plus original indices
     output <- matrix(0, nrow=sum(test_indices), ncol=length(QUANTILES)+1)
     output[,1] <- which(test_indices)   # original indices in 1st column
-    # idr cannot handle if y is constant
-    if (max(y) - min(y) <= 0.01) {
-      output[,-1] <- (max(y) + min(y)) / 2     # constant predictions if y is constant
-      return(output)
-    }
+
     trainByGroup <- subset(train, train_indices)[!(names(train) %in% c("POWER", removeVars))]
     makePred <- subset(X_test, test_indices)[!(names(X_train) %in% removeVars)]
-    if (any(is.na(c(bag_number, bag_size)))) {
-      model <- idr(y=y, X=trainByGroup,  groups=groups, orders=orders,
-                   progress=FALSE)
-      predictions <- predict(model, data=makePred)
-    } else {
-      predictions <- idrbag(y=y, X=trainByGroup,  groups=groups, orders=orders,
-                          newdata=makePred, b=bag_number, p=bag_size,
-                          progress=FALSE)
-    }
-    output[,-1] <- qpred(predictions, quantiles=QUANTILES)
+    output[,-1] <- myIDR(trainByGroup, y, makePred, groups, orders, bag_number,
+                         bag_size)
     return(output)   # eveything worked
   }
   # combine the data.frames
@@ -66,29 +50,81 @@ idrByGroup <- function(X_train, y_train, X_test, groups, orders, groupingfct,
   return(quantilesPred[order(quantilesPred[,1]), -1])
 }
 
+myIDR <- function(X_train, y_train, X_test, groups, orders, bag_number=NA,
+                  bag_size=NA) {
+  # idr cannot handle if y is constant
+  if (max(y_train) == min(y_train)) {
+    return(y_train[1])     # constant predictions if y is constant
+  }
+  # idr cannot predict if there is only one combination of covariates
+  if (all(sapply(X_train, function(x) length(unique(x))==1))) {
+    model <- idr(y=y_train, X=X_train,  groups=groups, orders=orders,
+                 progress=FALSE)
+    cdf_vals <- as.vector(model$cdf[1,])
+    jumps <- (cdf_vals != lag(cdf_vals, default=0))
+    vals <- cdf_vals[jumps]
+    preds <- list()
+    for(i in 1:nrow(X_test)) {
+      preds[[i]] <- data.frame(points=model$thresholds[jumps], cdf=vals)
+    }
+    # pack it as idr (in order to apply idr function qpred)
+    predictions <- structure(preds, class = "idr", incomparables= integer(0))
+  } else if (any(is.na(c(bag_number, bag_size)))) {
+    model <- idr(y=y_train, X=X_train,  groups=groups, orders=orders,
+                 progress=FALSE)
+    predictions <- predict(model, data=X_test)
+  } else {
+    predictions <- idrbag(y=y_train, X=X_train,  groups=groups, orders=orders,
+                          newdata=X_test, b=bag_number, p=bag_size,
+                          progress=FALSE)
+  }
+  return(qpred(predictions, quantiles=QUANTILES))
+}
+
+# Version3: combine data with highly correlated (target time series) data
+idrByZones <- function(X_train, y_train, X_test, groups, orders, thresh=1,
+                        groupingfct=gethours, bag_number=NA, bag_size=NA) {
+  train <- cbind(POWER=y_train, X_train)
+
+  applyIDRonZone <- function(zone) {
+    test_indices <- (X_test$ZONE == zone)
+    X_test_zone <- subset(X_test, test_indices, select=-ZONE)
+    X_train_col <- subset(X_train, ZONE==zone, select=-ZONE)
+    y_col <- subset(train, ZONE==zone)$POWER
+    y_zone <- y_col
+    output <- matrix(0, nrow=sum(test_indices), ncol=length(QUANTILES)+1)
+    output[,1] <- which(test_indices)   # original indices in 1st column
+
+    for(z in unique(X_train$ZONE)) {
+      if (z == zone) next
+      y_z <- subset(train, ZONE==z)$POWER
+      # removing NA rows can lead to different long blocks for each zone
+      minIndex <- min(length(y_z), length(y_zone))
+      # add all zones with Power correlation greater than threshold
+      if (cor(y_z[1:minIndex], y_zone[1:minIndex]) >= thresh) {
+        X_train_add <- subset(train, ZONE==z, select=c(-ZONE, -POWER))
+        y_col <- c(y_col, y_z)    # add new y values
+        X_train_col <- rbind(X_train_col, X_train_add)
+      }
+    }
+    output[,-1] <- idrByGroup(X_train_col, y_col, X_test_zone, groups, orders,
+                              groupingfct=groupingfct, bag_number=bag_number,
+                              bag_size=bag_size)
+    return(output)
+  }
+  pred <- do.call(rbind, lapply(unique(X_test$ZONE), applyIDRonZone))
+  return(pred[order(pred[,1]), -1])   # restore original order
+}
+
 # Version3 : Apply idr subagging on data grouped by hour
-idrsubOnHour <- function(X_train, y_train, X_test, groups, orders) {
+idrsubOnHour <- function(X_train, y_train, X_test, groups, orders, thresh=1,
+                        groupingfct=gethours, bag_number=NA, bag_size=NA) {
   bag_number <- 75
   bag_size <- 0.25
-  return(idrByGroup(X_train, y_train, X_test, groups, orders, getHours,
+  return(idrByGroup(X_train, y_train, X_test, groups, orders, groupingfct,
                         bag_number=bag_number, bag_size=bag_size))
 }
 
-# Version4 : Apply idr on data grouped by month
-idrOnMonth <- function(X_train, y_train, X_test, groups, orders) {
-  return(idrByGroup(X_train, y_train, X_test, groups, orders, getMonths))
-}
-
-# Version5 : Apply idr on data grouped by season (winder, summer and inbetween)
-idrOnSeason <- function(X_train, y_train, X_test, groups, orders) {
-  return(idrByGroup(X_train, y_train, X_test, groups, orders, getSeasons))
-}
-
-# Version6 : Apply idr on data grouped by wind angle
-idrOnWindDirection <- function(X_train, y_train, X_test, groups, orders) {
-  return(idrByGroup(X_train, y_train, X_test, groups, orders,
-                    getWind100Directions))
-}
 
 # Version7 : Apply idr subagging on data grouped by wind angle
 idrsubOnWindDirection <- function(X_train, y_train, X_test, groups, orders) {
@@ -99,10 +135,6 @@ idrsubOnWindDirection <- function(X_train, y_train, X_test, groups, orders) {
                     bag_size=bag_size))
 }
 
-# Version5 : Apply idr on data grouped by season (winder, summer and inbetween)
-idrOnSeasonHour <- function(X_train, y_train, X_test, groups, orders) {
-  return(idrByGroup(X_train, y_train, X_test, groups, orders, getSeasonHours))
-}
 
 # IDR variants and variable combinations =======================================
 
@@ -113,45 +145,29 @@ idrOnSeasonHour <- function(X_train, y_train, X_test, groups, orders) {
 # IDR variants:
 # FUN : idr core method
 # TIT : title
-# NTS : need time stamps columns
 
 IDR_ON_ALL <- list(FUN = idrOnAll, TIT = "General IDR",
                    DES = c("Apply","IDR","on","the","whole","training","set"),
-                   ADD = list())
-IDR_BY_HOUR <- list(FUN = idrOnHour, TIT = "Hourly IDR",
-                    DES = c("Group","training","set","by","hour","and","apply",
-                            "IDR","on","every","group","separately"),
-                    ADD = list(VAR="TIMESTAMP", SGN=1))
+                   ADD=NULL)
+IDR_BY_GROUP <- list(FUN = idrByGroup, TIT = "IDR grouped data",
+                    DES = c("Group","training","set","and","apply", "IDR","on",
+                            "every","group","separately"),
+                    ADD=NULL)
+IDR_BY_ZONE <- list(FUN = idrByZones, TIT = "IDR zone combined data",
+                    DES = c("Combine", "highly","correlated","data","(regarding",
+                            "target","variable)","and","apply","idr_by_group",
+                            "on","this","data"),
+                    ADD = "ZONE")
 IDR_SUB_BY_HOUR <- list(FUN = idrsubOnHour, TIT = "Hourly IDR subagging",
                         DES = c("Group","training","set","by","hour","and",
                                 "apply","IDR","subagging","on","every","group",
-                                "separately"),
-                        ADD = list(VAR="TIMESTAMP", SGN=1))
-IDR_BY_MONTH <- list(FUN = idrOnMonth, TIT = "Monthly IDR",
-                    DES = c("Group","training","set","by","month","and","apply",
-                            "IDR","on","every","group","separately"),
-                    ADD = list(VAR="TIMESTAMP", SGN=1))
-IDR_BY_SEASON <- list(FUN = idrOnSeason, TIT = "Seasonly IDR",
-                    DES = c("Group","training","set","by","season","and","apply",
-                            "IDR","on","every","group","separately"),
-                    ADD = list(VAR="TIMESTAMP", SGN=1))
-IDR_BY_WINDDIR100 <- list(FUN = idrOnWindDirection, TIT = "100m wind dir IDR",
-                          DES = c("Group","training","set","by","binned","wind",
-                                  "direction","(12)","at","100m","height","and",
-                                  "apply","IDR", "on","every","group",
-                                  "separately"),
-                          ADD = list(VAR="A100", SGN=1))
+                                "separately"))
 IDR_SUB_BY_WINDDIR100 <- list(FUN = idrsubOnWindDirection,
                               TIT = "100m wind dir IDR subagging",
                               DES = c("Group","training","set","by","binned",
                                       "wind","direction","at","100m","height",
                                       "and","apply","IDR","subagging","on",
-                                      "every","group","separately"),
-                              ADD = list(VAR="A100", SGN=1))
-IDR_BY_SEASON_HOUR <- list(FUN = idrOnSeasonHour, TIT = "Season+hour IDR",
-                    DES = c("Group","training","set","by","season","and","apply",
-                            "IDR","on","every","group","separately"),
-                    ADD = list(VAR="TIMESTAMP", SGN=1))
+                                      "every","group","separately"))
 
 # Variable selections
 # VAR : list of variables that are used
@@ -195,9 +211,7 @@ SD <- "sd"
 # between
 
 getVariant <- function(id) {
-  return(switch(id[1], IDR_ON_ALL, IDR_BY_HOUR, IDR_SUB_BY_HOUR, IDR_BY_MONTH,
-                IDR_BY_SEASON, IDR_BY_WINDDIR100, IDR_SUB_BY_WINDDIR100,
-                IDR_BY_SEASON_HOUR))
+  return(switch(id[1], IDR_ON_ALL, IDR_BY_GROUP, IDR_BY_ZONE, IDR_SUB_BY_HOUR))
 }
 
 getVariableSelection <- function(id, track) {
@@ -230,52 +244,23 @@ getIDStr <- function(id) {
 
 # wrapper ======================================================================
 
-# combine data with highly correlated (target time series) (correlation higher
-# than threshold) and then train idr model with combined data
-idr_by_zone <- function(idr_fcn, X_train, y_train, X_test, groups, orders,
-                        thresh) {
-  train <- cbind(POWER=y_train, X_train)
-
-  applyIDRonZone <- function(zone) {
-    test_indices <- (X_test$ZONE == zone)
-    X_test_zone <- subset(X_test, test_indices, select=-ZONE)
-    X_train_col <- subset(X_train, ZONE==zone, select=-ZONE)
-    y_col <- subset(train, ZONE==zone)$POWER
-    y_zone <- y_col
-    output <- matrix(0, nrow=sum(test_indices), ncol=length(QUANTILES)+1)
-    output[,1] <- which(test_indices)   # original indices in 1st column
-
-    for(z in unique(X_train$ZONE)) {
-      if (z == zone) next
-      y_z <- subset(train, ZONE==z)$POWER
-      # removing NA rows can lead to different long blocks for each zone
-      minIndex <- min(length(y_z), length(y_zone))
-      # add all zones with Power correlation greater than threshold
-      if (cor(y_z[1:minIndex], y_zone[1:minIndex]) >= thresh) {
-        X_train_add <- subset(train, ZONE==z, select=c(-ZONE, -POWER))
-        y_col <- c(y_col, y_z)    # add new y values
-        X_train_col <- rbind(X_train_col, X_train_add)
-      }
-    }
-    output[,-1] <- idr_fcn(X_train_col, y_col, X_test_zone, groups, orders)
-    return(output)
-  }
-  pred <- do.call(rbind, lapply(unique(X_test$ZONE), applyIDRonZone))
-  return(pred[order(pred[,1]), -1])   # restore original order
-}
 
 unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
   idr_v <- getVariant(id)
   variables <- getVariableSelection(id, track)
   pOrder <- getOrder(id)
-  thresh <- if(is.na(id[4])) 1 else id[4]
-  pbz <- if(thresh >= 1) TRUE else FALSE
+  # addional arguments
+  if(is.na(id[4])) id[4] <- 1
+  if(is.na(id[5])) id[5] <- 1
+  groupingfct <- getGroupingfct(id[4])
+  thresh <- min(id[5], 1)
   # if init print, then output information and return important information
   if (init) {
+    pbz <- if(thresh >= 1) TRUE else FALSE
     tit <- paste0(idr_v$TIT, " (", getIDStr(id),")")
     outputForecastingMethod(tit, idr_v$DES, getVariablesName(id, track))
     return(list(TRACK=track, TIT=idr_v$TIT, VAR=variables$VAR, OR=pOrder,
-                PBZ=pbz, ID=getIDStr(id)))
+                PBZ=pbz, ID=getIDStr(id), GR=groupingfct(NA, NA, getName=TRUE)))
   }
   # get variable list that is used and signs of that variables
   vars <- variables$VAR
@@ -284,21 +269,16 @@ unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
   groups <- setNames(rep(1, length(vars)), vars)
   orders <- setNames(1, pOrder)
 
-  if (!is.null(idr_v$ADD)) {
-    vars <- c(idr_v$ADD$VAR, vars)
-    signs <- c(idr_v$ADD$SGN, signs)
-  }
   # take care about signs => -1 means change sign of covariates
   X_train[vars[signs == -1]] <- (-1) * X_train[vars[signs == -1]]
   X_test[vars[signs == -1]] <- (-1) * X_test[vars[signs == -1]]
 
-  if (!pbz) {        # idr by zone gets all data
-    vars <- c(vars, "ZONE")
-    return(idr_by_zone(idr_v$FUN, X_train[vars], y_train, X_test[vars], groups,
-                       orders, thresh))
-  } else {
-    return(idr_v$FUN(X_train[vars], y_train, X_test[vars], groups, orders))
-  }
+  if (!is.null(idr_v$ADD)) vars <- c(idr_v$ADD$VAR, vars)
+  groupvar <- groupingfct(NA, NA, getGroupVar=TRUE)
+  if (!is.null(groupvar)) vars <- c(vars, groupvar)
+
+  return(idr_v$FUN(X_train[vars], y_train, X_test[vars], groups, orders,
+                   groupingfct=groupingfct, thresh=thresh))
 }
 
 unleashSolIDR <- function(X_train, y_train, X_test, id, init=FALSE) {

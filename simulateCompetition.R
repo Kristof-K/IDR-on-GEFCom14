@@ -7,7 +7,6 @@ source("applyIDR.R")
 source("preprocess.R")
 
 # TODO
-# - extended hour model  / hour + season  / solar only 4 hour groups?
 # - wind speed linear interpolated for different heights?
 # - Loss-plot
 
@@ -123,7 +122,8 @@ outputAndLog <- function(scoreList, duration, info) {
   # Lastly save the results in log file by extending previous results
   results <- cbind(X = 0, Name = info$TIT, Vars = paste(info$VAR, collapse="_"),
                    Order = info$OR, Scoringfct = info$SF, Preprocess = info$PP,
-                   Id=info$ID, results, Mean_A = finalScore, Minutes=duration)
+                   Grouping=info$GR, Id=info$ID, results, Mean_A = finalScore,
+                   Minutes=duration)
   rownames(results)[1] <- 1
   if (file.exists(logFile)) {
     previous <- read.csv2(logFile)
@@ -140,27 +140,28 @@ outputAndLog <- function(scoreList, duration, info) {
 #evaluation(benchmarkSolar, pinBallLoss, 1)
 #evaluation(unleashSolIDR, pinBallLoss, c(1, 3, 1))
 #evaluation(unleashSolIDR, pinBallLoss, c(1, 4, 1))
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 5, 1))
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 2, 1))
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 3, 1))
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 4, 1))
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 5, 1))
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 7, 1))
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 9, 2), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(3, 14, 1), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(3, 1, 1), preprocessfct=deaccumulateSol)
-evaluation(unleashSolIDR, pinBallLoss, c(8, 1, 1), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 0.95), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 0.9), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 5, 1, 2))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 2, 1, 2))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 3, 1, 2))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 4, 1, 2))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 5, 1, 2))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 2), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 2), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 7, 1, 2))
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 9, 2, 2), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 2, 0.95), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 2, 0.9), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 2), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 8), preprocessfct=deaccumulateSol)
+evaluation(unleashSolIDR, pinBallLoss, c(4, 14, 1, 7), preprocessfct=deaccumulateSol)
 
 #evaluation(benchmarkWind, pinBallLoss, 1)
-#evaluation(unleashWinIDR, pinBallLoss, c(6, 2, 1, 1), preprocessfct=getWindAttributes)
-#evaluation(unleashWinIDR, pinBallLoss, c(1, 3, 1, 1), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 2), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(1, 3, 1), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 1, 6), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 6), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 6, 0.8), preprocessfct=getWindAttributes)
 
-#evaluation(unleashWinIDR, pinBallLoss, c(5, 3, 2, 1), preprocessfct=getWindAttributes)
-#evaluation(unleashWinIDR, pinBallLoss, c(6, 2, 1, 1), preprocessfct=getWindAttributes)
-#evaluation(unleashWinIDR, pinBallLoss, c(6, 2, 1), preprocessfct=getWindAttributes)
-#evaluation(unleashWinIDR, pinBallLoss, c(6, 2, 1, 0.8), preprocessfct=getWindAttributes)
-
+# good subagging
+# bag_number <- 75
+# bag_size <- 0.25

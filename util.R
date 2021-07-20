@@ -91,7 +91,8 @@ trivialForecast <- function(X_train, y_train, X_test, id=c(1, 1), init=FALSE) {
                             "empirical", "quantiles", "and", "return", "them",
                             "irrespective", "of", "any", "variable", "values"))
     return(list(TIT=paste0("empirical quantiles ", PBZ), VAR="None", OR="None",
-                PBZ=PBZ, TRACK=track, ID=paste0(id, collapse="_")))
+                PBZ=PBZ, TRACK=track, ID=paste0(id, collapse="_",
+                                                GR="no_grouping")))
   }
   # function: calculate all quantiles and return data.frame
   getAllQuantiles <- function(x) {
@@ -129,7 +130,7 @@ benchmarkSolar <- function(X_train, y_train, X_test, id=1, init=FALSE) {
                               "ago", "as", "all", "quantiles", "(point-measure",
                             "on", "value", "one", "year", "ago)"))
     return(list(TIT="benchmark", VAR="None", OR="None", PBZ=TRUE,
-                TRACK="Solar", ID="1"))
+                TRACK="Solar", ID="1", GR="no_grouping"))
   }
   forecast_in <- X_test$TIMESTAMP
 
@@ -156,7 +157,7 @@ benchmarkWind <- function(X_train, y_train, X_test, id=1, init=FALSE) {
                               "empirical", "quantiles", "as", "quantile",
                               "predictions"))
     return(list(TIT="benchmark", VAR="None", OR="None", PBZ=TRUE, TRACK="Wind",
-                ID="1"))
+                ID="1", GR="no_grouping"))
   }
   quantiles <- quantile(y_train, probs=QUANTILES, na.rm=TRUE)
   return(matrix(rep(quantiles, each=nrow(X_test)), nrow=nrow(X_test)))
@@ -170,52 +171,58 @@ benchmarkWind <- function(X_train, y_train, X_test, id=1, init=FALSE) {
 # if getCategories is TRUE, otherwise return boolean vector assigning each
 # timestamp a value inidicating whether it belongs to given group or not
 
-getHours <- function(data, hour, getCategories=FALSE, getGroupVar=FALSE) {
+getGroupingfct <- function(nr) {
+  return(switch(nr, no_gr, getHours, getMonths, getSeasons, get4Seasons,
+         getWind100Directions, getSeasonHours, getSeasonLargeHours,
+         getSeasonDayTime))
+}
+
+no_gr <- function(data, group_nr, getCategories=FALSE, getGroupVar=FALSE,
+                  getName=FALSE, test=FALSE) {
+  if (getCategories) return(1)
+  if (getGroupVar) return(NULL)
+  if (getName) return("no_grouping")
+  return(TRUE)
+}
+
+getHours <- function(data, hour, getCategories=FALSE, getGroupVar=FALSE,
+                     getName=FALSE, test=FALSE) {
   hours <- 0:23
-  if (getCategories) {
-    return(hours)
-  }
-  if (getGroupVar) {
-    return("TIMESTAMP")
-  }
+  if (getCategories) return(hours)
+  if (getGroupVar) return("TIMESTAMP")
+  if (getName) return("hours")
   timestamps <- data$TIMESTAMP
   return(hour(timestamps) == hour)
 }
 
-getMonths <- function(data, month, getCategories=FALSE, getGroupVar=FALSE) {
+getMonths <- function(data, month, getCategories=FALSE, getGroupVar=FALSE,
+                     getName=FALSE, test=FALSE) {
   months <- 1:12
-  if (getCategories) {
-    return(months)
-  }
-  if (getGroupVar) {
-    return("TIMESTAMP")
-  }
+  if (getCategories) return(months)
+  if (getGroupVar) return("TIMESTAMP")
+  if (getName) return("months")
   timestamps <- data$TIMESTAMP
   return(month(timestamps) == month)
 }
 
-getSeasons <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
+getSeasons <- function(data, season, getCategories=FALSE, getGroupVar=FALSE,
+                     getName=FALSE, test=FALSE) {
   seasons <- c(1,2,3)
-  if (getCategories) {
-    return(seasons)
-  }
-  if (getGroupVar) {
-    return("TIMESTAMP")
-  }
+  if (getCategories) return(seasons)
+  if (getGroupVar) return("TIMESTAMP")
+  if (getName) return("3seasons")
   timestamps <- data$TIMESTAMP
   m <- month(timestamps)
   seasonized <- 1 * (m %in% c(12, 1, 2)) + 2 * (m %in% 3:11) + 3 * (m %in% 6:8)
   return(seasonized == season)
 }
 
-get4Seasons <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
+get4Seasons <- function(data, season, getCategories=FALSE, getGroupVar=FALSE,
+                        getName=FALSE, test=FALSE) {
   seasons <- c(1,2,3,4)
-  if (getCategories) {
-    return(seasons)
-  }
-  if (getGroupVar) {
-    return("TIMESTAMP")
-  }
+  if (getCategories) return(seasons)
+  if (getGroupVar) return("TIMESTAMP")
+  if (getName) return("4seasons")
   timestamps <- data$TIMESTAMP
   m <- month(timestamps)
   seasonized <- 1 * (m %in% c(12, 1, 2)) + 2 * (m %in% 3:5) + 3 * (m %in% 6:8) +
@@ -224,14 +231,12 @@ get4Seasons <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
 }
 
 getWind100Directions <- function(data, direction, getCategories=FALSE,
-                                 getGroupVar=FALSE) {
+                                 getGroupVar=FALSE, getName=FALSE,
+                                 test=FALSE) {
   directions <- 1:12
-  if (getCategories) {
-    return(directions)
-  }
-  if (getGroupVar) {
-    return("A100")
-  }
+  if (getCategories) return(directions)
+  if (getGroupVar) return("A100")
+  if (getName) return("wind_direction")
   bins <- length(directions)
   # bin wind directions (method from dplyr)
   binWinDir <- ceiling((data$A100 + 180) / 360 * bins)
@@ -239,46 +244,44 @@ getWind100Directions <- function(data, direction, getCategories=FALSE,
   return(windDirections == direction)
 }
 
-getSeasonHours <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
+getSeasonHours <- function(data, group_nr, getCategories=FALSE, getGroupVar=FALSE,
+                     getName=FALSE, test=FALSE) {
   groups <- 1:(4*24)
-  if (getCategories) {
-    return(groups)
-  }
-  if (getGroupVar) {
-    return("TIMESTAMP")
-  }
+  if (getCategories) return(groups)
+  if (getGroupVar) return("TIMESTAMP")
+  if (getName) return("hours+4seasons")
   timestamps <- data$TIMESTAMP
   m <- month(timestamps)
   grouped <- 1 * (m %in% c(12, 1, 2)) + 25 * (m %in% 3:5) + 49 * (m %in% 6:8) +
     73 * (m %in% 9:11) + hour(timestamps)
-  return(grouped == season)
+  return(grouped == group_nr)
 }
 
-getSeasonLargeHours <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
+getSeasonLargeHours <- function(data, group_nr, getCategories=FALSE,
+                                getGroupVar=FALSE, getName=FALSE, test=FALSE) {
   groups <- 1:(4*24)
-  if (getCategories) {
-    return(groups)
-  }
-  if (getGroupVar) {
-    return("TIMESTAMP")
-  }
+  if (getCategories) return(groups)
+  if (getGroupVar) return("TIMESTAMP")
+  if (getName) return("extended_hours+4seasons")
   timestamps <- data$TIMESTAMP
   m <- month(timestamps)
-  group <- 1 * (m %in% c(12, 1, 2)) + 25 * (m %in% 3:5) + 49 * (m %in% 6:8) +
+  grouped <- 1 * (m %in% c(12, 1, 2)) + 25 * (m %in% 3:5) + 49 * (m %in% 6:8) +
     73 * (m %in% 9:11) + hour(timestamps)
-  prev <- if(group == 1) 4*24 else group - 1
-  succ <- if(group == 4*24) 1 else group + 1
-  return(grouped %in% c(prev, season, succ))
+  if (test) {
+    return(grouped == group_nr)
+  } else {
+    prev <- if(group_nr %% 24 == 1) group_nr else group_nr - 1
+    succ <- if(group_nr %% 24 == 0) group_nr else group_nr + 1
+    return(grouped %in% c(prev, group_nr, succ))
+  }
 }
 
-getSeasonDayTime <- function(data, season, getCategories=FALSE, getGroupVar=FALSE) {
+getSeasonDayTime <- function(data, group_nr, getCategories=FALSE,
+                             getGroupVar=FALSE, getName=FALSE, test=FALSE) {
   groups <- 1:(4*6)
-  if (getCategories) {
-    return(groups)
-  }
-  if (getGroupVar) {
-    return("TIMESTAMP")
-  }
+  if (getCategories) return(groups)
+  if (getGroupVar) return("TIMESTAMP")
+  if (getName) return("4hour_groups+4seasons")
   timestamps <- data$TIMESTAMP
   m <- month(timestamps)
   h <- hour(timestamps)
@@ -287,5 +290,5 @@ getSeasonDayTime <- function(data, season, getCategories=FALSE, getGroupVar=FALS
   hourGroup <- 0 * (h %in% 0:3) + 1 * (h %in% 4:7) + 2 * (h %in% 8:11) +
     3 * (h %in% 12:15) + 4 * (h %in% 16:19) + 5 * (h %in% 20:23)
 
-  return(grouped == (seasonGroup + hourGroup))
+  return(group_nr == (seasonGroup + hourGroup))
 }
