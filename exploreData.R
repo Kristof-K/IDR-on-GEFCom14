@@ -183,15 +183,12 @@ plotsForSlides <- function() {
                           0.0184789, 0.0208583, 0.02128, 0.025524, 0.0317609,
                           0.0375917, 0.014839771, 0.013732111),
                   group=c(rep("par", 20), "ben", rep("idr", 2)),
-                  name=c(rep("1st - 4th", 4), rep("5th - 7th", 3),
-                         rep("8th - 20th", 13), "Benchmark", "IDR hours 1",
-                         "IDR hours 5"),
-                  label=c(rep("", 20), "last year's value",
-                          "one variable", "five variables\n+ subagging")) %>%
+                  name=c(paste0(1:20, c("st", "nd", "rd", rep("th", 17))),
+                         "Benchmark", "IDR hours 1", "IDR hours 5"),
+                  label=c(rep("", 20), "",
+                          "1 variable", "5 variables\n+ subagging")) %>%
     arrange(desc(score)) %>%
-    mutate(name = factor(name, ordered=TRUE, levels=c("Benchmark", "8th - 20th",
-                                                      "IDR hours 1", "5th - 7th",
-                                                      "IDR hours 5", "1st - 4th")))
+    mutate(name = factor(name, ordered=TRUE, levels=name))
 
   W <- data.frame(score=c(0.03711091, 0.03827364, 0.03831, 0.03834417,
                           0.0389725, 0.03946167, 0.04149818, 0.04473917,
@@ -199,33 +196,30 @@ plotsForSlides <- function() {
                           0.08670583, 0.04476315, 0.04505536, 0.044895936,
                           0.04307092),
                   group=c(rep("par", 12), "ben", rep("idr", 4)),
-                  name=c(rep("1st - 7th", 7), "8th", rep("9th - 12th", 4),
-                         "Benchmark", rep("IDR\nall/seasons/hours", 3),
+                  name=c(paste0(1:12, c("st", "nd", "rd", rep("th", 9))),
+                         "Benchmark", "IDR all", "IDR hours", "IDR seasons",
                          "IDR wind angle"),
-                  label=c(rep("", 12), "empirical quantiles",
-                          rep("", 4))) %>%
+                  label=c(rep("", 12), "", "1 variable\n+ different grouping",
+                          rep("", 3))) %>%
     arrange(desc(score)) %>%
-    mutate(name = factor(name, ordered=TRUE, levels=c("Benchmark", "9th - 12th",
-                                                      "IDR\nall/seasons/hours",
-                                                      "8th","IDR wind angle",
-                                                      "1st - 7th")))
+    mutate(name = factor(name, ordered=TRUE, levels=name))
 
   plotResults <- function(data, track) {
     ggplot(data) +
       geom_col(aes(x=name, y=score, fill=group), show.legend=FALSE,
               position="dodge2") +
-      geom_text(aes(x=name, y=score/2, label=label), color="black", size=5,
-                show.legend=FALSE) +
       xlab("") +
       ylab("") +
       ggtitle(paste("Mean pinball scores", track, "track")) +
-      coord_flip() +
       theme_bw() +
-      theme(text = element_text(size = 15))
+      theme(text = element_text(size = 15),
+            axis.text.x = element_text(angle = 90)) +
+      geom_text(aes(x=name, y=score + 0.5 * score * (score <= max(score)*2/3),
+                    label=label, color=group), , size=5, show.legend=FALSE) +
+      ggsave(paste0("Scores_", track, ".pdf"), path="../WorkshopIAI/",
+             width=10, height=6)
   }
-  library(gridExtra)    # for multiple plots
-  plot <- grid.arrange(plotResults(S, "solar"), plotResults(W, "wind"), ncol=2)
-  plot +
-    ggsave("Scores.pdf", path="../WorkshopIAI/")
+  plotResults(S, "solar")
+  plotResults(W, "wind")
 }
 
