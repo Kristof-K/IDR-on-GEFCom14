@@ -49,7 +49,7 @@ deaccumulateSol <- function(data, init=FALSE) {
 }
 
 getWindAttributes <- function(data, init=FALSE) {
-  name <- "CalcWindVelocities"
+  name <- "CalcWindAttributes"
   if (init) {
     outputPreprocessing(name)
     return(name)

@@ -91,7 +91,7 @@ trivialForecast <- function(X_train, y_train, X_test, id=c(1, 1), init=FALSE) {
                             "empirical", "quantiles", "and", "return", "them",
                             "irrespective", "of", "any", "variable", "values"))
     return(list(TIT=paste0("empirical quantiles ", PBZ), VAR="None", OR="None",
-                PBZ=PBZ, TRACK=track))
+                PBZ=PBZ, TRACK=track, ID=paste0(id, collapse="_")))
   }
   # function: calculate all quantiles and return data.frame
   getAllQuantiles <- function(x) {
@@ -129,7 +129,7 @@ benchmarkSolar <- function(X_train, y_train, X_test, id=1, init=FALSE) {
                               "ago", "as", "all", "quantiles", "(point-measure",
                             "on", "value", "one", "year", "ago)"))
     return(list(TIT="benchmark", VAR="None", OR="None", PBZ=TRUE,
-                TRACK="Solar"))
+                TRACK="Solar", ID="1"))
   }
   forecast_in <- X_test$TIMESTAMP
 
@@ -155,7 +155,8 @@ benchmarkWind <- function(X_train, y_train, X_test, id=1, init=FALSE) {
                             c("Issue", "for", "every", "timestamp", "the",
                               "empirical", "quantiles", "as", "quantile",
                               "predictions"))
-    return(list(TIT="benchmark", VAR="None", OR="None", PBZ=TRUE, TRACK="Wind"))
+    return(list(TIT="benchmark", VAR="None", OR="None", PBZ=TRUE, TRACK="Wind",
+                ID="1"))
   }
   quantiles <- quantile(y_train, probs=QUANTILES, na.rm=TRUE)
   return(matrix(rep(quantiles, each=nrow(X_test)), nrow=nrow(X_test)))
