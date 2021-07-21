@@ -153,7 +153,7 @@ outputAndLog <- function(scoreList, duration, info) {
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 2, 0.9), preprocessfct=deaccumulateSol)
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 2), preprocessfct=deaccumulateSol)
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 8), preprocessfct=deaccumulateSol)
-evaluation(unleashSolIDR, pinBallLoss, c(4, 14, 1, 7), preprocessfct=deaccumulateSol)
+evaluation(unleashSolIDR, pinBallLoss, c(3, 14, 1, 7, 0.9, 50, 0.5), preprocessfct=deaccumulateSol)
 
 #evaluation(benchmarkWind, pinBallLoss, 1)
 #evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 2), preprocessfct=getWindAttributes)

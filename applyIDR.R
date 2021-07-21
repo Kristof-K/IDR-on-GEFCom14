@@ -116,35 +116,16 @@ idrByZones <- function(X_train, y_train, X_test, groups, orders, thresh=1,
   return(pred[order(pred[,1]), -1])   # restore original order
 }
 
-# Version3 : Apply idr subagging on data grouped by hour
-idrsubOnHour <- function(X_train, y_train, X_test, groups, orders, thresh=1,
-                        groupingfct=gethours, bag_number=NA, bag_size=NA) {
-  bag_number <- 75
-  bag_size <- 0.25
-  return(idrByGroup(X_train, y_train, X_test, groups, orders, groupingfct,
-                        bag_number=bag_number, bag_size=bag_size))
-}
-
-
-# Version7 : Apply idr subagging on data grouped by wind angle
-idrsubOnWindDirection <- function(X_train, y_train, X_test, groups, orders) {
-  bag_number <- 75
-  bag_size <- 0.25
-  return(idrByGroup(X_train, y_train, X_test, groups, orders,
-                    getWind100Directions, bag_number=bag_number,
-                    bag_size=bag_size))
-}
-
 
 # IDR variants and variable combinations =======================================
 
 # idr version ideas
-# * IDR on every hour +- 1 hour (~extended probabilistoc climatological)
 # * IDR on every astronomical hour (same sunposition)
 
 # IDR variants:
 # FUN : idr core method
 # TIT : title
+# ADD : variables that should be added to the variable list
 
 IDR_ON_ALL <- list(FUN = idrOnAll, TIT = "General IDR",
                    DES = c("Apply","IDR","on","the","whole","training","set"),
@@ -158,21 +139,10 @@ IDR_BY_ZONE <- list(FUN = idrByZones, TIT = "IDR zone combined data",
                             "target","variable)","and","apply","idr_by_group",
                             "on","this","data"),
                     ADD = "ZONE")
-IDR_SUB_BY_HOUR <- list(FUN = idrsubOnHour, TIT = "Hourly IDR subagging",
-                        DES = c("Group","training","set","by","hour","and",
-                                "apply","IDR","subagging","on","every","group",
-                                "separately"))
-IDR_SUB_BY_WINDDIR100 <- list(FUN = idrsubOnWindDirection,
-                              TIT = "100m wind dir IDR subagging",
-                              DES = c("Group","training","set","by","binned",
-                                      "wind","direction","at","100m","height",
-                                      "and","apply","IDR","subagging","on",
-                                      "every","group","separately"))
 
 # Variable selections
 # VAR : list of variables that are used
-# SGN : with which sign are the variables used
-#       (1 for positive relation, -1 for negative)
+# SGN : sign correction (1 for positive relation, -1 for negative)
 
 SUN_1 <- list(VAR = "VAR169", SGN = 1)
 SUN_2 <- list(VAR = "VAR178", SGN = 1)
@@ -206,12 +176,12 @@ ICX <- "icx"
 SD <- "sd"
 
 
-# ID is a 4-tupel, first element identifying the idr variant, second the
-# variable selection, third number defining partial order and 4th a value
-# between
+# ID is a 7-tupel:
+# (idr variant, variable selection, order, data grouping, zone threshold,
+# number of subaggs, size of subaggs)
 
 getVariant <- function(id) {
-  return(switch(id[1], IDR_ON_ALL, IDR_BY_GROUP, IDR_BY_ZONE, IDR_SUB_BY_HOUR))
+  return(switch(id[1], IDR_ON_ALL, IDR_BY_GROUP, IDR_BY_ZONE))
 }
 
 getVariableSelection <- function(id, track) {
@@ -228,10 +198,6 @@ getOrder <- function(id) {
   return(switch(id[3], COMP, ICX, SD))
 }
 
-getVariantName <- function(id) {
-  return(getVariant(id)$TIT)
-}
-
 getVariablesName <- function(id, track) {
   variables <- getVariableSelection(id, track)
   return(paste0(variables$VAR, "(", variables$SGN, ") "))
@@ -244,14 +210,15 @@ getIDStr <- function(id) {
 
 # wrapper ======================================================================
 
-
 unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
   idr_v <- getVariant(id)
   variables <- getVariableSelection(id, track)
   pOrder <- getOrder(id)
   # addional arguments
-  if(is.na(id[4])) id[4] <- 1
-  if(is.na(id[5])) id[5] <- 1
+  if(is.na(id[4])) id[4] <- 1       # grouping : default no grouping
+  if(is.na(id[5])) id[5] <- 1       # zone merging : defualt no zone merging
+  if(!is.na(id[6]) && id[6] < 2) id[6] <- 75                        # bag number
+  if(!is.na(id[7]) && (id[7] <= 0 || id[7] >= 1)) id[7] <- 0.25     # bag size
   groupingfct <- getGroupingfct(id[4])
   thresh <- min(id[5], 1)
   # if init print, then output information and return important information
@@ -273,12 +240,13 @@ unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
   X_train[vars[signs == -1]] <- (-1) * X_train[vars[signs == -1]]
   X_test[vars[signs == -1]] <- (-1) * X_test[vars[signs == -1]]
 
-  if (!is.null(idr_v$ADD)) vars <- c(idr_v$ADD$VAR, vars)
+  if (!is.null(idr_v$ADD)) vars <- c(idr_v$ADD, vars)
   groupvar <- groupingfct(NA, NA, getGroupVar=TRUE)
   if (!is.null(groupvar)) vars <- c(vars, groupvar)
 
   return(idr_v$FUN(X_train[vars], y_train, X_test[vars], groups, orders,
-                   groupingfct=groupingfct, thresh=thresh))
+                   groupingfct=groupingfct, thresh=thresh, bag_number=id[6],
+                   bag_size=id[7]))
 }
 
 unleashSolIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
