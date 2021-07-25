@@ -129,52 +129,48 @@ loadLoad <- function(task) {
   track <- "Load"
   subfolder <-  paste0(PATH, SLASH, track, SLASH)
   zones <- "ZONE1"
-
-  train_file <- paste0(subfolder, "Task\ ", task, SLASH, "L", task, "-train",
-                       CSV)
+  # sadly dates are not unanambiguous (e.g. 11.01.10 and 01.11.10 are both
+  # represented as 1112010) => hardcode start dates and generate rest
+  start_dates <- c("2001-01-01 01:00", "2010-10-01 01:00", "2010-11-01 01:00",
+                   "2010-12-01 01:00", "2011-01-01 01:00", "2011-02-01 01:00",
+                   "2011-03-01 01:00", "2011-04-01 01:00", "2011-05-01 01:00",
+                   "2011-06-01 01:00", "2011-07-01 01:00", "2011-08-01 01:00",
+                   "2011-09-01 01:00", "2011-10-01 01:00", "2011-11-01 01:00",
+                   "2011-12-01 01:00")
   if (task < 15) {
+    test_start_ts <- start_dates[task + 1]
     test_file <- paste0(subfolder, "Task\ ", task+1, SLASH, "L", task+1,
                         "-train", CSV)
   } else {
+    test_start_ts <- start_dates[16]
     test_file <- paste0(PATH, SLASH, track, SLASH, "Solution\ to\ Task\ 15",
                         SLASH, "solution15_L_temperature", CSV)
   }
-  # timestamps are not in a predefined format, so tackle it manually
-  toRealDate <- function(timestamps) {
-    date_time <- strsplit(timestamps, " ")
-    applyLubridate <- function(str) {
-      month <- substr(str[1], 1, 2)
-      end <- if (nchar(str[1]) == 7) 3 else 4
-      day <- substr(str[1], 3, end)
-      year <- substr(str[1], end+1, end+5)
-      return(ymd_hm(paste0(year, "-", month, "-", day, " ", str[2])))
-    }
-    # combine all list elements in a vector
-    return(do.call(c, lapply(date_time, applyLubridate)))
-  }
-
   output <- list("Zones" = zones)
+  train <- data.frame()
   # now fetch data
-  train <-  read.table(train_file, header=TRUE, dec=".", sep=",")
-  train$TIMESTAMP <- toRealDate(train$TIMESTAMP)    # work with dates
+  for (i in 1:task) {
+    train_file <- paste0(subfolder, "Task\ ", i, SLASH, "L", i, "-train", CSV)
+    train_i <-  read.table(train_file, header=TRUE, dec=".", sep=",")
+    train <- rbind(train, train_i)
+  }
+  train$TIMESTAMP <- ymd_hm(start_dates[1]) + hours(0:(nrow(train)-1))
   train <- train[(names(train) != "ZONEID")]    # get rid of ZONEID column
+
   test <- read.table(test_file, header=TRUE, dec=".", sep=",")
   if (task < 15) {
     test <- test[(names(test) != "ZONEID")]
-    test$TIMESTAMP <- toRealDate(X_test$TIMESTAMP)
   } else {
-    date_time <- mdy_hm(paste0(test$date, " ", date$hour, ":00"))
-    test <- cbind(TIMESTAMP=date_time,
-                  test[!(names(test) %in% c("date", "hour"))])
+    test <- test[!(names(test) %in% c("date", "hour"))]
   }
-
+  test$TIMESTAMP <- ymd_hm(test_start_ts) + hours(0:(nrow(test)-1))
   lastTrainTS <- train$TIMESTAMP[length(train$TIMESTAMP)]
   output[[zones]] <- rbind(train, test)
 
   output[["LastTrain_TS"]] <- lastTrainTS
   return(output)
 }
-
+loadLoad(15)
 
 # LOAD PRICE -------------------------------------------------------------------
 loadPrice <- function(task) {
