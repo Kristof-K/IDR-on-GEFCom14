@@ -21,12 +21,12 @@ getCorrelationCoefficients <- function(list, categories, numOfVariables) {
   for (element in categories) {       # iterate over 3rd dimension
     for (var in 1:numOfVariables) {   # iterate over 1st dimension
       examine <- na.omit(list[[element]])
-      if (sd(examine[["POWER"]]) != 0 && sd(examine[, var]) != 0) {
-        output[var,1:3,c] <- c(cor(examine[,var], examine[["POWER"]],
+      if (sd(examine[["TARGET"]]) != 0 && sd(examine[, var]) != 0) {
+        output[var,1:3,c] <- c(cor(examine[,var], examine[["TARGET"]],
                                   method="pearson"),
-                              cor(examine[,var], examine[["POWER"]],
+                              cor(examine[,var], examine[["TARGET"]],
                                   method="spearman"),
-                              cor(examine[,var], examine[["POWER"]],
+                              cor(examine[,var], examine[["TARGET"]],
                                   method="kendall"))
       }
     }

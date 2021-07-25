@@ -41,7 +41,7 @@ examineHour <- function(track, preprocess=no_pp) {
 examineSolarHourDeacc <- function() {
   # data is a list containing for every string in zones a data frame
   deacc <- deaccumulateSol(loadSolar(15))
-  deacc_vars <- c(ACCUMULATED, "POWER")
+  deacc_vars <- c(ACCUMULATED, "TARGET")
 
   # EXAMINE DATA GROUPED BY HOUR
   cat("Examing deacccumulated data grouped by hour:\n")
@@ -98,10 +98,10 @@ examinePower <- function(track) {
   data <- loadSet(track,15)
 
   for (zone in data$Zones) {
-    plotPowerHeatMap(data[[zone]][c("TIMESTAMP", "POWER")], track, zone)
-    plotPowerCurves(data[[zone]][c("TIMESTAMP", "POWER")], track, zone, e=TRUE)
-    plotPowerCurves(data[[zone]][c("TIMESTAMP", "POWER")], track, zone, e=FALSE)
-    plotPowerAreaCurves(data[[zone]][c("TIMESTAMP", "POWER")], track, zone)
+    plotPowerHeatMap(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
+    plotPowerCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone, e=TRUE)
+    plotPowerCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone, e=FALSE)
+    plotPowerAreaCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
   }
 }
 
@@ -153,7 +153,7 @@ plotsForSlides <- function() {
   data <- deaccumulateSol(loadSolar(15))
 
   for(zone in "ZONE3") {
-    plotData <- transmute(data[[zone]], Power=POWER, Radiation=VAR169,
+    plotData <- transmute(data[[zone]], Power=TARGET, Radiation=VAR169,
                           Hour=as.factor(hour(TIMESTAMP)))
     print(ggplot(plotData, aes(x=Radiation, y=Power)) +
       geom_point() +

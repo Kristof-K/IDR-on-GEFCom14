@@ -18,7 +18,7 @@ idrOnAll <- function(X_train, y_train, X_test, groups, orders, thresh=1,
 # Version2: Apply idr an data grouped by a groupingfct
 idrByGroup <- function(X_train, y_train, X_test, groups, orders, thresh=1,
                        groupingfct=getHours, bag_number=NA, bag_size=NA) {
-  train <- cbind(POWER = y_train, X_train)
+  train <- cbind(TARGET = y_train, X_train)
   # breakdown data by hour
   categories <- groupingfct(NA, NA, getCategories=TRUE)
   removeVars <- groupingfct(NA, NA, getGroupVar=TRUE)
@@ -33,12 +33,12 @@ idrByGroup <- function(X_train, y_train, X_test, groups, orders, thresh=1,
     if(sum(train_indices) == 0) {
       return("ERROR: training period doesn't comprise necessary groups")
     }
-    y <- subset(train, train_indices)$POWER
+    y <- subset(train, train_indices)$TARGET
     # matrix containing in every row quantile forecast plus original indices
     output <- matrix(0, nrow=sum(test_indices), ncol=length(QUANTILES)+1)
     output[,1] <- which(test_indices)   # original indices in 1st column
 
-    trainByGroup <- subset(train, train_indices)[!(names(train) %in% c("POWER", removeVars))]
+    trainByGroup <- subset(train, train_indices)[!(names(train) %in% c("TARGET", removeVars))]
     makePred <- subset(X_test, test_indices)[!(names(X_train) %in% removeVars)]
     output[,-1] <- myIDR(trainByGroup, y, makePred, groups, orders, bag_number,
                          bag_size)
@@ -84,25 +84,25 @@ myIDR <- function(X_train, y_train, X_test, groups, orders, bag_number=NA,
 # Version3: combine data with highly correlated (target time series) data
 idrByZones <- function(X_train, y_train, X_test, groups, orders, thresh=1,
                         groupingfct=gethours, bag_number=NA, bag_size=NA) {
-  train <- cbind(POWER=y_train, X_train)
+  train <- cbind(TARGET=y_train, X_train)
 
   applyIDRonZone <- function(zone) {
     test_indices <- (X_test$ZONE == zone)
     X_test_zone <- subset(X_test, test_indices, select=-ZONE)
     X_train_col <- subset(X_train, ZONE==zone, select=-ZONE)
-    y_col <- subset(train, ZONE==zone)$POWER
+    y_col <- subset(train, ZONE==zone)$TARGET
     y_zone <- y_col
     output <- matrix(0, nrow=sum(test_indices), ncol=length(QUANTILES)+1)
     output[,1] <- which(test_indices)   # original indices in 1st column
 
     for(z in unique(X_train$ZONE)) {
       if (z == zone) next
-      y_z <- subset(train, ZONE==z)$POWER
+      y_z <- subset(train, ZONE==z)$TARGET
       # removing NA rows can lead to different long blocks for each zone
       minIndex <- min(length(y_z), length(y_zone))
-      # add all zones with Power correlation greater than threshold
+      # add all zones with TARGET correlation greater than threshold
       if (cor(y_z[1:minIndex], y_zone[1:minIndex]) >= thresh) {
-        X_train_add <- subset(train, ZONE==z, select=c(-ZONE, -POWER))
+        X_train_add <- subset(train, ZONE==z, select=c(-ZONE, -TARGET))
         y_col <- c(y_col, y_z)    # add new y values
         X_train_col <- rbind(X_train_col, X_train_add)
       }
@@ -129,16 +129,14 @@ idrByZones <- function(X_train, y_train, X_test, groups, orders, thresh=1,
 
 IDR_ON_ALL <- list(FUN = idrOnAll, TIT = "General IDR",
                    DES = c("Apply","IDR","on","the","whole","training","set"),
-                   ADD=NULL)
+                   ADD = NULL)
 IDR_BY_GROUP <- list(FUN = idrByGroup, TIT = "IDR grouped data",
                     DES = c("Group","training","set","and","apply", "IDR","on",
-                            "every","group","separately"),
-                    ADD=NULL)
+                            "every","group","separately"), ADD = NULL)
 IDR_BY_ZONE <- list(FUN = idrByZones, TIT = "IDR zone combined data",
                     DES = c("Combine", "highly","correlated","data","(regarding",
                             "target","variable)","and","apply","idr_by_group",
-                            "on","this","data"),
-                    ADD = "ZONE")
+                            "on","this","data"), ADD = "ZONE")
 
 # Variable selections
 # VAR : list of variables that are used

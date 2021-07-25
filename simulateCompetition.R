@@ -89,10 +89,10 @@ predAndEval <- function(predictionfct, scoringfct, data, id, lastTrainTS,
   i_train <- (data$TIMESTAMP <= lastTrainTS)
   i_test <- (data$TIMESTAMP > lastTrainTS & data$TIMESTAMP <= lastTestTS)
 
-  y <- subset(data, i_test)[["POWER"]]
-  y_train <- subset(data, i_train)[["POWER"]]
-  X_train <- subset(data, i_train, select=-POWER)
-  X_test <- subset(data, i_test, select=-POWER)
+  y <- subset(data, i_test)[["TARGET"]]
+  y_train <- subset(data, i_train)[["TARGET"]]
+  X_train <- subset(data, i_train, select=-TARGET)
+  X_test <- subset(data, i_test, select=-TARGET)
   times <- subset(data, i_test)[["TIMESTAMP"]]
 
   # conduct prediction
@@ -161,7 +161,3 @@ evaluation(unleashSolIDR, pinBallLoss, c(3, 14, 1, 7, 0.9, 50, 0.5), preprocessf
 #evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 1, 6), preprocessfct=getWindAttributes)
 #evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 6), preprocessfct=getWindAttributes)
 #evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 6, 0.8), preprocessfct=getWindAttributes)
-
-# good subagging
-# bag_number <- 75
-# bag_size <- 0.25

@@ -59,7 +59,7 @@ getWindAttributes <- function(data, init=FALSE) {
                            S100 = sqrt(U100^2 + V100^2),
                            A10 = atan2(V10, U10) * 360 / (2*pi),
                            A100 = atan2(V100, U100) * 360 / (2*pi)) %>%
-      relocate(POWER, .after = last_col())
+      relocate(TARGET, .after = last_col())
   }
   return(data)
 }

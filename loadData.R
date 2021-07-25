@@ -68,9 +68,9 @@ loadSolar <- function(task) {
           subset(Y_test, 
                  (ZONEID==i) & (TIMESTAMP>output[["LastTrain_TS"]]))$POWER)
     # first name is lastTest_TS, so start at 2
-    output[[zones[i]]] <- cbind(zoneData, POWER=y)
+    output[[zones[i]]] <- cbind(zoneData, TARGET=y)
   }
-  
+  output[["Target"]] <- "Power"
   return(output)
 }
 
@@ -116,10 +116,11 @@ loadWind <- function(task) {
     test <- cbind(X_test,
                   TARGETVAR=subset(y_test,TIMESTAMP>lastTrainTS)[["TARGETVAR"]])
     output[[zone]] <- rbind(train, test)
-    names(output[[zone]])[names(output[[zone]])=="TARGETVAR"] <- "POWER"
+    names(output[[zone]])[names(output[[zone]])=="TARGETVAR"] <- "TARGET"
     z <- z+1
   }
   output[["LastTrain_TS"]] <- lastTrainTS
+  output[["Target"]] <- "Power"
   return(output)
 }
 
@@ -166,11 +167,12 @@ loadLoad <- function(task) {
   test$TIMESTAMP <- ymd_hm(test_start_ts) + hours(0:(nrow(test)-1))
   lastTrainTS <- train$TIMESTAMP[length(train$TIMESTAMP)]
   output[[zones]] <- rbind(train, test)
-
+  # rename load column
+  names(output[[zones]])[names(output[[zones]])=="LOAD"] <- "TARGET"
+  output[["Target"]] <- "Load"
   output[["LastTrain_TS"]] <- lastTrainTS
   return(output)
 }
-loadLoad(15)
 
 # LOAD PRICE -------------------------------------------------------------------
 loadPrice <- function(task) {

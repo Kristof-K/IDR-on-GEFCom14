@@ -51,6 +51,10 @@ getGrid <- function(track) {
   return(switch(track, "Solar"=c(3,4), "Wind"=c(2,4)))
 }
 
+getTarget <- function(track) {
+  return(switch(track, "Solar"="Power", "Wind"="Power", "Load"="Load"))
+}
+
 # Plot scatter plots for every variable in variableNames
 # - list : list of data.frames for every category
 # - track : current track for naming the plots
@@ -80,18 +84,19 @@ scatterFull <- function(list, categories, track, zone, min, max, labels,
   for (var in names(vars)) {
     y_axis <- if(j %% 4 == 0) "s" else "n"      # plot y axis or not
     
-    plot(0, type="n", ylab="Power", yaxt=y_axis, xlab=vars[[var]],
+    plot(0, type="n", ylab=paste(target), yaxt=y_axis, xlab=vars[[var]],
          xlim=getLimits(var, min, max), ylim=powerLim)
     c <- 1
     for (element in categories) {
-      lines(list[[element]][[var]], list[[element]][["POWER"]], pch=20, 
+      lines(list[[element]][[var]], list[[element]][["TARGET"]], pch=20,
             type="p", col=colors[c])
       c <- c+1
     }
     j <- j+1
   }
   add <- if (title != "") paste(",", title) else ""
-  mtext(paste0(zone, ": Power ~ variables", add), outer=TRUE, line=0.5, cex=1.5)
+  mtext(paste0(zone, ": ", target, " ~ variables", add), outer=TRUE, line=0.5,
+        cex=1.5)
   mtext(labels, side=1, outer=TRUE, line=0.5, col=colors,
         at=seq(0.1, 0.9, 0.8 / (length(categories) - 1)))
   # set parameters back to default
@@ -127,6 +132,7 @@ correlationPlot <- function(coefficients, categories, track, zone, title="",
   colors <- rainbow(length(categories))
   shapes <- c(15, 16, 17)
   shift <- c(-0.33, 0, 0.33)
+  target <- getTarget(track)
   
   par(mfrow=c(1,1), mar=c(3.5, 2, 0, 3), oma=c(3,0,3,0))
   
@@ -146,7 +152,7 @@ correlationPlot <- function(coefficients, categories, track, zone, title="",
   
   axis(1, at=x, labels=names(vars), cex.axis=0.8, las=2)
   add <- if (title != "") paste(",", title) else ""
-  mtext(paste0(zone, ": Correlation(Power,variables)", add), outer=TRUE, 
+  mtext(paste0(zone, ": Correlation(", target, ",variables)", add), outer=TRUE,
         line=0.5, cex=1.5)
   mtext(labels, side=1, outer=TRUE, line=0, col=colors,
         at=seq(0.1, 0.9, 0.8 / (length(categories) - 1)))
@@ -196,7 +202,8 @@ scatterSingle <- function(list, categories, track, zone, min, max, name,
                        labels, title="", grid=c(1,1)) {
   colors <- rainbow(length(categories))
   vars <- getVars(track)
-  
+  target <- getTarget(track)
+
   par(mfrow=grid, mar=c(0, 0, 0, 0), oma=c(4,4,4,2), mgp=c(1.2,0.6,0))
   
   j <- 0
@@ -206,16 +213,16 @@ scatterSingle <- function(list, categories, track, zone, min, max, name,
     
     limits <- getLimits(name, min, max)
     
-    plot(list[[element]][[name]], list[[element]][["POWER"]], type="p", pch=20,   
-         ylab="Power", yaxt=y_axis, xaxt=x_axis, xlab=vars[[name]],
+    plot(list[[element]][[name]], list[[element]][["TARGET"]], type="p", pch=20,
+         ylab=paste(target), yaxt=y_axis, xaxt=x_axis, xlab=vars[[name]],
          xlim=limits, ylim=powerLim, col=colors[j+1], cex=2)
     text(x=0.1*limits[1] + 0.9*limits[2], y=0.9*powerLim[2], labels[j + 1],
          cex=1.7)
     j <- j+1
   }
   add <- if (title != "") paste(",", title) else ""
-  mtext(paste0(zone, ": Power ~ ", vars[[name]], add), outer=TRUE, line=0.5,
-        cex=1.5)
+  mtext(paste0(zone, ": ", target, " ~ ", vars[[name]], add), outer=TRUE,
+        line=0.5, cex=1.5)
   # set parameters back to default
   par(mfrow=c(1,1), mar=c(5, 4, 4, 2) + 0.1, oma=c(0,0,0,0), mgp=c(3 ,1 ,0))
 }
@@ -241,25 +248,26 @@ plotTimeSeries <- function(data, start, end, track, name) {
   t <- plotData %>% select(TIMESTAMP) %>% pull()
   n <- dim(plotData)[1]
   plotData <- plotData %>% select(-TIMESTAMP) %>% mutate(X = 1:n)
+  target <- getTarget(track)
 
   # normalize all variables, want to draw power with each variable in one plot
   for (var in names(plotData)) {
-    if (var == "X" || var == "POWER") {
+    if (var == "X" || var == "TARGET") {
       next
     }
     tmp <- plotData[[var]]
     plotData[[var]] <- (tmp - min(tmp)) / (max(tmp) - min(tmp))
   }
-  # get for every variable column a copy of POWER and remove the original power
+  # get for every variable column a copy of TARGET and remove the original power
   # ~ . is lambda with . as input variable => here constant function (no .)
-  plotData <- plotData %>% mutate(across(c(-POWER, -X), ~ POWER,
+  plotData <- plotData %>% mutate(across(c(-TARGET, -X), ~ TARGET,
                                          .names = "{.col}_p")) %>%
-    select(-POWER)
+    select(-TARGET)
   # get data in a long format with categories "VAR" specifying which data goes
   # with which variable and create column power to indicate whether this is
   # the power graph for the respective variable or the variable itsself
   plotData <- plotData %>% pivot_longer(cols = -X, names_to = "var") %>%
-    mutate(Line = ifelse(str_detect(var, "_p"), "Power", "VAR*"),
+    mutate(Line = ifelse(str_detect(var, "_p"), target, "VAR*"),
            VAR = str_replace(var, "_p", "")) %>%
     select(-var)
 
@@ -274,14 +282,15 @@ plotTimeSeries <- function(data, start, end, track, name) {
 }
 
 
-# Plot a heatmap of the POWER values whereby the heatmap should be a 24xn iamge
+# Plot a heatmap of the TARGET values whereby the heatmap should be a 24xn iamge
 # with each row representing an hour, each column a day
-# - data : data.frame containing the two colums "TIMESTAMP" and "POWER"
+# - data : data.frame containing the two colums "TIMESTAMP" and "TARET"
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
 # - suf : text that should be appended to the name
-plotPowerHeatMap <- function(data, track, zone, suf="") {
+plotHeatMap <- function(data, track, zone, suf="") {
   suf <- if (suf != "") paste0("_", suf) else suf
+  target <- getTarget(track)
   # we want day times to be in the mid of the plot
   hour_order <- c(15:23, 0:14)
   # but then the first day just comprises 'first' hours
@@ -297,10 +306,10 @@ plotPowerHeatMap <- function(data, track, zone, suf="") {
                        rep(n%/%24 + 2, n%%24))) %>%
     select(-TIMESTAMP) %>%
     ggplot() +
-      geom_tile(mapping = aes(x=X, y=Hour, fill=POWER)) +
-      ggtitle(paste("Heatmap of", track, "power production in", zone)) +
+      geom_tile(mapping = aes(x=X, y=Hour, fill=TARGET)) +
+      ggtitle(paste("Heatmap of", track, target, "production in", zone)) +
       scale_x_continuous(breaks = ticks %/% 24, labels = labels, name = "") +
-      ggsave(paste0("PowerHeatmap_", zone, suf, ".png"),
+      ggsave(paste0(target, "Heatmap_", zone, suf, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=8)
 }
 
@@ -322,7 +331,7 @@ plotPowerHeatMap <- function(data, track, zone, suf="") {
   }
 
 # Scatter wind power production against wind speed and color wind directions
-# - data : data.frame containing the colums "POWER" and wind speed and direction
+# - data : data.frame containing the colums "TARGET" and wind speed and direction
 #   in 10m and 100m height
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
@@ -330,9 +339,9 @@ plotPowerHeatMap <- function(data, track, zone, suf="") {
 #   binning and use continous cloring instead
 scatterWindPower <- function(data, track, zone, bins=NA) {
   add <- "Cont_"
-  plotData <- rbind(data.frame(Power=data$POWER, Height=10, Speed=data$W10,
+  plotData <- rbind(data.frame(Power=data$TARGET, Height=10, Speed=data$W10,
                                Direction=data$A10),
-                    data.frame(Power=data$POWER, Height=100, Speed=data$W100,
+                    data.frame(Power=data$TARGET, Height=100, Speed=data$W100,
                                Direction=data$A100))
   plotData <- na.omit(plotData)   # remove NA values
   if (!is.na(bins)) {
@@ -361,7 +370,7 @@ scatterWindPower <- function(data, track, zone, bins=NA) {
 
 # Plot boxplots (discrete case) or estimated median and quartils (cont. case) of
 # wind power production  as function of the wind direction
-# - data : data.frame containing the colums POWER and direction in 10m and 100m
+# - data : data.frame containing the colums TARGET and direction in 10m and 100m
 #   height
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
@@ -374,9 +383,9 @@ estimatePowerDistribution <- function(data, track, zone, bins=NA) {
   }
 
   add <- "Cont_"
-  plotData <- rbind(data.frame(Power=data$POWER, Height=10, Speed=data$W10,
+  plotData <- rbind(data.frame(Power=data$TARGET, Height=10, Speed=data$W10,
                                Direction=data$A10),
-                    data.frame(Power=data$POWER, Height=100, Speed=data$W100,
+                    data.frame(Power=data$TARGET, Height=100, Speed=data$W100,
                                Direction=data$A100))
   plotData <- na.omit(plotData)   # remove NA values
   if (!is.na(bins)) {
@@ -410,32 +419,33 @@ estimatePowerDistribution <- function(data, track, zone, bins=NA) {
 
 # plot hourly expected (or median) power wind production with data grouped by
 # month
-# - data : data.frame containing the two colums "TIMESTAMP" and "POWER"
+# - data : data.frame containing the two colums "TIMESTAMP" and "TARGET"
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
 # - e : if true plot expectation, if false plot median
-plotPowerCurves <- function(data, track, zone, e) {
+plotTargetCurves <- function(data, track, zone, e) {
+  target <- getTarget(track)
   fnc_label <- if(e) "Mean" else "Median"
   fnc <- if (e) mean else function(x) {return(quantile(x, probs=0.5)[["50%"]])}
-  data %>% filter(!is.na(POWER)) %>%
+  data %>% filter(!is.na(TARGET)) %>%
     mutate(HOUR = hour(TIMESTAMP), MONTH = month(TIMESTAMP, label=TRUE,
                                                  abbr=TRUE)) %>%
     select(-TIMESTAMP) %>% group_by(HOUR, MONTH) %>%
-    summarise(POWER = fnc(POWER), .groups="drop") %>%
-    ggplot(mapping = aes(x=HOUR, y=POWER, color=MONTH)) +
+    summarise(TARGET = fnc(TARGET), .groups="drop") %>%
+    ggplot(mapping = aes(x=HOUR, y=TARGET, color=MONTH)) +
       geom_line(size = 1.2) +
       scale_color_manual(values = rainbow(12)) +
-      ggtitle(paste(fnc_label, "power curves of", track, "in", zone)) +
-      ggsave(paste0(fnc_label, "_PowerCurves_", zone, ".png"),
+      ggtitle(paste(fnc_label, target, "curves of", track, "in", zone)) +
+      ggsave(paste0(fnc_label, "_", target, "Curves_", zone, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=8)
 }
 
-# plot hourly expected and median power wind production with centered 50%
+# plot hourly expected and median target quantity with centered 50%
 # intervals, whereby data is grouped by season
-# - data : data.frame containing the two colums "TIMESTAMP" and "POWER"
+# - data : data.frame containing the two colums "TIMESTAMP" and "TARGET"
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
-plotPowerAreaCurves <- function(data, track, zone) {
+plotAreaCurves <- function(data, track, zone) {
   seasonize <- function(t) {
     return(case_when(month(t) %in% c(12, 1, 2) ~ "Dez,Jan,Feb",
                      month(t) %in% c(3, 4, 5) ~ "Mar,Apr,May",
@@ -448,13 +458,14 @@ plotPowerAreaCurves <- function(data, track, zone) {
     upperVals <- c(max(x), unname(quantile(x, probs=9:6 * 0.1)))
     return(data.frame(Width=intervals, L=lowerVals, U=upperVals))
   }
-  plotData <- data %>% filter(!is.na(POWER)) %>%
+  plotData <- data %>% filter(!is.na(TARGET)) %>%
     mutate(HOUR = hour(TIMESTAMP), SEASON = seasonize(TIMESTAMP)) %>%
     select(-TIMESTAMP) %>% group_by(HOUR, SEASON)
 
-  meanAndMedian <-  summarise(plotData, Mean=mean(POWER), Median=median(POWER),
+  meanAndMedian <-  summarise(plotData, Mean=mean(TARGET), Median=median(TARGET),
                   .groups="drop")
-  c_intervals <- summarise(plotData, getConfidence(POWER), .groups="drop")
+  c_intervals <- summarise(plotData, getConfidence(TARGET), .groups="drop")
+  target <- getTarget(track)
 
   ggplot(mapping = aes(x=HOUR)) +
     facet_wrap(~SEASON) +
@@ -465,11 +476,11 @@ plotPowerAreaCurves <- function(data, track, zone) {
               linetype=1, size=1.2, show.legend=FALSE) +
     geom_line(data = meanAndMedian, mapping = aes(y=Median, color=SEASON),
               linetype=2, size=1.2, show.legend=FALSE) +
-    ylab("Power") +
+    ylab(paste(target)) +
     xlab("Hour") +
     ggtitle(paste("Mean (solid), median (dashed) and confidence intervals of",
                   track, "power production in", zone)) +
-    ggsave(paste0("PowerAreaCurves_", zone, ".png"),
+    ggsave(paste0(target, "AreaCurves_", zone, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=8)
 }
 
@@ -478,9 +489,10 @@ plotPowerAreaCurves <- function(data, track, zone) {
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
 plotHistograms <- function(data, track, zone) {
-  vars <- c(getVars(track), "POWER"="POWER")
+  vars <- c(getVars(track), "TARGET" = getTarget(track))
   data %>% select(names(vars)) %>%
     pivot_longer(cols=names(vars), names_to="Variable") %>%
+    mutate(Variable = unname(vars[Variable])) %>%
     ggplot(mapping = aes(x=value)) +
       geom_histogram(bins = 50, na.rm=TRUE) +
       facet_wrap(~Variable, scales="free") +
