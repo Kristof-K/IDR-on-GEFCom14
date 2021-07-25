@@ -127,7 +127,52 @@ loadWind <- function(task) {
 # LOAD LOAD --------------------------------------------------------------------
 loadLoad <- function(task) {
   track <- "Load"
-  return(data.frame(X=c(track)))
+  subfolder <-  paste0(PATH, SLASH, track, SLASH)
+  zones <- "ZONE1"
+
+  train_file <- paste0(subfolder, "Task\ ", task, SLASH, "L", task, "-train",
+                       CSV)
+  if (task < 15) {
+    test_file <- paste0(subfolder, "Task\ ", task+1, SLASH, "L", task+1,
+                        "-train", CSV)
+  } else {
+    test_file <- paste0(PATH, SLASH, track, SLASH, "Solution\ to\ Task\ 15",
+                        SLASH, "solution15_L_temperature", CSV)
+  }
+  # timestamps are not in a predefined format, so tackle it manually
+  toRealDate <- function(timestamps) {
+    date_time <- strsplit(timestamps, " ")
+    applyLubridate <- function(str) {
+      month <- substr(str[1], 1, 2)
+      end <- if (nchar(str[1]) == 7) 3 else 4
+      day <- substr(str[1], 3, end)
+      year <- substr(str[1], end+1, end+5)
+      return(ymd_hm(paste0(year, "-", month, "-", day, " ", str[2])))
+    }
+    # combine all list elements in a vector
+    return(do.call(c, lapply(date_time, applyLubridate)))
+  }
+
+  output <- list("Zones" = zones)
+  # now fetch data
+  train <-  read.table(train_file, header=TRUE, dec=".", sep=",")
+  train$TIMESTAMP <- toRealDate(train$TIMESTAMP)    # work with dates
+  train <- train[(names(train) != "ZONEID")]    # get rid of ZONEID column
+  test <- read.table(test_file, header=TRUE, dec=".", sep=",")
+  if (task < 15) {
+    test <- test[(names(test) != "ZONEID")]
+    test$TIMESTAMP <- toRealDate(X_test$TIMESTAMP)
+  } else {
+    date_time <- mdy_hm(paste0(test$date, " ", date$hour, ":00"))
+    test <- cbind(TIMESTAMP=date_time,
+                  test[!(names(test) %in% c("date", "hour"))])
+  }
+
+  lastTrainTS <- train$TIMESTAMP[length(train$TIMESTAMP)]
+  output[[zones]] <- rbind(train, test)
+
+  output[["LastTrain_TS"]] <- lastTrainTS
+  return(output)
 }
 
 
