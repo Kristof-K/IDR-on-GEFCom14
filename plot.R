@@ -19,6 +19,7 @@ solarVars <- c("VAR78" = "liquid water",
 windVars <- c("U10"="U10", "V10"="V10", "U100"="U100", "V100"="V100",
               "S10" = "10m wind speed", "S100" = "100m wind speed",
               "A10" = "10m wind angle", "A100" = "100m wind angle")
+loadVars <- setNames(paste("Temperature", 1:25), paste0("w", 1:25))
 
 corr_c <- c("pearson", "spearman", "kendall")
 
@@ -27,8 +28,6 @@ hours <- paste(0:23)
 monthsLabel <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
                  "Oct", "Nov", "Dez")
 hoursLabel <- paste(hours, "h")
-
-powerLim <- c(0, 1.1) # power is normalized, i.e it lives in the unit interval
 
 
 # Get the plot limits of a variable given the min and max data.frames
@@ -43,52 +42,59 @@ getLimits <- function(var, min, max) {
 # Get the variables belonging to a track
 # - track : name of the track
 getVars <- function(track) {
-  return(switch(track, "Solar"=solarVars, "Wind"=windVars))
+  return(switch(track, "Solar"=solarVars, "Wind"=windVars, "Load"=loadVars))
 }
 # Get a grid to plot all variables (dependent on number of vars in the track)
 # - track : name of the track
 getGrid <- function(track) {
-  return(switch(track, "Solar"=c(3,4), "Wind"=c(2,4)))
+  return(switch(track, "Solar"=c(3,4), "Wind"=c(2,4), "Load"=c(5,5)))
 }
 
 getTarget <- function(track) {
   return(switch(track, "Solar"="Power", "Wind"="Power", "Load"="Load"))
 }
 
+getTargetLimits <- function(track) {
+  return(switch(track, "Solar"=c(0, 1.1), "Wind"=c(0, 1.1), "Load"=c(0, 325)))
+}
+
 # Plot scatter plots for every variable in variableNames
-# - list : list of data.frames for every category
+# - df_list : list of data.frames for every category
 # - track : current track for naming the plots
 # - zone : current zone (only label for plotting)
 # - min / max : data.frame containg for every variable min and max value
-scatterHours <- function(list, track, zone, min, max) {
+scatterHours <- function(df_list, track, zone, min, max) {
   png(paste0(file="plots/", track, "/scatterByHours_", zone, ".png"), width=1600, height=900)
-  scatterFull(list, categories=hours, track, zone, min, max, labels=hoursLabel,
+  scatterFull(df_list, categories=hours, track, zone, min, max, labels=hoursLabel,
               title="grouped by hour")
   dev.off()
 }
 
-scatterMonths <- function(list, track, zone, min, max) {
+scatterMonths <- function(df_list, track, zone, min, max) {
   png(file=paste0("plots/", track, "/scatterByMonths_", zone, ".png"), width=1600, height=900)
-  scatterFull(list, categories=months, track, zone, min, max, labels=monthsLabel,
+  scatterFull(df_list, categories=months, track, zone, min, max, labels=monthsLabel,
               title="grouped by month")
   dev.off()
 }
 
-scatterFull <- function(list, categories, track, zone, min, max, labels,
+scatterFull <- function(df_list, categories, track, zone, min, max, labels,
                         title="") {
   colors <- rainbow(length(categories))
   vars <- getVars(track)
+  target <- getTarget(track)
+  plotGrid <- getGrid(track)
+  yLimits <- getTargetLimits(track)
   
-  par(mfrow=getGrid(track), mar=c(4, 0, 0, 0), oma=c(3,2,3,2), mgp=c(1.4,0.6,0))
+  par(mfrow=plotGrid, mar=c(4, 0, 0, 0), oma=c(3,2,3,2), mgp=c(1.4,0.6,0))
   j <- 0
   for (var in names(vars)) {
-    y_axis <- if(j %% 4 == 0) "s" else "n"      # plot y axis or not
+    y_axis <- if(j %% plotGrid[2] == 0) "s" else "n"      # plot y axis or not
     
     plot(0, type="n", ylab=paste(target), yaxt=y_axis, xlab=vars[[var]],
-         xlim=getLimits(var, min, max), ylim=powerLim)
+         xlim=getLimits(var, min, max), ylim=yLimits)
     c <- 1
     for (element in categories) {
-      lines(list[[element]][[var]], list[[element]][["TARGET"]], pch=20,
+      lines(df_list[[element]][[var]], df_list[[element]][["TARGET"]], pch=20,
             type="p", col=colors[c])
       c <- c+1
     }
@@ -136,7 +142,7 @@ correlationPlot <- function(coefficients, categories, track, zone, title="",
   
   par(mfrow=c(1,1), mar=c(3.5, 2, 0, 3), oma=c(3,0,3,0))
   
-  plot(c(0.5,n+0.5), c(0,0), type="l", lty=3, xaxt="n", xlim=c(0,13), xlab="", 
+  plot(c(0.5,n+0.5), c(0,0), type="l", lty=3, xaxt="n", xlim=c(0,n+1), xlab="",
        ylab="", ylim=c(-1.2,1.2))
   
   for(var in 1:n) {   # iterate through 1st axis of coeff
@@ -163,46 +169,47 @@ correlationPlot <- function(coefficients, categories, track, zone, title="",
 
 
 # Plot scatter plots for a single variable, every category gets an own plot
-# - list : list of data.frames for every category
+# - df_list : list of data.frames for every category
 # - track : name of the track (for naming the plot)
 # - zone : current zone (only label for plotting)
 # - min / max : data.frame containg for every variable min and max value
 # - name : name of the varibale that should be plotted
 # - suf : text that should be appended to the name
-scatterSingleHours <- function(list, track, zone, min, max, name, suf="") {
+scatterSingleHours <- function(df_list, track, zone, min, max, name, suf="") {
   suf <- if (suf != "") paste0("_", suf) else suf
   png(file=paste0("plots/", track, "/scatterByHours_", name, "_", zone, suf, ".png"), width=1600, height=900)
-  scatterSingle(list, categories=hours, track, zone, min, max, name,
+  scatterSingle(df_list, categories=hours, track, zone, min, max, name,
                 label=hoursLabel, title=paste0(name, ", grouped by hour"),
                 grid=c(4,6))
   dev.off()
 }
 
-scatterSingleMonths <- function(list, track, zone, min, max, name, suf="") {
+scatterSingleMonths <- function(df_list, track, zone, min, max, name, suf="") {
   suf <- if (suf != "") paste0("_", suf) else suf
   png(file=paste0("plots/", track, "/scatterByMonth_", name, "_", zone, suf, ".png"), width=1600, height=900)
-  scatterSingle(list, categories=months, track, zone, min, max, name,
+  scatterSingle(df_list, categories=months, track, zone, min, max, name,
                 labels=monthsLabel, title=paste0(name, ", grouped by month"),
                 grid=c(3,4))
   dev.off()
 }
 
-scatterAllSingle <- function(list, track, zone, min, max, hour=TRUE) {
+scatterAllSingle <- function(df_list, track, zone, min, max, hour=TRUE) {
   vars <- getVars(track)
   for (var in names(vars)) {
     if (hour) {
-      scatterSingleHours(list, track, zone, min, max, var)
+      scatterSingleHours(df_list, track, zone, min, max, var)
     } else {
-      scatterSingleMonths(list, track, zone, min, max, var)
+      scatterSingleMonths(df_list, track, zone, min, max, var)
     }
   }
 }
 
-scatterSingle <- function(list, categories, track, zone, min, max, name,
-                       labels, title="", grid=c(1,1)) {
+scatterSingle <- function(df_list, categories, track, zone, min, max, name,
+                          labels, title="", grid=c(1,1)) {
   colors <- rainbow(length(categories))
   vars <- getVars(track)
   target <- getTarget(track)
+  yLimits <- getTargetLimits(track)
 
   par(mfrow=grid, mar=c(0, 0, 0, 0), oma=c(4,4,4,2), mgp=c(1.2,0.6,0))
   
@@ -213,10 +220,10 @@ scatterSingle <- function(list, categories, track, zone, min, max, name,
     
     limits <- getLimits(name, min, max)
     
-    plot(list[[element]][[name]], list[[element]][["TARGET"]], type="p", pch=20,
-         ylab=paste(target), yaxt=y_axis, xaxt=x_axis, xlab=vars[[name]],
-         xlim=limits, ylim=powerLim, col=colors[j+1], cex=2)
-    text(x=0.1*limits[1] + 0.9*limits[2], y=0.9*powerLim[2], labels[j + 1],
+    plot(df_list[[element]][[name]], df_list[[element]][["TARGET"]], type="p",
+         pch=20, ylab=paste(target), yaxt=y_axis, xaxt=x_axis,
+         xlab=vars[[name]], xlim=limits, ylim=yLimits, col=colors[j+1], cex=2)
+    text(x=0.1*limits[1] + 0.9*limits[2], y=0.9*yLimits[2], labels[j + 1],
          cex=1.7)
     j <- j+1
   }
@@ -252,7 +259,7 @@ plotTimeSeries <- function(data, start, end, track, name) {
 
   # normalize all variables, want to draw power with each variable in one plot
   for (var in names(plotData)) {
-    if (var == "X" || var == "TARGET") {
+    if (var == "X" || target == "Power") {
       next
     }
     tmp <- plotData[[var]]
@@ -435,6 +442,8 @@ plotTargetCurves <- function(data, track, zone, e) {
     ggplot(mapping = aes(x=HOUR, y=TARGET, color=MONTH)) +
       geom_line(size = 1.2) +
       scale_color_manual(values = rainbow(12)) +
+      xlab("hour") +
+      ylab(paste(target)) +
       ggtitle(paste(fnc_label, target, "curves of", track, "in", zone)) +
       ggsave(paste0(fnc_label, "_", target, "Curves_", zone, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=8)
@@ -479,7 +488,7 @@ plotAreaCurves <- function(data, track, zone) {
     ylab(paste(target)) +
     xlab("Hour") +
     ggtitle(paste("Mean (solid), median (dashed) and confidence intervals of",
-                  track, "power production in", zone)) +
+                  track, target, "production in", zone)) +
     ggsave(paste0(target, "AreaCurves_", zone, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=8)
 }

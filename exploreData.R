@@ -6,6 +6,20 @@ source("plot.R")
 source("preprocess.R")
 
 
+# for time series plots we need start and end dates for the different tracks
+getStartDate <- function(track) {
+  return(switch(track, "Solar"="2013-09-09 00:00:00 UTC",
+                "Wind"="2013-09-09 00:00:00 UTC",
+                "Load"="2011-07-01 00:00:00 UTC"))
+}
+
+getEndDate <- function(track) {
+  return(switch(track, "Solar"="2013-09-19 00:00:00 UTC",
+                "Wind"="2013-09-19 00:00:00 UTC",
+                "Load"="2011-07-11 00:00:00 UTC"))
+}
+
+
 # implement the whole process of examination solar track
 examineHour <- function(track, preprocess=no_pp) {
   # data is a list containing for every string in zones a data frame
@@ -33,8 +47,8 @@ examineHour <- function(track, preprocess=no_pp) {
     coeffs <- getCorrelationCoefficients(groupByHour, hours, numOfVars)
     correlationPlotHours(coeffs, track, zone)
     # plot time series
-    plotAgainstTime(data[[zone]], "2013-09-09 00:00:00 UTC",
-                    "2013-09-19 00:00:00 UTC", track, zone)
+    plotAgainstTime(data[[zone]], getStartDate(track), getEndDate(track), track,
+                    zone)
   }
 }
 
@@ -55,9 +69,8 @@ examineSolarHourDeacc <- function() {
       groupByHour[[h]] <- subset(deacc[[zone]], indices, select=deacc_vars)
     }
     # consider deaccumulated
-    plotAgainstTime(deacc[[zone]], "2013-09-09 00:00:00 UTC",
-                    "2013-09-19 00:00:00 UTC", track="Solar", zone,
-                    suf="deacc")
+    plotAgainstTime(deacc[[zone]], getStartDate(track), getEndDate(track),
+                    track="Solar", zone, suf="deacc")
     min <- sapply(deacc[[zone]][deacc_vars], min)
     max <- sapply(deacc[[zone]][deacc_vars], max)
     for(var in ACCUMULATED) {
@@ -94,14 +107,15 @@ examineMonth <- function(track, preprocess=no_pp) {
   }
 }
 
-examinePower <- function(track) {
-  data <- loadSet(track,15)
+examineTarget <- function(track, preprocess=no_pp) {
+  data <- preprocess(loadSet(track,15))
+  cat("Examine target variable")
 
   for (zone in data$Zones) {
-    plotPowerHeatMap(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
-    plotPowerCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone, e=TRUE)
-    plotPowerCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone, e=FALSE)
-    plotPowerAreaCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
+    plotHeatMap(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
+    plotTargetCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone, e=TRUE)
+    plotTargetCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone, e=FALSE)
+    plotAreaCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
   }
 }
 
@@ -111,7 +125,7 @@ examineSolar <- function() {
   examineHour(track)
   examineMonth(track)
   examineSolarHourDeacc()
-  examinePower(track)
+  examineTarget(track)
 }
 
 #examineSolar()
@@ -146,7 +160,23 @@ examineWind <- function() {
   examineHour(track, preprocess=getWindAttributes)
   examineMonth(track, preprocess=getWindAttributes)
   examineWindFeatures()
-  examinePower(track)
+  examineTarget(track)
+}
+
+examineLoad <- function() {
+  cat("Load:\n")
+  track <- "Load"
+  examineHour(track, preprocess=rm_na)
+  examineMonth(track, preprocess=rm_na)
+  examineTarget(track, preprocess=rm_na)
+  data <- rm_na(loadSet(track, 15))
+  plotHistograms(data$ZONE1, track, "Zone1")
+  plotTimeSeries(data$ZONE1, "2011-09-09 00:00:00 UTC",
+                    "2011-09-19 00:00:00 UTC", track,
+                    name=paste0("TimeSeries_Load_Sep_", "ZONE1", ".png"))
+  plotTimeSeries(data$ZONE1, "2011-02-09 00:00:00 UTC",
+                    "2011-02-19 00:00:00 UTC", track,
+                    name=paste0("TimeSeries_Load_Feb_", "ZONE1", ".png"))
 }
 
 plotsForSlides <- function() {
@@ -222,4 +252,3 @@ plotsForSlides <- function() {
   plotResults(S, "solar")
   plotResults(W, "wind")
 }
-
