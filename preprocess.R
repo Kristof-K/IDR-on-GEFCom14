@@ -23,6 +23,18 @@ no_pp <- function(data, init=FALSE) {
   return(data)
 }
 
+rm_na <- function(data, init=FALSE) {
+  name <- "RemoveNAs"
+  if (init) {
+    outputPreprocessing(name)
+    return(name)
+  }
+  for(zone in data$Zones) {
+    data[[zone]] <- data[[zone]][!is.na(data[[zone]][["TARGET"]]),]
+  }
+  return(data)
+}
+
 # expect data to be of format definied in load.R
 deaccumulateSol <- function(data, init=FALSE) {
   name <- paste("deacc", paste(ACCUMULATED, collapse="_"), sep="_")
