@@ -233,14 +233,21 @@ pivot_longer(features, cols = -X, names_to = "feature") %>%
 
 d <- 0.05
 q <- seq(d, 1-d, d)
+allX <- TRUE
+x_vals <- X
+
+if (allX) {
+  x_vals <- seq(0, 10, 0.001)
+  predictions <- predict(fit, data=data.frame(X=x_vals))
+}
 
 quantiles <- qpred(predictions, quantiles = q)
 colnames(quantiles) <- c(paste0("l", (0.49/d):1), "m", paste0("u", 1:(0.49/d)))
 
 lower <- data.frame(quantiles) %>% select(starts_with("l")) %>%
-  mutate(X=X) %>% pivot_longer(cols = -X, names_to = "Q") %>% arrange(Q, X)
+  mutate(X=x_vals) %>% pivot_longer(cols = -X, names_to = "Q") %>% arrange(Q, X)
 data.frame(quantiles) %>% select(starts_with("u")) %>%
-  mutate(X=X) %>%
+  mutate(X=x_vals) %>%
   pivot_longer(cols=-X, names_to="Q", names_prefix="u", values_to="upper") %>%
   arrange(Q, X) %>% mutate(lower=lower$value) %>%
   ggplot(mapping = aes(x=X)) +
