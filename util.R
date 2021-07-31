@@ -305,18 +305,20 @@ getWdayWithHolidays <- function(data, groupnr=NA, getCategories=FALSE,
 
   # help functions
   weekDay <- function(t) wday(t, label=TRUE)
-  noWeekEnd <- function(t) !(weekDay(t) %in% c("Sa", "So"))
+  # some holidays are always the 3-th Monday of May ...
   isNthWdayOf <- function(t, mon, n, wday_label) {
     return(month(t) == mon & weekDay(t) == wday_label &
            day(t) >= 1 + 7*(n-1) & day(t) <= 7*n)
   }
+  # others have specific dates, but are prolonged if this date is Sat or Sun
   dateExWeekEnd <- function(t, mon, d) {
-    return(month(t)==mon & ((day(t)==d & noWeekEnd(t)) |
-      (day(t)==d-1 & weekDay(t)=="Fr") | (day(t)==d+1 & weekDay(t)=="Mo")))
+    tar <- ymd(paste(year(t) + 1*(month(t)==12 & mon==1), mon, d, sep="-"))
+    return(date(tar)==date(t) |
+             (weekDay(tar)=="So" & date(t)==date(tar+days(1))) |
+             (weekDay(tar)=="Sa" & date(t)==date(tar-days(1))))
   }
   # actual holiday indicator functions
-  isNewYear <- function(t) month(t)==1 &
-    ((day(t)==1 & weekDay(t)!="So") | (day(t)==2 & weekDay(t)=="Mo"))
+  isNewYear <- function(t) dateExWeekEnd(t, 1, 1)
   isMLKing <- function(t) isNthWdayOf(t, 1, 3, "Mo")
   isWashing <- function(t) isNthWdayOf(t, 2, 3, "Mo")
   isMemorial <- function(t) {
