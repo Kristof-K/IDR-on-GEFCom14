@@ -294,3 +294,52 @@ getSeasonDayTime <- function(data, group_nr, getCategories=FALSE,
 
   return(group_nr == (seasonGroup + hourGroup))
 }
+
+getWdayWithHolidays <- function(data, groupnr=NA, getCategories=FALSE,
+                                getGroupVar=FALSE, getName=FALSE) {
+  groups <- 1:17
+  if (getCategories) return(groups)
+  if (getGroupVar) return("TIMESTAMP")
+  if (getName) return("7wday+10Holidays")
+  timestamps <- data$TIMESTAMP
+
+  # help functions
+  weekDay <- function(t) wday(t, label=TRUE)
+  noWeekEnd <- function(t) !(weekDay(t) %in% c("Sa", "So"))
+  isNthWdayOf <- function(t, mon, n, wday_label) {
+    return(month(t) == mon & weekDay(t) == wday_label &
+           day(t) >= 1 + 7*(n-1) & day(t) <= 7*n)
+  }
+  dateExWeekEnd <- function(t, mon, d) {
+    return(month(t)==mon & ((day(t)==d & noWeekEnd(t)) |
+      (day(t)==d-1 & weekDay(t)=="Fr") | (day(t)==d+1 & weekDay(t)=="Mo")))
+  }
+  # actual holiday indicator functions
+  isNewYear <- function(t) month(t)==1 &
+    ((day(t)==1 & weekDay(t)!="So") | (day(t)==2 & weekDay(t)=="Mo"))
+  isMLKing <- function(t) isNthWdayOf(t, 1, 3, "Mo")
+  isWashing <- function(t) isNthWdayOf(t, 2, 3, "Mo")
+  isMemorial <- function(t) {
+    return(month(t) == 5 & weekDay(t) == "Mo" & day(t) >= 25)
+  }
+  isIndependence <- function(t) dateExWeekEnd(t, 7, 4)
+  isLabour <- function(t) isNthWdayOf(t, 9, 1, "Mo")
+  isColumbus <- function(t) isNthWdayOf(t, 10, 2, "Mo")
+  isVeterans <- function(t) dateExWeekEnd(t, 11, 11)
+  isThanksgiving <- function(t) isNthWdayOf(t, 11, 4, "Do")
+  isChristmas <- function(t) dateExWeekEnd(t, 12, 25)
+
+  return(case_when(
+    isNewYear(timestamps) ~ 8,
+    isMLKing(timestamps) ~ 9,
+    isWashing(timestamps) ~ 10,
+    isMemorial(timestamps) ~ 11,
+    isIndependence(timestamps) ~ 12,
+    isLabour(timestamps) ~ 13,
+    isColumbus(timestamps) ~ 14,
+    isVeterans(timestamps) ~ 15,
+    isThanksgiving(timestamps) ~ 16,
+    isChristmas(timestamps) ~ 17,
+    TRUE ~ wday(timestamps)
+  ))
+}
