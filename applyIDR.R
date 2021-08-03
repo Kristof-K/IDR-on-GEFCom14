@@ -140,33 +140,63 @@ IDR_BY_ZONE <- list(FUN = idrByZones, TIT = "IDR zone combined data",
 
 # Variable selections
 # VAR : list of variables that are used
-# SGN : sign correction (1 for positive relation, -1 for negative)
+# ADA
+#: sign correction (1 for positive relation, -1 for negative)
 
-SUN_1 <- list(VAR = "VAR169", SGN = 1)
-SUN_2 <- list(VAR = "VAR178", SGN = 1)
-SUN_BOTH <- list(VAR = c("VAR169", "VAR178"), SGN = c(1, 1))
-SUN_T <- list(VAR = c("VAR169", "VAR178", "VAR167"), SGN = c(1, 1, 1))
+ONE <- function(data, col) return(data[[col]])
+INV <- function(data, col) return((-1) * data[[col]])
+INV_WIN <- function(data, col) {
+  t <- data$TIMESTAMP
+  one <- month(t) %in% 5:9 | (month(t) == 4 & day(t) > 15) |
+    (month(t) == 10 & day(t) <= 15)
+  return((2 * one - 1) * data[[col]])
+}
+
+SUN_1 <- list(VAR = "VAR169", ADA = list(ONE))
+SUN_2 <- list(VAR = "VAR178", ADA = list(ONE))
+SUN_BOTH <- list(VAR = c("VAR169", "VAR178"), ADA = list(ONE, ONE))
+SUN_T <- list(VAR = c("VAR169", "VAR178", "VAR167"), ADA = list(ONE, ONE, ONE))
 SUN_T_H <- list(VAR = c("VAR169", "VAR178", "VAR167", "VAR157"),
-                SGN = c(1, 1, 1, -1))
-SUN_H <- list(VAR = c("VAR169", "VAR178", "VAR157"), SGN = c(1, 1, -1))
-SUN_1_H <- list(VAR = c("VAR169", "VAR157"), SGN = c(1, -1))
-SUN_1_W <- list(VAR = c("VAR169", "VAR157", "VAR228"), SGN = c(1, -1, -1))
+                ADA = list(ONE, ONE, ONE, -1))
+SUN_H <- list(VAR = c("VAR169", "VAR178", "VAR157"), ADA = list(ONE, ONE, INV))
+SUN_1_H <- list(VAR = c("VAR169", "VAR157"), ADA = list(ONE, -1))
+SUN_1_W <- list(VAR = c("VAR169", "VAR157", "VAR228"), ADA = list(ONE, INV, INV))
 S1_W_I <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79"),
-               SGN = c(1, -1, -1, -1))
+               ADA = list(ONE, INV, INV, INV))
 S1_W_L <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR78"),
-               SGN = c(1, -1, -1, -1))
+               ADA = list(ONE, INV, INV, INV))
 S1_W_I_C <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR164"),
-               SGN = c(1, -1, -1, -1, -1))
+               ADA = list(ONE, INV, INV, INV, INV))
 S1_W_I_L <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR78"),
-               SGN = c(1, -1, -1, -1, -1))
+               ADA = list(ONE, INV, INV, INV, INV))
 S1_W_I_T <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR175"),
-               SGN = c(1, -1, -1, -1, 1))
+               ADA = list(ONE, INV, INV, INV, ONE))
 SUN_W_I <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR178"),
-               SGN = c(1, -1, -1, -1, 1))
+               ADA = list(ONE, INV, INV, INV, ONE))
 
-W10 <- list(VAR = "S10", SGN = 1)
-W100 <- list(VAR = "S100", SGN = 1)
-W110 <- list(VAR = c("S10", "S100"), SGN = c(1, 1))
+W10 <- list(VAR = "S10", ADA = list(ONE))
+W100 <- list(VAR = "S100", ADA = list(ONE))
+W110 <- list(VAR = c("S10", "S100"), ADA = list(ONE, ONE))
+
+L1 <- list(VAR = "w1", ADA = list(INV_WIN))
+L2 <- list(VAR = "w2", ADA = list(INV_WIN))
+L10 <- list(VAR = "w10", ADA = list(INV_WIN))
+L25 <- list(VAR = "w25", ADA = list(INV_WIN))
+L11 <- list(VAR = "w11", ADA = list(INV_WIN))
+L13 <- list(VAR = "w13", ADA = list(INV_WIN))
+L15 <- list(VAR = "w15", ADA = list(INV_WIN))
+L22 <- list(VAR = "w22", ADA = list(INV_WIN))
+L23 <- list(VAR = "w23", ADA = list(INV_WIN))
+L24 <- list(VAR = "w24", ADA = list(INV_WIN))
+M3 <- list(VAR = "M3", ADA = list(INV_WIN))
+MED3 <- list(VAR = "Med3", ADA = list(INV_WIN))
+M6 <- list(VAR = "M6", ADA = list(INV_WIN))
+MED6 <- list(VAR = "Med6", ADA = list(INV_WIN))
+B2 <- list(VAR = c("w10", "w13"), ADA = list(INV_WIN, INV_WIN))
+BM2 <- list(VAR = c("M6", "w10"), ADA = list(INV_WIN, INV_WIN))
+BMM2 <- list(VAR = c("M6", "Med6"), ADA = list(INV_WIN, INV_WIN))
+B3 <- list(VAR = c("w10", "w13", "w25"), ADA = list(INV_WIN, INV_WIN, INV_WIN))
+BM3 <- list(VAR = c("w10", "w13", "M6"), ADA = list(INV_WIN, INV_WIN, INV_WIN))
 
 # ORDERs
 COMP <- "comp"
@@ -189,20 +219,14 @@ getVariableSelection <- function(id, track) {
                   SUN_W_I))
   } else if (track == "Wind") {
     return(switch(id[2], W10, W100, W110))
+  } else if (track == "Load") {
+    return(switch(id[2], L1, L2, L10, L25, L11, L13, L15, L22, L23, L24, M3,
+                  MED3, M6, MED6, B2, BM2, BMM2, B3, BM3))
   }
 }
 
 getOrder <- function(id) {
   return(switch(id[3], COMP, ICX, SD))
-}
-
-getVariablesName <- function(id, track) {
-  variables <- getVariableSelection(id, track)
-  return(paste0(variables$VAR, "(", variables$SGN, ") "))
-}
-
-getIDStr <- function(id) {
-  return(paste0(id, collapse="_"))
 }
 
 
@@ -222,21 +246,20 @@ unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
   # if init print, then output information and return important information
   if (init) {
     pbz <- if(thresh >= 1) TRUE else FALSE
-    tit <- paste0(idr_v$TIT, " (", getIDStr(id),")")
-    outputForecastingMethod(tit, idr_v$DES, getVariablesName(id, track))
+    tit <- paste0(idr_v$TIT, " (", paste0(id, collapse="_"), ")")
+    outputForecastingMethod(tit, idr_v$DES, variables$VAR)
     return(list(TRACK=track, TIT=idr_v$TIT, VAR=variables$VAR, OR=pOrder,
                 PBZ=pbz, ID=getIDStr(id), GR=groupingfct(NA, NA, getName=TRUE)))
   }
-  # get variable list that is used and signs of that variables
+  # get variable list and adapt them
   vars <- variables$VAR
-  signs <- variables$SGN
+  for (i in 1:length(vars)) {
+    X_train[vars[i]] <- variables$ADA[[i]](X_train, vars[i])
+    X_test[vars[i]] <- variables$ADA[[i]](X_test, vars[i])
+  }
 
   groups <- setNames(rep(1, length(vars)), vars)
   orders <- setNames(1, pOrder)
-
-  # take care about signs => -1 means change sign of covariates
-  X_train[vars[signs == -1]] <- (-1) * X_train[vars[signs == -1]]
-  X_test[vars[signs == -1]] <- (-1) * X_test[vars[signs == -1]]
 
   if (!is.null(idr_v$ADD)) vars <- c(idr_v$ADD, vars)
   groupvar <- groupingfct(NA, NA, getGroupVar=TRUE)
@@ -255,5 +278,12 @@ unleashWinIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
   # some POWER values in the wind track are NA
   indices <- !is.na(y_train)
   return(unleashIDR("Wind", X_train[indices,], y_train[indices], X_test,
+                    id, init))
+}
+
+unleashLoaIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
+  # inital TARGET values in the load track are NA
+  indices <- !is.na(y_train)
+  return(unleashIDR("Load", X_train[indices,], y_train[indices], X_test,
                     id, init))
 }
