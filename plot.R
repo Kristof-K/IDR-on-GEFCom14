@@ -60,6 +60,10 @@ getTargetLimits <- function(track) {
   return(switch(track, "Solar"=c(0, 1.1), "Wind"=c(0, 1.1), "Load"=c(0, 325)))
 }
 
+isSouthern <- function(track) {
+  return(switch(track, "Solar"=TRUE, "Wind"=TRUE, "Load"=FALSE, "Price"=FALSE))
+}
+
 # Plot scatter plots for every variable in variableNames
 # - df_list : list of data.frames for every category
 # - track : current track for naming the plots
@@ -300,19 +304,27 @@ plotTimeSeries <- function(data, start, end, track, name) {
 plotHeatMap <- function(data, track, zone, suf="") {
   suf <- if (suf != "") paste0("_", suf) else suf
   target <- getTarget(track)
-  # we want day times to be in the mid of the plot
-  hour_order <- c(15:23, 0:14)
-  # but then the first day just comprises 'first' hours
-  first <- 24 - which(hour_order == hour(data$TIMESTAMP[1])) + 1
   n <- dim(data)[1]
   ticks <- as.integer(seq(1, n, (n - 1) / 6))
   labels <- paste0(month(data$TIMESTAMP[ticks], label=TRUE),
                    year(data$TIMESTAMP[ticks]))
-  n <- n - first
+
+  if(isSouthern(track)) {
+    # we want day times to be in the mid of the plot
+    hour_order <- c(15:23, 0:14)
+    # but then the first day just comprises 'first' hours
+    first <- 24 - which(hour_order == hour(data$TIMESTAMP[1])) + 1
+    n <- n - first
+    x_vals <- c(rep(1, first), rep(2:(n%/%24 + 1), each=24),
+                rep(n%/%24 + 2, n%%24))
+  } else {
+    hour_order <- 0:23
+    x_vals <- rep(1:(n%/%24), each=24)
+  }
+
   # X should count the days
   data %>% mutate(Hour=factor(hour(TIMESTAMP), ordered=TRUE, levels=hour_order),
-                  X=c(rep(1, first), rep(2:(n%/%24 + 1), each=24),
-                       rep(n%/%24 + 2, n%%24))) %>%
+                  X=x_vals) %>%
     select(-TIMESTAMP) %>%
     ggplot() +
       geom_tile(mapping = aes(x=X, y=Hour, fill=TARGET)) +
@@ -429,30 +441,39 @@ estimatePowerDistribution <- function(data, track, zone, bins=NA) {
 # - data : data.frame containing the two colums "TIMESTAMP" and "TARGET"
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
-plotAllTargetCurves <- function(data, track, zone) {
-  g_fcns <- c(getMonths, getWday, getWdayWithHolidays)
-  for (g in g_fcns) {
-    plotTargetCurves(data, track, zone, g, e=TRUE)
-    plotTargetCurves(data, track, zone, g, e=FALSE)
-    plotTargetCurves(data, track, zone, g, e=TRUE, facetIt=TRUE)
-    plotTargetCurves(data, track, zone, g, e=FALSE, facetIt=TRUE)
+plotAllTargetCurves <- function(data, track, zone, all=FALSE) {
+  if (all) {
+    g_fcns <- c(getMonths, getWday, getWdayWithHolidays)
+    for (g in g_fcns) {
+      plotTargetCurves(data, track, zone, g, e=TRUE)
+      plotTargetCurves(data, track, zone, g, e=FALSE)
+      plotTargetCurves(data, track, zone, g, e=TRUE, facetIt=TRUE)
+      plotTargetCurves(data, track, zone, g, e=FALSE, facetIt=TRUE)
+    }
+    plotTargetCurves(data, track, zone, getWdayWithHolidays, e=TRUE,
+                     facetIt=TRUE, facetfct=getWday)
+    plotTargetCurves(data, track, zone, getWdayWithHolidays, e=FALSE,
+                     facetIt=TRUE, facetfct=getWday)
+  } else {
+    plotTargetCurves(data, track, zone, getMonths, e=TRUE)
+    plotTargetCurves(data, track, zone, getMonths, e=FALSE)
   }
 }
 
 plotTargetCurves <- function(data, track, zone, groupingfct, e=FALSE,
-                             facetIt=FALSE) {
+                             facetIt=FALSE, facetfct=get4Seasons) {
   target <- getTarget(track)
   fnc_label <- if(e) "Mean" else "Median"
   fnc <- if (e) mean else function(x) quantile(x, probs=0.5)[["50%"]]
   group_label <- groupingfct(NA, getName=TRUE)
   group_nr <- length(groupingfct(NA, getCategories=TRUE))
-  addLabel <- if(facetIt) "_facetted" else ""
+  addLabel <- if(facetIt) paste0("_facet", facetfct(NA, getName=TRUE)) else ""
   plotData <- data %>% filter(!is.na(TARGET)) %>%
     mutate(HOUR = hour(TIMESTAMP), Group = groupingfct(data, label=TRUE),
-           SEASON = get4Seasons(data, label=TRUE)) %>%
+           FACET = facetfct(data, label=TRUE)) %>%
     select(-TIMESTAMP)
   if (facetIt) {
-    plotData <- plotData %>% group_by(HOUR, Group, SEASON)
+    plotData <- plotData %>% group_by(HOUR, Group, FACET)
   } else {
     plotData <- plotData %>% group_by(HOUR, Group)
   }
@@ -465,7 +486,7 @@ plotTargetCurves <- function(data, track, zone, groupingfct, e=FALSE,
       ggtitle(paste(fnc_label, target, "curves of", track, "in", zone))
   if (facetIt) {
     myPlot <- myPlot +
-      facet_wrap(~SEASON, scales="free_y")
+      facet_wrap(~FACET, scales="free_y")
   }
   myPlot +
     ggsave(paste0(fnc_label, "_", target, "Curves_", zone, "_", group_label,

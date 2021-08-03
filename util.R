@@ -357,7 +357,7 @@ getWday <- function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
 getWdayWithHolidays <- function(data, group_nr=NA, getCategories=FALSE,
                                 getGroupVar=FALSE, getName=FALSE, label=FALSE) {
   groups <- 1:17
-  labs <- c("Son", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
+  labs <- c("So", "Mo", "Di", "Mi", "Do", "Fr", "Sa",
                     "NewYear", "MLKing", "Washing", "Memorial", "Independence",
                     "Labour", "Columbus", "Veterans", "Thanksgiving",
                     "Christmas")
