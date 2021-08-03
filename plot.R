@@ -4,6 +4,8 @@ library(tidyr)      # for pivot_longer
 library(stringr)    # for string manipulations
 library(lubridate)  # for working with dates
 
+source("util.R")
+
 solarVars <- c("VAR78" = "liquid water",
                "VAR79" = "Ice water",
                "VAR134" = "surface pressure",
@@ -422,40 +424,32 @@ estimatePowerDistribution <- function(data, track, zone, bins=NA) {
              path=paste0("plots/", track, "/"), width=24, height=8)
 }
 
-# helo function for plotAllTargetCurves and plotAreaCurves
-seasonize <- function(t) {
-    return(case_when(month(t) %in% c(12, 1, 2) ~ "Dez,Jan,Feb",
-                     month(t) %in% c(3, 4, 5) ~ "Mar,Apr,May",
-                     month(t) %in% c(6, 7, 8) ~ "Jun,Jul,Aug",
-                     month(t) %in% c(9, 10, 11) ~ "Sep,Oct,Nov"))
-  }
-
 # plot hourly expected (or median) power wind production with data grouped by
 # month
 # - data : data.frame containing the two colums "TIMESTAMP" and "TARGET"
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
 plotAllTargetCurves <- function(data, track, zone) {
-  plotTargetCurves(data, track, zone, e=TRUE)
-  plotTargetCurves(data, track, zone, e=FALSE)
-  plotTargetCurves(data, track, zone, e=TRUE, byWday=TRUE)
-  plotTargetCurves(data, track, zone, e=FALSE, byWday=TRUE)
-  plotTargetCurves(data, track, zone, e=TRUE, byWday=TRUE, facetIt=TRUE)
-  plotTargetCurves(data, track, zone, e=FALSE, byWday=TRUE, facetIt=TRUE)
+  g_fcns <- c(getMonths, getWday, getWdayWithHolidays)
+  for (g in g_fcns) {
+    plotTargetCurves(data, track, zone, g, e=TRUE)
+    plotTargetCurves(data, track, zone, g, e=FALSE)
+    plotTargetCurves(data, track, zone, g, e=TRUE, facetIt=TRUE)
+    plotTargetCurves(data, track, zone, g, e=FALSE, facetIt=TRUE)
+  }
 }
 
-plotTargetCurves <- function(data, track, zone, e, groupingfct,
+plotTargetCurves <- function(data, track, zone, groupingfct, e=FALSE,
                              facetIt=FALSE) {
   target <- getTarget(track)
   fnc_label <- if(e) "Mean" else "Median"
   fnc <- if (e) mean else function(x) quantile(x, probs=0.5)[["50%"]]
   group_label <- groupingfct(NA, getName=TRUE)
-  group_fnc <- if(byWday) wday else month
-  group_nr <- if(byWday) 7 else 12
+  group_nr <- length(groupingfct(NA, getCategories=TRUE))
   addLabel <- if(facetIt) "_facetted" else ""
   plotData <- data %>% filter(!is.na(TARGET)) %>%
-    mutate(HOUR = hour(TIMESTAMP), Group = group_fnc(TIMESTAMP, label=TRUE),
-           SEASON = seasonize(TIMESTAMP)) %>%
+    mutate(HOUR = hour(TIMESTAMP), Group = groupingfct(data, label=TRUE),
+           SEASON = get4Seasons(data, label=TRUE)) %>%
     select(-TIMESTAMP)
   if (facetIt) {
     plotData <- plotData %>% group_by(HOUR, Group, SEASON)
@@ -492,7 +486,7 @@ plotAreaCurves <- function(data, track, zone) {
     return(data.frame(Width=intervals, L=lowerVals, U=upperVals))
   }
   plotData <- data %>% filter(!is.na(TARGET)) %>%
-    mutate(HOUR = hour(TIMESTAMP), SEASON = seasonize(TIMESTAMP)) %>%
+    mutate(HOUR = hour(TIMESTAMP), SEASON = get4Seasons(data, label=TRUE)) %>%
     select(-TIMESTAMP) %>% group_by(HOUR, SEASON)
 
   meanAndMedian <-  summarise(plotData, Mean=mean(TARGET), Median=median(TARGET),
