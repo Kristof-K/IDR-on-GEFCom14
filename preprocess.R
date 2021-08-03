@@ -75,3 +75,21 @@ getWindAttributes <- function(data, init=FALSE) {
   }
   return(data)
 }
+
+addLoadMeans <- function(data, init=FALSE) {
+  name <- "AddLoadMeans"
+  if (init) {
+    outputPreprocessing(name)
+    return(name)
+  }
+  data <- rm_na(data)
+  for(zone in data$Zones) {
+    data[[zone]] <- mutate(data[[zone]], M3= rowMeans(cbind(w10, w13, w25)),
+                            M6 = rowMeans(cbind(w10, w13, w25, w24, w23, w22)),
+                            Med3 = apply(cbind(w10, w13, w25), 1,
+                                         median),
+                            Med6 = apply(cbind(w10, w13, w25, w24, w23, w22),
+                                          1, median))
+  }
+  return(data)
+}
