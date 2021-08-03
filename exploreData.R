@@ -113,8 +113,7 @@ examineTarget <- function(track, preprocess=no_pp) {
 
   for (zone in data$Zones) {
     plotHeatMap(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
-    plotTargetCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone, e=TRUE)
-    plotTargetCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone, e=FALSE)
+    plotAllTargetCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
     plotAreaCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
   }
 }
@@ -177,6 +176,14 @@ examineLoad <- function() {
   plotTimeSeries(data$ZONE1, "2011-02-09 00:00:00 UTC",
                     "2011-02-19 00:00:00 UTC", track,
                     name=paste0("TimeSeries_Load_Feb_", "ZONE1", ".png"))
+  plotRanges(data$ZONE1, "Load", "ZONE1", getWdayWithHolidays)
+  getWdayWithHolidays(data$ZONE1)
+  data$ZONE1 %>% filter(month(TIMESTAMP) ==4) %>% mutate(X=day(TIMESTAMP)) %>%
+   select(-TIMESTAMP) %>%
+   pivot_longer(cols=c(-TARGET, -X), names_to="Temperature") %>%
+   ggplot(aes(x=value, y=TARGET, color=factor(X))) +
+   facet_wrap(~Temperature) +
+   geom_point()
 }
 
 plotsForSlides <- function() {

@@ -346,9 +346,9 @@ plotHeatMap <- function(data, track, zone, suf="") {
 #   binning and use continous cloring instead
 scatterWindPower <- function(data, track, zone, bins=NA) {
   add <- "Cont_"
-  plotData <- rbind(data.frame(Power=data$TARGET, Height=10, Speed=data$W10,
+  plotData <- rbind(data.frame(Power=data$TARGET, Height=10, Speed=data$S10,
                                Direction=data$A10),
-                    data.frame(Power=data$TARGET, Height=100, Speed=data$W100,
+                    data.frame(Power=data$TARGET, Height=100, Speed=data$S100,
                                Direction=data$A100))
   plotData <- na.omit(plotData)   # remove NA values
   if (!is.na(bins)) {
@@ -390,9 +390,9 @@ estimatePowerDistribution <- function(data, track, zone, bins=NA) {
   }
 
   add <- "Cont_"
-  plotData <- rbind(data.frame(Power=data$TARGET, Height=10, Speed=data$W10,
+  plotData <- rbind(data.frame(Power=data$TARGET, Height=10, Speed=data$S10,
                                Direction=data$A10),
-                    data.frame(Power=data$TARGET, Height=100, Speed=data$W100,
+                    data.frame(Power=data$TARGET, Height=100, Speed=data$S100,
                                Direction=data$A100))
   plotData <- na.omit(plotData)   # remove NA values
   if (!is.na(bins)) {
@@ -408,7 +408,7 @@ estimatePowerDistribution <- function(data, track, zone, bins=NA) {
       group_by(Direction) %>% summarise(getFeatures(Power), .groups="drop")
 
     box_dens <- box_dens +
-      geom_point() +
+      geom_point(alpha = 0.4) +
       geom_smooth(data = features, mapping = aes(color=Name), method=loess,
                   se=FALSE, size=1.3, formula=y~x) +
       ggtitle("Point cloud and smoothed quantiles")
@@ -422,31 +422,61 @@ estimatePowerDistribution <- function(data, track, zone, bins=NA) {
              path=paste0("plots/", track, "/"), width=24, height=8)
 }
 
-
+# helo function for plotAllTargetCurves and plotAreaCurves
+seasonize <- function(t) {
+    return(case_when(month(t) %in% c(12, 1, 2) ~ "Dez,Jan,Feb",
+                     month(t) %in% c(3, 4, 5) ~ "Mar,Apr,May",
+                     month(t) %in% c(6, 7, 8) ~ "Jun,Jul,Aug",
+                     month(t) %in% c(9, 10, 11) ~ "Sep,Oct,Nov"))
+  }
 
 # plot hourly expected (or median) power wind production with data grouped by
 # month
 # - data : data.frame containing the two colums "TIMESTAMP" and "TARGET"
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
-# - e : if true plot expectation, if false plot median
-plotTargetCurves <- function(data, track, zone, e) {
+plotAllTargetCurves <- function(data, track, zone) {
+  plotTargetCurves(data, track, zone, e=TRUE)
+  plotTargetCurves(data, track, zone, e=FALSE)
+  plotTargetCurves(data, track, zone, e=TRUE, byWday=TRUE)
+  plotTargetCurves(data, track, zone, e=FALSE, byWday=TRUE)
+  plotTargetCurves(data, track, zone, e=TRUE, byWday=TRUE, facetIt=TRUE)
+  plotTargetCurves(data, track, zone, e=FALSE, byWday=TRUE, facetIt=TRUE)
+}
+
+plotTargetCurves <- function(data, track, zone, e, groupingfct,
+                             facetIt=FALSE) {
   target <- getTarget(track)
   fnc_label <- if(e) "Mean" else "Median"
-  fnc <- if (e) mean else function(x) {return(quantile(x, probs=0.5)[["50%"]])}
-  data %>% filter(!is.na(TARGET)) %>%
-    mutate(HOUR = hour(TIMESTAMP), MONTH = month(TIMESTAMP, label=TRUE,
-                                                 abbr=TRUE)) %>%
-    select(-TIMESTAMP) %>% group_by(HOUR, MONTH) %>%
-    summarise(TARGET = fnc(TARGET), .groups="drop") %>%
-    ggplot(mapping = aes(x=HOUR, y=TARGET, color=MONTH)) +
+  fnc <- if (e) mean else function(x) quantile(x, probs=0.5)[["50%"]]
+  group_label <- groupingfct(NA, getName=TRUE)
+  group_fnc <- if(byWday) wday else month
+  group_nr <- if(byWday) 7 else 12
+  addLabel <- if(facetIt) "_facetted" else ""
+  plotData <- data %>% filter(!is.na(TARGET)) %>%
+    mutate(HOUR = hour(TIMESTAMP), Group = group_fnc(TIMESTAMP, label=TRUE),
+           SEASON = seasonize(TIMESTAMP)) %>%
+    select(-TIMESTAMP)
+  if (facetIt) {
+    plotData <- plotData %>% group_by(HOUR, Group, SEASON)
+  } else {
+    plotData <- plotData %>% group_by(HOUR, Group)
+  }
+  plotData <- plotData %>% summarise(TARGET = fnc(TARGET), .groups="drop")
+  myPlot <- ggplot(plotData, aes(x=HOUR, y=TARGET, color=Group)) +
       geom_line(size = 1.2) +
-      scale_color_manual(values = rainbow(12)) +
+      scale_color_manual(values = rainbow(group_nr)) +
       xlab("hour") +
       ylab(paste(target)) +
-      ggtitle(paste(fnc_label, target, "curves of", track, "in", zone)) +
-      ggsave(paste0(fnc_label, "_", target, "Curves_", zone, ".png"),
-             path=paste0("plots/", track, "/"), width=18, height=8)
+      ggtitle(paste(fnc_label, target, "curves of", track, "in", zone))
+  if (facetIt) {
+    myPlot <- myPlot +
+      facet_wrap(~SEASON, scales="free_y")
+  }
+  myPlot +
+    ggsave(paste0(fnc_label, "_", target, "Curves_", zone, "_", group_label,
+                  addLabel, ".png"),
+           path=paste0("plots/", track, "/"), width=18, height=8)
 }
 
 # plot hourly expected and median target quantity with centered 50%
@@ -455,12 +485,6 @@ plotTargetCurves <- function(data, track, zone, e) {
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
 plotAreaCurves <- function(data, track, zone) {
-  seasonize <- function(t) {
-    return(case_when(month(t) %in% c(12, 1, 2) ~ "Dez,Jan,Feb",
-                     month(t) %in% c(3, 4, 5) ~ "Mar,Apr,May",
-                     month(t) %in% c(6, 7, 8) ~ "Jun,Jul,Aug",
-                     month(t) %in% c(9, 10, 11) ~ "Sep,Oct,Nov"))
-  }
   getConfidence <- function(x) {
     intervals <- c("100%", "80%", "60%", "40%", "20%")
     lowerVals <- c(min(x), unname(quantile(x, probs=1:4 * 0.1)))
@@ -508,5 +532,19 @@ plotHistograms <- function(data, track, zone) {
       xlab("") +
       ggtitle(paste("Histogram of all", track, "variables in", zone)) +
       ggsave(paste0("Histograms_", zone, ".png"),
+             path=paste0("plots/", track, "/"), width=18, height=12)
+}
+
+plotRanges <- function(data, track, zone, groupingfct) {
+  gr_name <- groupingfct(NA, getName=TRUE)
+  target <- getTarget(track)
+
+  data %>% mutate(Group=groupingfct(data)) %>%
+    ggplot(aes(as.factor(Group), TARGET)) +
+      geom_violin() +
+      xlab("Groups") +
+      ylab(paste(target)) +
+      ggtitle(paste("Violin plots of", track, "data grouped by", gr_name)) +
+      ggsave(paste0("Violinplots_", zone, "_", gr_name, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=12)
 }
