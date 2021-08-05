@@ -243,13 +243,14 @@ unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
   if(!is.na(id[7]) && (id[7] <= 0 || id[7] >= 1)) id[7] <- 0.25     # bag size
   groupingfct <- getGroupingfct(id[4])
   thresh <- min(id[5], 1)
+  id_str <- paste0(id, collapse="_")
   # if init print, then output information and return important information
   if (init) {
     pbz <- if(thresh >= 1) TRUE else FALSE
-    tit <- paste0(idr_v$TIT, " (", paste0(id, collapse="_"), ")")
+    tit <- paste0(idr_v$TIT, " (", id_str, ")")
     outputForecastingMethod(tit, idr_v$DES, variables$VAR)
     return(list(TRACK=track, TIT=idr_v$TIT, VAR=variables$VAR, OR=pOrder,
-                PBZ=pbz, ID=getIDStr(id), GR=groupingfct(NA, NA, getName=TRUE)))
+                PBZ=pbz, ID=id_str, GR=groupingfct(NA, NA, getName=TRUE)))
   }
   # get variable list and adapt them
   vars <- variables$VAR
