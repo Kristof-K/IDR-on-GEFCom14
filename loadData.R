@@ -1,9 +1,11 @@
 library(lubridate)
+library(dplyr)
 
 # path to the directory containing the GEFCom14 data
 PATH <- "D:\\Studium\\Semester6\\BachelorArbeit\\GEFCom2014_Data"
 CSV <- ".csv"
 SLASH <- "\\"
+JOIN <- c("TIMESTAMP", "ZONEID")
 
 # load data track of the given task (task must be a number bewtween 1 and 15)
 # the return value is a named list containing the elements "LastTrain_TS" (time
@@ -30,47 +32,40 @@ loadSet <- function(track, task) {
 loadSolar <- function(task) {
   track <- "Solar"
   subfolder <- paste("Task", task)
-  zones <- c("ZONE1", "ZONE2", "ZONE3")
+  zones <- c("Zone1", "Zone2", "Zone3")
   
-  # file containing explaining variables
+  # file containing explanatory and response (during train and test) variables
   predictors <- paste0(subfolder, SLASH, "predictors", task, CSV)
-  # file containing response variable during training period
   targetVariable <- paste0(subfolder, SLASH, "train", task, CSV)
-  # file containing  response variable during testing period
   if (task < 15) {
     observation <- paste0("Task ", (task+1), SLASH, "train", (task+1), CSV)
   } else {
     observation <- "Solution\ to\ Task 15\\Solution\ to\ Task\ 15.csv"
   }
-  
   # read all necessary data and transform timestamps into clear format
-  # understood from functions in lubridate
-  X <- read.table(paste(PATH, track, predictors, sep=SLASH), header=TRUE,
-                  dec=".", sep=",")
+  X <- read.csv(paste(PATH, track, predictors, sep=SLASH))
   X$TIMESTAMP <- ymd_hm(X$TIMESTAMP)
-  Y_train <- read.table(paste(PATH, track, targetVariable, sep=SLASH),
-                        header=TRUE, dec=".", sep=",")
+  Y_train <- read.csv(paste(PATH, track, targetVariable, sep=SLASH))
   Y_train$TIMESTAMP <- ymd_hm(Y_train$TIMESTAMP)
-  Y_test <- read.table(paste(PATH, track, observation, sep=SLASH),
-                       header=TRUE, dec=".", sep=",")
+  Y_test <- read.csv(paste(PATH, track, observation, sep=SLASH))
   Y_test$TIMESTAMP <- ymd_hm(Y_test$TIMESTAMP)
-  # order data in a sensible format
-  output <- list("LastTrain_TS" = Y_train$TIMESTAMP[length(Y_train$TIMESTAMP)],
-                 "Zones" = zones)
-  # and fill the data frames
-  for (i in 1:length(zones)) {
-    if (task < 15) {
-      zoneData <- subset(X, ZONEID==i, select=-ZONEID)
-    } else {   # in task 15 X has own POWER column. but with less decimals
-      zoneData <- subset(X, ZONEID==i, select=c(-ZONEID, -POWER))
-    }
-    y <- c(subset(Y_train, ZONEID == i)$POWER,
-          subset(Y_test, 
-                 (ZONEID==i) & (TIMESTAMP>output[["LastTrain_TS"]]))$POWER)
-    # first name is lastTest_TS, so start at 2
-    output[[zones[i]]] <- cbind(zoneData, TARGET=y)
+  # now wrangle data
+  if (task == 15) {  # in task 15 X has own POWER column, but with less decimals
+    X <- X[names(X) != "POWER"]
   }
-  output[["Target"]] <- "Power"
+  t_test <- interval(tail(Y_train$TIMESTAMP, 1), tail(X$TIMESTAMP, 1))
+  output <- list("Zones" = zones)
+
+  train <- X %>% right_join(Y_train, by=JOIN) %>% rename(TARGET=POWER) %>%
+    group_by(ZONEID) %>% group_split(.keep=FALSE)
+  test <- X %>% filter(TIMESTAMP %within% t_test) %>%
+    left_join(Y_test, by=JOIN) %>% rename(TARGET=POWER) %>% group_by(ZONEID) %>%
+    group_split(.keep=FALSE)
+
+  for (i in 1:length(zones)) {
+    output[[zones[i]]] <- list(Train = as.data.frame(train[[i]]),
+                               Test = as.data.frame(test[[i]]))
+  }
   return(output)
 }
 
@@ -80,7 +75,7 @@ loadSolar <- function(task) {
 loadWind <- function(task) {
   track <- "Wind"
   subfolder <-  paste0(PATH, SLASH, track, SLASH, "Task\ ", task, SLASH)
-  zones <- paste0("ZONE", 1:10)
+  zones <- paste0("Zone", 1:10)
 
   train_files <- paste0(subfolder, "Task", task, "_W_Zone1_10", SLASH, "Task",
                         task, "_W_Zone")
@@ -90,37 +85,23 @@ loadWind <- function(task) {
                         task+1, "_W_Zone1_10", SLASH, "Task", task+1, "_W_Zone")
   output <- list("Zones" = zones)
   # now fetch data
-  z <- 1
-  for(zone in zones) {
-    train <-  read.table(paste0(train_files, z, CSV), header=TRUE, dec=".",
-                         sep=",")
+  for(z in 1:length(zones)) {
+    train <-  read.csv(paste0(train_files, z, CSV))
     train$TIMESTAMP <- ymd_hm(train$TIMESTAMP)    # work with dates
-    train <- train[(names(train) != "ZONEID")]    # get rid of ZONEID column
-    X_test <- read.table(paste0(testX_files, z, CSV), header=TRUE, dec=".",
-                         sep=",")
+    X_test <- read.csv(paste0(testX_files, z, CSV))
     X_test$TIMESTAMP <- ymd_hm(X_test$TIMESTAMP)
-    X_test <- X_test[(names(X_test) != "ZONEID")]
     if (task < 15) {
-      y_test <- read.table(paste0(testY_files, z, CSV), header=TRUE,
-                           dec=".", sep=",")
+      y_test <- read.csv(paste0(testY_files, z, CSV))
     } else {
-      y_test <- read.table(paste(PATH, track,
-                                 "Solution\ to\ Task 15\\Solution15_W.csv",
-                                 sep=SLASH),
-                            header=TRUE, dec=".", sep=",")
-      y_test <- subset(y_test, ZONEID==z, select=-ZONEID)
+      y_test <- read.csv(paste(PATH, track,
+                               "Solution\ to\ Task 15\\Solution15_W.csv",
+                               sep=SLASH))
     }
     y_test$TIMESTAMP <- ymd_hm(y_test$TIMESTAMP)
-
-    lastTrainTS <- train$TIMESTAMP[length(train$TIMESTAMP)]
-    test <- cbind(X_test,
-                  TARGETVAR=subset(y_test,TIMESTAMP>lastTrainTS)[["TARGETVAR"]])
-    output[[zone]] <- rbind(train, test)
-    names(output[[zone]])[names(output[[zone]])=="TARGETVAR"] <- "TARGET"
-    z <- z+1
+    test <- X_test[JOIN] %>% left_join(y_test, by=JOIN)
+    output[[zones[z]]] <- list(Train = select(train, -ZONEID),
+                               Test = select(test, -ZONEID))
   }
-  output[["LastTrain_TS"]] <- lastTrainTS
-  output[["Target"]] <- "Power"
   return(output)
 }
 
@@ -129,7 +110,7 @@ loadWind <- function(task) {
 loadLoad <- function(task) {
   track <- "Load"
   subfolder <-  paste0(PATH, SLASH, track, SLASH)
-  zones <- "ZONE1"
+  zones <- "Zone1"
   # sadly dates are not unanambiguous (e.g. 11.01.10 and 01.11.10 are both
   # represented as 1112010) => hardcode start dates and generate rest
   start_dates <- c("2001-01-01 01:00", "2010-10-01 01:00", "2010-11-01 01:00",
@@ -145,32 +126,23 @@ loadLoad <- function(task) {
   } else {
     test_start_ts <- start_dates[16]
     test_file <- paste0(PATH, SLASH, track, SLASH, "Solution\ to\ Task\ 15",
-                        SLASH, "solution15_L_temperature", CSV)
+                        SLASH, "solution15_L", CSV)
   }
   output <- list("Zones" = zones)
   train <- data.frame()
   # now fetch data
   for (i in 1:task) {
     train_file <- paste0(subfolder, "Task\ ", i, SLASH, "L", i, "-train", CSV)
-    train_i <-  read.table(train_file, header=TRUE, dec=".", sep=",")
+    train_i <-  read.csv(train_file)
     train <- rbind(train, train_i)
   }
   train$TIMESTAMP <- ymd_hm(start_dates[1]) + hours(0:(nrow(train)-1))
-  train <- train[(names(train) != "ZONEID")]    # get rid of ZONEID column
+  train <- train %>% select(-ZONEID) %>% rename(TARGET=LOAD)
 
-  test <- read.table(test_file, header=TRUE, dec=".", sep=",")
-  if (task < 15) {
-    test <- test[(names(test) != "ZONEID")]
-  } else {
-    test <- test[!(names(test) %in% c("date", "hour"))]
-  }
+  test <- select(read.csv(test_file), LOAD) %>% rename(TARGET=LOAD)
   test$TIMESTAMP <- ymd_hm(test_start_ts) + hours(0:(nrow(test)-1))
-  lastTrainTS <- train$TIMESTAMP[length(train$TIMESTAMP)]
-  output[[zones]] <- rbind(train, test)
-  # rename load column
-  names(output[[zones]])[names(output[[zones]])=="LOAD"] <- "TARGET"
-  output[["Target"]] <- "Load"
-  output[["LastTrain_TS"]] <- lastTrainTS
+
+  output[[zones]] <- list(train=train, test=test)
   return(output)
 }
 
