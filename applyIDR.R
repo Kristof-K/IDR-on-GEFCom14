@@ -204,49 +204,50 @@ ICX <- "icx"
 SD <- "sd"
 
 
-# ID is a 7-tupel:
-# (idr variant, variable selection, order, data grouping, zone threshold,
+# ID is a 6-tupel:
+# (variable selection, order, data grouping, zone threshold,
 # number of subaggs, size of subaggs)
 
 getVariant <- function(id) {
-  return(switch(id[1], IDR_ON_ALL, IDR_BY_GROUP, IDR_BY_ZONE))
+  if (id[3] == 1) return(IDR_ON_ALL)    # no grouping
+  if (id[4] < 1) return(IDR_BY_ZONE)    # combine zones for training
+  return(IDR_BY_GROUP)
 }
 
 getVariableSelection <- function(id, track) {
   if (track == "Solar") {
-    return(switch(id[2], SUN_1, SUN_2, SUN_BOTH, SUN_T, SUN_T_H, SUN_H,
+    return(switch(id[1], SUN_1, SUN_2, SUN_BOTH, SUN_T, SUN_T_H, SUN_H,
                   SUN_1_H, SUN_1_W, S1_W_I, S1_W_L, S1_W_I_C, S1_W_I_L, S1_W_I_T,
                   SUN_W_I))
   } else if (track == "Wind") {
-    return(switch(id[2], W10, W100, W110))
+    return(switch(id[1], W10, W100, W110))
   } else if (track == "Load") {
-    return(switch(id[2], L1, L2, L10, L25, L11, L13, L15, L22, L23, L24, M3,
+    return(switch(id[1], L1, L2, L10, L25, L11, L13, L15, L22, L23, L24, M3,
                   MED3, M6, MED6, B2, BM2, BMM2, B3, BM3))
   }
 }
 
 getOrder <- function(id) {
-  return(switch(id[3], COMP, ICX, SD))
+  return(switch(id[2], COMP, ICX, SD))
 }
 
 
 # wrapper ======================================================================
 
 unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
-  idr_v <- getVariant(id)
   variables <- getVariableSelection(id, track)
   pOrder <- getOrder(id)
   # addional arguments
-  if(is.na(id[4])) id[4] <- 1       # grouping : default no grouping
-  if(is.na(id[5])) id[5] <- 1       # zone merging : defualt no zone merging
-  if(!is.na(id[6]) && id[6] < 2) id[6] <- 75                        # bag number
-  if(!is.na(id[7]) && (id[7] <= 0 || id[7] >= 1)) id[7] <- 0.25     # bag size
-  groupingfct <- getGroupingfct(id[4])
-  thresh <- min(id[5], 1)
+  if(is.na(id[3])) id[3] <- 1           # grouping : default no grouping
+  id[4] <- min(c(id[4], 1), na.rm=TRUE) # zone merging : defualt no zone merging
+  if(!is.na(id[5]) && id[5] < 2) id[5] <- 75                        # bag number
+  if(!is.na(id[6]) && (id[6] <= 0 || id[6] >= 1)) id[6] <- 0.25     # bag size
+  groupingfct <- getGroupingfct(id[3])
+  idr_v <- getVariant(id)
   id_str <- paste0(id, collapse="_")
   # if init print, then output information and return important information
   if (init) {
-    pbz <- if(thresh >= 1) TRUE else FALSE
+    pbz <- (id[4] >= 1)
     tit <- paste0(idr_v$TIT, " (", id_str, ")")
     outputForecastingMethod(tit, idr_v$DES, variables$VAR)
     return(list(TRACK=track, TIT=idr_v$TIT, VAR=variables$VAR, OR=pOrder,
@@ -267,8 +268,8 @@ unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
   if (!is.null(groupvar)) vars <- c(vars, groupvar)
 
   return(idr_v$FUN(X_train[vars], y_train, X_test[vars], groups, orders,
-                   groupingfct=groupingfct, thresh=thresh, bag_number=id[6],
-                   bag_size=id[7]))
+                   groupingfct=groupingfct, thresh=id[4], bag_number=id[5],
+                   bag_size=id[6]))
 }
 
 unleashSolIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
