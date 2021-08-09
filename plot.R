@@ -22,6 +22,8 @@ windVars <- c("U10"="U10", "V10"="V10", "U100"="U100", "V100"="V100",
               "S10" = "10m wind speed", "S100" = "100m wind speed",
               "A10" = "10m wind angle", "A100" = "100m wind angle")
 loadVars <- setNames(paste("Temperature", 1:25), paste0("w", 1:25))
+priceVars <- c("Forecasted.Total.Load" = "forecasted total load",
+               "Forecasted.Zonal.Load" = "forecasted zonal load")
 
 corr_c <- c("pearson", "spearman", "kendall")
 
@@ -44,20 +46,24 @@ getLimits <- function(var, min, max) {
 # Get the variables belonging to a track
 # - track : name of the track
 getVars <- function(track) {
-  return(switch(track, "Solar"=solarVars, "Wind"=windVars, "Load"=loadVars))
+  return(switch(track, "Solar"=solarVars, "Wind"=windVars, "Load"=loadVars,
+                "Price"=priceVars))
 }
 # Get a grid to plot all variables (dependent on number of vars in the track)
 # - track : name of the track
 getGrid <- function(track) {
-  return(switch(track, "Solar"=c(3,4), "Wind"=c(2,4), "Load"=c(5,5)))
+  return(switch(track, "Solar"=c(3,4), "Wind"=c(2,4), "Load"=c(5,5),
+                "Price"=c(1,2)))
 }
 
 getTarget <- function(track) {
-  return(switch(track, "Solar"="Power", "Wind"="Power", "Load"="Load"))
+  return(switch(track, "Solar"="Power", "Wind"="Power", "Load"="Load",
+                "Price"="Price"))
 }
 
 getTargetLimits <- function(track) {
-  return(switch(track, "Solar"=c(0, 1.1), "Wind"=c(0, 1.1), "Load"=c(0, 325)))
+  return(switch(track, "Solar"=c(0, 1.1), "Wind"=c(0, 1.1), "Load"=c(0, 325),
+                "Price"=c(0, 375)))
 }
 
 isSouthern <- function(track) {
@@ -258,18 +264,17 @@ plotTimeSeries <- function(data, start, end, track, name) {
   # restrict data to timestamps of interest
   plotData <- filter(data, TIMESTAMP %within% interval(start, end))
   # get timestamps and replace them in the data frame with the values 1,...,n
-  t <- plotData %>% select(TIMESTAMP) %>% pull()
+  t <- plotData[["TIMESTAMP"]]
   n <- dim(plotData)[1]
-  plotData <- plotData %>% select(-TIMESTAMP) %>% mutate(X = 1:n)
   target <- getTarget(track)
+  vars <- c(names(getVars(track)), "TARGET")
+  plotData <- plotData %>% select(vars) %>% mutate(X = 1:n)
 
-  # normalize all variables, want to draw power with each variable in one plot
-  for (var in names(plotData)) {
-    if (var == "X" || target == "Power") {
-      next
-    }
+  # normalize all variables
+  for (var in vars) {
     tmp <- plotData[[var]]
-    plotData[[var]] <- (tmp - min(tmp)) / (max(tmp) - min(tmp))
+    plotData[[var]] <- (tmp - min(tmp, na.rm=TRUE)) /
+      (max(tmp, na.rm=TRUE) - min(tmp, na.rm=TRUE))
   }
   # get for every variable column a copy of TARGET and remove the original power
   # ~ . is lambda with . as input variable => here constant function (no .)
@@ -441,36 +446,27 @@ estimatePowerDistribution <- function(data, track, zone, bins=NA) {
 # - data : data.frame containing the two colums "TIMESTAMP" and "TARGET"
 # - track : current track for naming the plot
 # - zone : current zone for naming the plot
-plotAllTargetCurves <- function(data, track, zone, all=FALSE) {
-  if (all) {
-    g_fcns <- c(getMonths, getWday, getWdayWithHolidays)
-    for (g in g_fcns) {
-      plotTargetCurves(data, track, zone, g, e=TRUE)
-      plotTargetCurves(data, track, zone, g, e=FALSE)
-      plotTargetCurves(data, track, zone, g, e=TRUE, facetIt=TRUE)
-      plotTargetCurves(data, track, zone, g, e=FALSE, facetIt=TRUE)
-    }
-    plotTargetCurves(data, track, zone, getWdayWithHolidays, e=TRUE,
-                     facetIt=TRUE, facetfct=getWday)
-    plotTargetCurves(data, track, zone, getWdayWithHolidays, e=FALSE,
-                     facetIt=TRUE, facetfct=getWday)
-  } else {
-    plotTargetCurves(data, track, zone, getMonths, e=TRUE)
-    plotTargetCurves(data, track, zone, getMonths, e=FALSE)
-  }
+# - groupingfct : how should data be grouped
+plotAllTargetCurves <- function(data, track, zone, groupingfct=getMonths) {
+  plotTargetCurves(data, track, zone, groupingfct, e=TRUE)
+  plotTargetCurves(data, track, zone, groupingfct, e=FALSE)
+  plotTargetCurves(data, track, zone, groupingfct, e=TRUE, facetIt=TRUE)
+  plotTargetCurves(data, track, zone, groupingfct, e=FALSE, facetIt=TRUE)
 }
 
 plotTargetCurves <- function(data, track, zone, groupingfct, e=FALSE,
-                             facetIt=FALSE, facetfct=get4Seasons) {
+                             facetIt=FALSE) {
   target <- getTarget(track)
   fnc_label <- if(e) "Mean" else "Median"
   fnc <- if (e) mean else function(x) quantile(x, probs=0.5)[["50%"]]
   group_label <- groupingfct(NA, getName=TRUE)
   group_nr <- length(groupingfct(NA, getCategories=TRUE))
-  addLabel <- if(facetIt) paste0("_facet", facetfct(NA, getName=TRUE)) else ""
-  plotData <- data %>% filter(!is.na(TARGET)) %>%
-    mutate(HOUR = hour(TIMESTAMP), Group = groupingfct(data, label=TRUE),
-           FACET = facetfct(data, label=TRUE)) %>%
+  addLabel <- if(facetIt) "_facet" else ""
+
+  plotData <- filter(data, !is.na(TARGET))
+  plotData <- mutate(plotData, HOUR = hour(TIMESTAMP),
+                     Group = groupingfct(plotData, label=TRUE),
+                     FACET = get4Seasons(plotData, label=TRUE)) %>%
     select(-TIMESTAMP)
   if (facetIt) {
     plotData <- plotData %>% group_by(HOUR, Group, FACET)
@@ -506,11 +502,12 @@ plotAreaCurves <- function(data, track, zone) {
     upperVals <- c(max(x), unname(quantile(x, probs=9:6 * 0.1)))
     return(data.frame(Width=intervals, L=lowerVals, U=upperVals))
   }
-  plotData <- data %>% filter(!is.na(TARGET)) %>%
-    mutate(HOUR = hour(TIMESTAMP), SEASON = get4Seasons(data, label=TRUE)) %>%
+  plotData <- data %>% filter(!is.na(TARGET))
+  plotData <- plotData %>%
+    mutate(HOUR=hour(TIMESTAMP), SEASON=get4Seasons(plotData, label=TRUE)) %>%
     select(-TIMESTAMP) %>% group_by(HOUR, SEASON)
 
-  meanAndMedian <-  summarise(plotData, Mean=mean(TARGET), Median=median(TARGET),
+  meanAndMedian <- summarise(plotData, Mean=mean(TARGET), Median=median(TARGET),
                   .groups="drop")
   c_intervals <- summarise(plotData, getConfidence(TARGET), .groups="drop")
   target <- getTarget(track)

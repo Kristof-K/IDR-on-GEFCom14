@@ -10,111 +10,133 @@ source("preprocess.R")
 getStartDate <- function(track) {
   return(switch(track, "Solar"="2013-09-09 00:00:00 UTC",
                 "Wind"="2013-09-09 00:00:00 UTC",
-                "Load"="2011-07-01 00:00:00 UTC"))
+                "Load"="2011-07-01 00:00:00 UTC",
+                "Price"="2013-05-01 00:00:00 UTC"))
 }
 
 getEndDate <- function(track) {
   return(switch(track, "Solar"="2013-09-19 00:00:00 UTC",
                 "Wind"="2013-09-19 00:00:00 UTC",
-                "Load"="2011-07-11 00:00:00 UTC"))
+                "Load"="2011-07-11 00:00:00 UTC",
+                "Price"="2013-05-11 00:00:00 UTC"))
 }
 
 
 # implement the whole process of examination solar track
 examineHour <- function(track, preprocess=no_pp) {
   # data is a list containing for every string in zones a data frame
-  data <- preprocess(loadSet(track,15))
-  numOfVars <- length(getVars(track))  # variableNames is defined in plot.R
+  data_all <- preprocess(loadSet(track,15))
+  vars <- names(getVars(track))
 
   # EXAMINE DATA GROUPED BY HOUR
   cat("Examing data grouped by hour:\n")
-  for (zone in data$Zones) {
+  for (zone in data_all$Zones) {
     cat("\t-", zone, "\n")
     hours <- paste0(0:23)   # categories by which is grouped
     groupByHour <- list()       # list containing data.frame for every category
+    if (track != "Load") {
+      data <- rbind(data_all[[zone]]$Train, data_all[[zone]]$Test)
+    } else {
+      data <- data_all[[zone]]$Train
+    }
     # get the data
     for (h in hours) {
-      indices <- hour(data[[zone]]$TIMESTAMP) == h
-      groupByHour[[h]] <- subset(data[[zone]], indices, select=-TIMESTAMP)
+      indices <- hour(data$TIMESTAMP) == h
+      groupByHour[[h]] <- subset(data, indices, select=-TIMESTAMP)
     }
-    min <- sapply(data[[zone]][-1], min) # get for every column min and max
-    max <- sapply(data[[zone]][-1], max) # drop timestamp => -1
+    min <- sapply(data[vars], min) # get for every column min and max
+    max <- sapply(data[vars], max) # drop timestamp => -1
     
     # now plot
     scatterHours(groupByHour, track, zone, min, max)
     scatterAllSingle(groupByHour, track, zone, min, max, hour=TRUE)
     # and examine the correlation coefficients
-    coeffs <- getCorrelationCoefficients(groupByHour, hours, numOfVars)
+    coeffs <- getCorrelationCoefficients(groupByHour, hours, vars)
     correlationPlotHours(coeffs, track, zone)
     # plot time series
-    plotAgainstTime(data[[zone]], getStartDate(track), getEndDate(track), track,
+    plotAgainstTime(data, getStartDate(track), getEndDate(track), track,
                     zone)
   }
 }
 
 examineSolarHourDeacc <- function() {
+  track <- "Solar"
   # data is a list containing for every string in zones a data frame
-  deacc <- deaccumulateSol(loadSolar(15))
+  data_all <- deaccumulateSol(loadSolar(15))
   deacc_vars <- c(ACCUMULATED, "TARGET")
 
   # EXAMINE DATA GROUPED BY HOUR
   cat("Examing deacccumulated data grouped by hour:\n")
-  for (zone in deacc$Zones) {
+  for (zone in data_all$Zones) {
     cat("\t-", zone, "\n")
     hours <- paste0(0:23)   # categories by which is grouped
     groupByHour <- list()       # list containing data.frame for every category
+    data <- rbind(data_all[[zone]]$Train, data_all[[zone]]$Test)
     # get the data
     for (h in hours) {
-      indices <- hour(deacc[[zone]]$TIMESTAMP) == h
-      groupByHour[[h]] <- subset(deacc[[zone]], indices, select=deacc_vars)
+      indices <- hour(data$TIMESTAMP) == h
+      groupByHour[[h]] <- subset(data, indices, select=deacc_vars)
     }
     # consider deaccumulated
-    plotAgainstTime(deacc[[zone]], getStartDate(track), getEndDate(track),
-                    track="Solar", zone, suf="deacc")
-    min <- sapply(deacc[[zone]][deacc_vars], min)
-    max <- sapply(deacc[[zone]][deacc_vars], max)
+    plotAgainstTime(data, getStartDate(track), getEndDate(track),
+                    track=track, zone, suf="deacc")
+    min <- sapply(data[deacc_vars], min)
+    max <- sapply(data[deacc_vars], max)
     for(var in ACCUMULATED) {
-      scatterSingleHours(groupByHour, "Solar", zone, min, max, var,
-                         suf="deacc")
+      scatterSingleHours(groupByHour, track, zone, min, max, var, suf="deacc")
     }
   }
 }
 
 examineMonth <- function(track, preprocess=no_pp) {
   # data is a list containing for every string in zones a data frame
-  data <- preprocess(loadSet(track,15))
-  numOfVars <- length(getVars(track))  # variableNames is defined in plot.R
+  data_all <- preprocess(loadSet(track,15))
+  vars <- names(getVars(track))
   # EXAMINE DATA GROUPED BY MONTH
   cat("Examing data grouped by month:\n")
-  for (zone in data$Zones) {
+  for (zone in data_all$Zones) {
     cat("\t-", zone, "\n")
     months <- paste0(1:12)   # categories by which is grouped
     groupByMonth <- list()       # list containing data.frame for every category
+    if (track != "Load") {
+      data <- rbind(data_all[[zone]]$Train, data_all[[zone]]$Test)
+    } else {
+      data <- data_all[[zone]]$Train
+    }
     # get the data
     for (m in months) {
-      indices <- month(data[[zone]]$TIMESTAMP) == m
-      groupByMonth[[m]] <- subset(data[[zone]], indices, select=-TIMESTAMP)
+      indices <- month(data$TIMESTAMP) == m
+      groupByMonth[[m]] <- subset(data, indices, select=-TIMESTAMP)
     }
-    min <- sapply(data[[zone]][-1], min) # get for every column min and max
-    max <- sapply(data[[zone]][-1], max)# drop timestamp => -1
+    min <- sapply(data[vars], min) # get for every column min and max
+    max <- sapply(data[vars], max)# drop timestamp => -1
     
     # now plot
     scatterMonths(groupByMonth, track, zone, min, max)
     scatterAllSingle(groupByMonth, track, zone, min, max, hour=FALSE)
     # and examine the correlation coefficients
-    coeffs <- getCorrelationCoefficients(groupByMonth, months, numOfVars)
+    coeffs <- getCorrelationCoefficients(groupByMonth, months, vars)
     correlationPlotMonths(coeffs, track, zone)
   }
 }
 
 examineTarget <- function(track, preprocess=no_pp) {
-  data <- preprocess(loadSet(track,15))
+  data_all <- preprocess(loadSet(track,15))
   cat("Examine target variable")
 
-  for (zone in data$Zones) {
-    plotHeatMap(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
-    plotAllTargetCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
-    plotAreaCurves(data[[zone]][c("TIMESTAMP", "TARGET")], track, zone)
+  for (zone in data_all$Zones) {
+    if (track != "Load") {
+      data <- rbind(data_all[[zone]]$Train, data_all[[zone]]$Test)
+    } else {
+      data <- data_all[[zone]]$Train
+    }
+    plotHeatMap(data[c("TIMESTAMP", "TARGET")], track, zone)
+    plotAllTargetCurves(data[c("TIMESTAMP", "TARGET")], track, zone)
+    if (track %in% c("Load", "Price")) {
+      plotAllTargetCurves(data[c("TIMESTAMP", "TARGET")], track, zone,
+                          groupingfct=getWday)
+    }
+    plotAreaCurves(data[c("TIMESTAMP", "TARGET")], track, zone)
   }
 }
 
@@ -139,16 +161,17 @@ examineSolar <- function() {
 
 
 examineWindFeatures <- function() {
-  data <- getWindAttributes(loadWind(15))
+  data_all <- getWindAttributes(loadWind(15))
 
-  for(zone in data$Zones) {
-     plotTimeSeries(data[[zone]], "2012-09-09 00:00:00 UTC",
+  for(zone in data_all$Zones) {
+    data <- rbind(data_all[[zone]]$Train, data_all[[zone]]$Test)
+    plotTimeSeries(data, "2012-09-09 00:00:00 UTC",
                     "2012-09-19 00:00:00 UTC", "Wind",
                     name=paste0("TimeSeries_Wind_", zone, ".png"))
-    plotHistograms(data[[zone]], "Wind", zone)
+    plotHistograms(data, "Wind", zone)
     for (n in c(NA, 4, 8, 12)) {
-      scatterWindPower(data[[zone]], "Wind", zone, bins=n)
-      estimatePowerDistribution(data[[zone]], "Wind", zone, bins=n)
+      scatterWindPower(data, "Wind", zone, bins=n)
+      estimatePowerDistribution(data, "Wind", zone, bins=n)
     }
   }
 }
@@ -168,29 +191,45 @@ examineLoad <- function() {
   examineHour(track, preprocess=rm_na)
   examineMonth(track, preprocess=rm_na)
   examineTarget(track, preprocess=rm_na)
-  data <- rm_na(loadSet(track, 15))
-  plotHistograms(data$ZONE1, track, "Zone1")
-  plotTimeSeries(data$ZONE1, "2011-09-09 00:00:00 UTC",
+  data_all <- rm_na(loadSet(track, 15))
+  for (z in data_all$Zones) {
+    data <- data_all[[z]]$Train
+    plotHistograms(data, track, z)
+    plotTimeSeries(data, "2011-09-09 00:00:00 UTC",
                     "2011-09-19 00:00:00 UTC", track,
-                    name=paste0("TimeSeries_Load_Sep_", "ZONE1", ".png"))
-  plotTimeSeries(data$ZONE1, "2011-02-09 00:00:00 UTC",
+                    name=paste0("TimeSeries_Load_Sep_", z, ".png"))
+    plotTimeSeries(data, "2011-02-09 00:00:00 UTC",
                     "2011-02-19 00:00:00 UTC", track,
-                    name=paste0("TimeSeries_Load_Feb_", "ZONE1", ".png"))
-  plotRanges(data$ZONE1, "Load", "ZONE1", getWdayWithHolidays)
-  getWdayWithHolidays(data$ZONE1)
-  data$ZONE1 %>% filter(month(TIMESTAMP) ==4) %>% mutate(X=day(TIMESTAMP)) %>%
-   select(-TIMESTAMP) %>%
-   pivot_longer(cols=c(-TARGET, -X), names_to="Temperature") %>%
-   ggplot(aes(x=value, y=TARGET, color=factor(X))) +
-   facet_wrap(~Temperature) +
-   geom_point()
+                    name=paste0("TimeSeries_Load_Feb_", z, ".png"))
+    plotRanges(data, "Load", z, getWdayWithHolidays)
+    data %>% filter(month(TIMESTAMP) ==4) %>% mutate(X=day(TIMESTAMP)) %>%
+    select(-TIMESTAMP) %>%
+    pivot_longer(cols=c(-TARGET, -X), names_to="Temperature") %>%
+    ggplot(aes(x=value, y=TARGET, color=factor(X))) +
+    facet_wrap(~Temperature) +
+    geom_point()
+  }
+}
+
+examinePrice <- function() {
+  cat("Load:\n")
+  track <- "Price"
+  examineHour(track)
+  examineMonth(track)
+  examineTarget(track)
+  data_all <- loadSet(track, 15)
+  for (z in data_all$Zones) {
+    data <- rbind(data_all[[z]]$Train, data_all[[z]]$Test)
+    plotHistograms(data, track, z)
+  }
 }
 
 plotsForSlides <- function() {
-  data <- deaccumulateSol(loadSolar(15))
+  data_all <- deaccumulateSol(loadSolar(15))
 
   for(zone in "ZONE3") {
-    plotData <- transmute(data[[zone]], Power=TARGET, Radiation=VAR169,
+    data <- rbind(data_all[[zone]]$Train, data_all[[zone]]$Test)
+    plotData <- transmute(data, Power=TARGET, Radiation=VAR169,
                           Hour=as.factor(hour(TIMESTAMP)))
     print(ggplot(plotData, aes(x=Radiation, y=Power)) +
       geom_point() +

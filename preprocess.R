@@ -30,7 +30,10 @@ rm_na <- function(data, init=FALSE) {
     return(name)
   }
   for(zone in data$Zones) {
-    data[[zone]] <- data[[zone]][!is.na(data[[zone]][["TARGET"]]),]
+    for (t in c("Train", "Test")) {
+      process <- data[[zone]][[t]]
+      data[[zone]][[t]] <- process[!is.na(process[["TARGET"]]),]
+    }
   }
   return(data)
 }

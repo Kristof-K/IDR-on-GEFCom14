@@ -15,22 +15,22 @@ NONE <- "None"
 # - categroy : vector of names defining the categories
 # return 3-dim array: 1st axis variables, 2nd axis correlation coefficient typ
 # (pearson, spearman, kendall), 3rd axis categories
-getCorrelationCoefficients <- function(list, categories, numOfVariables) {
-  output <- array(NA, dim=c(numOfVariables, 3, length(categories)))
+getCorrelationCoefficients <- function(list, categories, vars) {
+  output <- array(NA, dim=c(length(vars), 3, length(categories)))
   c <- 1
   for (element in categories) {       # iterate over 3rd dimension
-    for (var in 1:numOfVariables) {   # iterate over 1st dimension
-      exa <- na.omit(list[[element]])
-      # get TARGET to the end
-      examine <- exa[, c(names(exa)[names(exa) != "TARGET"], "TARGET")]
-      if (sd(examine[["TARGET"]]) != 0 && sd(examine[, var]) != 0) {
-        output[var,1:3,c] <- c(cor(examine[,var], examine[["TARGET"]],
+    v <- 1
+    examine <- na.omit(list[[element]])
+    for (var in vars) {   # iterate over 1st dimension
+      if (sd(examine[["TARGET"]]) != 0 && sd(examine[[var]]) != 0) {
+        output[v,1:3,c] <- c(cor(examine[[var]], examine[["TARGET"]],
                                   method="pearson"),
-                              cor(examine[,var], examine[["TARGET"]],
+                              cor(examine[[var]], examine[["TARGET"]],
                                   method="spearman"),
-                              cor(examine[,var], examine[["TARGET"]],
+                              cor(examine[[var]], examine[["TARGET"]],
                                   method="kendall"))
       }
+      v <- v+1
     }
     c <- c+1
   }
