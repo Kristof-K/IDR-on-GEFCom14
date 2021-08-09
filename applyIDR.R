@@ -198,6 +198,11 @@ BMM2 <- list(VAR = c("M6", "Med6"), ADA = list(INV_WIN, INV_WIN))
 B3 <- list(VAR = c("w10", "w13", "w25"), ADA = list(INV_WIN, INV_WIN, INV_WIN))
 BM3 <- list(VAR = c("w10", "w13", "M6"), ADA = list(INV_WIN, INV_WIN, INV_WIN))
 
+FTL <- list(VAR = "Forecasted.Total.Load", ADA = list(ONE))
+FZL <- list(VAR = "Forecasted.Zonal.Load", ADA = list(ONE))
+FTZL <- list(VAR = c("Forecasted.Total.Load", "Forecasted.Zonal.Load"),
+             ADA = list(ONE, ONE))
+
 # ORDERs
 COMP <- "comp"
 ICX <- "icx"
@@ -224,6 +229,8 @@ getVariableSelection <- function(id, track) {
   } else if (track == "Load") {
     return(switch(id[1], L1, L2, L10, L25, L11, L13, L15, L22, L23, L24, M3,
                   MED3, M6, MED6, B2, BM2, BMM2, B3, BM3))
+  } else if (track == "Price") {
+    return(switch(id[1], FTL, FZL, FTZL))
   }
 }
 
@@ -288,4 +295,8 @@ unleashLoaIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
   indices <- !is.na(y_train)
   return(unleashIDR("Load", X_train[indices,], y_train[indices], X_test,
                     id, init))
+}
+
+unleashPriIDR <- function(X_train, y_train, X_test, id, init=FALSE) {
+  return(unleashIDR("Price", X_train, y_train, X_test, id, init))
 }
