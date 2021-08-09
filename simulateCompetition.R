@@ -1,5 +1,6 @@
 library(foreach)    # to parallel central task loop
 library(doParallel)
+library(dplyr)
 
 source("loadData.R")
 source("util.R")
@@ -27,7 +28,7 @@ source("preprocess.R")
 #   explaining text
 # - id : id (argument for predicitionfct)
 # - preprocessfct : function getting data after it was loaded (i.e. it expects
-#   list with ZONE referring to data.frames), preprocess and return it
+#   list with zones referring to data.frames), preprocess and return it
 #   If init=TRUE, then print text and return name of this preprocess method
 evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp) {
   # in order to run the foeach loop in parallel
@@ -59,51 +60,39 @@ evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp) {
 }
 
 goParallel <- function(predictionfct, scoringfct, data, id, goByZone) {
-    lastTrainTS <- data$LastTrain_TS
-    saveScores <- data.frame()
-    z <- 1
-    # distinguish whether predicitionfct wants all data or data by zone
-    if (goByZone) {
-      for (zone in data$Zones) {
-        newScores <- predAndEval(predictionfct, scoringfct, data[[zone]], id,
-                                 lastTrainTS, zone=z)
-        saveScores <- rbind(saveScores, newScores)
-        z <- z+1
-      }
-    } else {
-      unite_data <- data.frame()
-      for (zone in data$Zones) {
-        unite_data <- rbind(unite_data, cbind(data[[zone]], ZONE=z))
-        z <- z+1
-      }
-      saveScores <- predAndEval(predictionfct, scoringfct, unite_data, id,
-                                lastTrainTS)
+  df_list <- list()
+  # When predicitionfct wants data of all zones at once, unite it
+  if (!goByZone) {
+    unite_train <- data.frame()
+    unite_test <- data.frame()
+    for (zone in data$Zones) {
+      unite_train <- rbind(unite_train, data[[zone]]$Train)
+      unite_test <- rbind(unite_test, data[[zone]]$Test)
     }
-  return(saveScores)
+    df_list <- list("joint_data"=list(Train=unite_train, Test=unite_test))
+  } else { # otherwise list all zone separately
+    for(zone in data$Zones) {
+      df_list[[zone]] <- data[[zone]]
+    }
+  }
+  # apply predAndEval on every element of df_list and rbind it afterwards
+  allScores <- do.call(rbind, lapply(df_list, predAndEval, predictionfct,
+                                     scoringfct, id))
+  return(allScores)
 }
 
-predAndEval <- function(predictionfct, scoringfct, data, id, lastTrainTS,
-                        zone=NA) {
-  lastTestTS <- data$TIMESTAMP[length(data$TIMESTAMP)]
-
-  i_train <- (data$TIMESTAMP <= lastTrainTS)
-  i_test <- (data$TIMESTAMP > lastTrainTS & data$TIMESTAMP <= lastTestTS)
-
-  y <- subset(data, i_test)[["TARGET"]]
-  y_train <- subset(data, i_train)[["TARGET"]]
-  X_train <- subset(data, i_train, select=-TARGET)
-  X_test <- subset(data, i_test, select=-TARGET)
-  times <- subset(data, i_test)[["TIMESTAMP"]]
-
+predAndEval <- function(data, predictionfct, scoringfct, id) {
+  y <- data$Test$TARGET
+  y_train <- data$Train$TARGET
+  X_train <- select(data$Train, -TARGET)
+  X_test <-  select(data$Test, -TARGET)
+  times <- data$Test$TIMESTAMP
+  zone <- data$Test$ZONEID
   # conduct prediction
   prediction <- predictionfct(X_train, y_train, X_test, id)
   # conduct scoring
   scores <- scoringfct(prediction, y)
-  if (is.na(zone)) {
-    zone <- X_test$ZONE     # in this case, assume data has already ZONE column
-  }
-  # get them into a data.frame and add to previous scores
-  return(data.frame(TIMESTAMP=times, ZONE=zone, SCORE=scores))
+  return(data.frame(TIMESTAMP=times, ZONEID=zone, SCORE=scores))
 }
 
 outputAndLog <- function(scoreList, duration, info) {
@@ -151,18 +140,18 @@ outputAndLog <- function(scoreList, duration, info) {
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 9, 2, 2), preprocessfct=deaccumulateSol)
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 2, 0.95), preprocessfct=deaccumulateSol)
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 2, 0.9), preprocessfct=deaccumulateSol)
-evaluation(unleashSolIDR, pinBallLoss, c(2, 15, 1, 2), preprocessfct=deaccumulateSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(3, 1, 1, 2, 0.9), preprocessfct=deaccumulateSol)
 #evaluation(unleashSolIDR, pinBallLoss, c(2, 1, 1, 8), preprocessfct=deaccumulateSol)
 #evaluation(unleashSolIDR, pinBallLoss, c(3, 14, 1, 7, 0.9, 50, 0.5), preprocessfct=deaccumulateSol)
 
 #evaluation(benchmarkWind, pinBallLoss, 1)
 #evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 2), preprocessfct=getWindAttributes)
 #evaluation(unleashWinIDR, pinBallLoss, c(1, 3, 1), preprocessfct=getWindAttributes)
-#evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 1, 6), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 6), preprocessfct=getWindAttributes)
 #evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 4), preprocessfct=getWindAttributes)
 #evaluation(unleashWinIDR, pinBallLoss, c(2, 2, 1, 6, 0.8), preprocessfct=getWindAttributes)
 
 #evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 1, 1))
-#evaluation(unleashLoaIDR, pinBallLoss, c(2, 1, 1, 5))
+evaluation(unleashLoaIDR, pinBallLoss, c(2, 1, 1, 3))
 #evaluation(unleashLoaIDR, pinBallLoss, c(2, 15, 1, 3), preprocessfct=addLoadMeans)
 #evaluation(unleashLoaIDR, pinBallLoss, c(2, 16, 1, 3), preprocessfct=addLoadMeans)

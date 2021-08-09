@@ -49,12 +49,14 @@ deaccumulateSol <- function(data, init=FALSE) {
   # at 1:00, since there starts the daily sun accumulation
   for (zone in data$Zones) {
     for(var in ACCUMULATED) {
-      current <- data[[zone]][[var]]
-      asMatrix <- matrix(current, nrow=24)    # every column contains one day
-      # deaccumulate every day individually
-      deacc <- apply(asMatrix, 2, subShifted)
+      for(t in c("Train", "Test")) {
+        current <- data[[zone]][[t]][[var]]
+        asMatrix <- matrix(current, nrow=24)    # every column contains one day
+        # deaccumulate every day individually
+        deacc <- apply(asMatrix, 2, subShifted)
 
-      data[[zone]][[var]] <- as.vector(deacc)
+        data[[zone]][[t]][[var]] <- as.vector(deacc)
+      }
     }
   }
   return(data)
@@ -67,11 +69,13 @@ getWindAttributes <- function(data, init=FALSE) {
     return(name)
   }
   for(zone in data$Zones) {
-    data[[zone]] <- mutate(data[[zone]], S10 = sqrt(U10^2 + V10^2),
-                           S100 = sqrt(U100^2 + V100^2),
-                           A10 = atan2(V10, U10) * 360 / (2*pi),
-                           A100 = atan2(V100, U100) * 360 / (2*pi)) %>%
-      relocate(TARGET, .after = last_col())
+    for(t in c("Train", "Test")) {
+      data[[zone]][[t]] <- mutate(data[[zone]][[t]], S10 = sqrt(U10^2 + V10^2),
+                                  S100 = sqrt(U100^2 + V100^2),
+                                  A10 = atan2(V10, U10) * 360 / (2*pi),
+                                  A100 = atan2(V100, U100) * 360 / (2*pi)) %>%
+        relocate(TARGET, .after = last_col())
+    }
   }
   return(data)
 }
@@ -84,12 +88,16 @@ addLoadMeans <- function(data, init=FALSE) {
   }
   data <- rm_na(data)
   for(zone in data$Zones) {
-    data[[zone]] <- mutate(data[[zone]], M3= rowMeans(cbind(w10, w13, w25)),
-                            M6 = rowMeans(cbind(w10, w13, w25, w24, w23, w22)),
-                            Med3 = apply(cbind(w10, w13, w25), 1,
-                                         median),
-                            Med6 = apply(cbind(w10, w13, w25, w24, w23, w22),
-                                          1, median))
+    for(t in c("Train", "Test")) {
+      data[[zone]][[t]] <- mutate(data[[zone]][[t]],
+                                  M3= rowMeans(cbind(w10, w13, w25)),
+                                  M6 = rowMeans(cbind(w10, w13, w25, w24, w23,
+                                                      w22)),
+                                  Med3 = apply(cbind(w10, w13, w25), 1,
+                                               median),
+                                  Med6 = apply(cbind(w10, w13, w25, w24, w23, w22),
+                                               1, median))
+    }
   }
   return(data)
 }

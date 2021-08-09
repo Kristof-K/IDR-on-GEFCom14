@@ -87,22 +87,22 @@ idrByZones <- function(X_train, y_train, X_test, groups, orders, thresh=1,
   train <- cbind(TARGET=y_train, X_train)
 
   applyIDRonZone <- function(zone) {
-    test_indices <- (X_test$ZONE == zone)
-    X_test_zone <- subset(X_test, test_indices, select=-ZONE)
-    X_train_col <- subset(X_train, ZONE==zone, select=-ZONE)
-    y_col <- subset(train, ZONE==zone)$TARGET
+    test_indices <- (X_test$ZONEID == zone)
+    X_test_zone <- subset(X_test, test_indices, select=-ZONEID)
+    X_train_col <- subset(X_train, ZONEID==zone, select=-ZONEID)
+    y_col <- subset(train, ZONEID==zone)$TARGET
     y_zone <- y_col
     output <- matrix(0, nrow=sum(test_indices), ncol=length(QUANTILES)+1)
     output[,1] <- which(test_indices)   # original indices in 1st column
 
-    for(z in unique(X_train$ZONE)) {
+    for(z in unique(X_train$ZONEID)) {
       if (z == zone) next
-      y_z <- subset(train, ZONE==z)$TARGET
+      y_z <- subset(train, ZONEID==z)$TARGET
       # removing NA rows can lead to different long blocks for each zone
       minIndex <- min(length(y_z), length(y_zone))
       # add all zones with TARGET correlation greater than threshold
       if (cor(y_z[1:minIndex], y_zone[1:minIndex]) >= thresh) {
-        X_train_add <- subset(train, ZONE==z, select=c(-ZONE, -TARGET))
+        X_train_add <- subset(train, ZONEID==z, select=c(-ZONEID, -TARGET))
         y_col <- c(y_col, y_z)    # add new y values
         X_train_col <- rbind(X_train_col, X_train_add)
       }
@@ -112,7 +112,7 @@ idrByZones <- function(X_train, y_train, X_test, groups, orders, thresh=1,
                               bag_size=bag_size)
     return(output)
   }
-  pred <- do.call(rbind, lapply(unique(X_test$ZONE), applyIDRonZone))
+  pred <- do.call(rbind, lapply(unique(X_test$ZONEID), applyIDRonZone))
   return(pred[order(pred[,1]), -1])   # restore original order
 }
 
@@ -136,7 +136,7 @@ IDR_BY_GROUP <- list(FUN = idrByGroup, TIT = "IDR grouped data",
 IDR_BY_ZONE <- list(FUN = idrByZones, TIT = "IDR zone combined data",
                     DES = c("Combine", "highly","correlated","data","(regarding",
                             "target","variable)","and","apply","idr_by_group",
-                            "on","this","data"), ADD = "ZONE")
+                            "on","this","data"), ADD = "ZONEID")
 
 # Variable selections
 # VAR : list of variables that are used

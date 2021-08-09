@@ -58,10 +58,10 @@ loadSolar <- function(task) {
   output <- list("Zones" = zones)
 
   train <- X %>% right_join(Y_train, by=JOIN) %>% rename(TARGET=POWER) %>%
-    group_by(ZONEID) %>% group_split(.keep=FALSE)
+    group_by(ZONEID) %>% group_split()
   test <- X %>% filter(TIMESTAMP %within% t_test) %>%
     left_join(Y_test, by=JOIN) %>% rename(TARGET=POWER) %>% group_by(ZONEID) %>%
-    group_split(.keep=FALSE)
+    group_split()
 
   for (i in 1:length(zones)) {
     output[[zones[i]]] <- list(Train = as.data.frame(train[[i]]),
@@ -102,8 +102,7 @@ loadWind <- function(task) {
     y_test <- y_test %>% mutate(TIMESTAMP=ymd_hm(TIMESTAMP)) %>%
       rename(TARGET=TARGETVAR)
     test <- X_test %>% left_join(y_test[c(JOIN, "TARGET")], by=JOIN)
-    output[[zones[z]]] <- list(Train = select(train, -ZONEID),
-                               Test = select(test, -ZONEID))
+    output[[zones[z]]] <- list(Train = train, Test = test)
   }
   return(output)
 }
@@ -136,7 +135,7 @@ loadLoad <- function(task) {
   for (i in 1:task) {
     train_file <- paste0(subfolder, "Task\ ", i, SLASH, "L", i, "-train", CSV)
     train_i <-  read.csv(train_file)
-    train <- rbind(train, select(train_i, -ZONEID) %>% rename(TARGET=LOAD))
+    train <- rbind(train, train_i %>% rename(TARGET=LOAD))
   }
   train$TIMESTAMP <- ymd_hm(start_dates[1]) + hours(0:(nrow(train)-1))
 
@@ -175,8 +174,7 @@ loadPrice <- function(task) {
   test <- xTest %>% left_join(yTest[c(JOIN, "TARGET")], by=JOIN)
 
   output <- list("Zones"=zones)
-  output[[zones]] <- list(Train=select(train, -ZONEID),
-                          Test=select(test, -ZONEID))
+  output[[zones]] <- list(Train=train, Test=test)
   return(output)
 }
 
