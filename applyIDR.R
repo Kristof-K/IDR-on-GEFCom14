@@ -140,8 +140,7 @@ IDR_BY_ZONE <- list(FUN = idrByZones, TIT = "IDR zone combined data",
 
 # Variable selections
 # VAR : list of variables that are used
-# ADA
-#: sign correction (1 for positive relation, -1 for negative)
+# ADA : sign correction (1 for positive relation, -1 for negative)
 
 ONE <- function(data, col) return(data[[col]])
 INV <- function(data, col) return((-1) * data[[col]])

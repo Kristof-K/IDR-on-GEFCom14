@@ -139,7 +139,7 @@ loadLoad <- function(task) {
   }
   train$TIMESTAMP <- ymd_hm(start_dates[1]) + hours(0:(nrow(train)-1))
 
-  test <- select(read.csv(test_file), LOAD) %>% rename(TARGET=LOAD)
+  test <- select(read.csv(test_file), ZONEID, LOAD) %>% rename(TARGET=LOAD)
   test$TIMESTAMP <- ymd_hm(test_start_ts) + hours(0:(nrow(test)-1))
 
   output[[zones]] <- list(Train=train, Test=test)

@@ -31,8 +31,7 @@ rm_na <- function(data, init=FALSE) {
   }
   for(zone in data$Zones) {
     for (t in c("Train", "Test")) {
-      process <- data[[zone]][[t]]
-      data[[zone]][[t]] <- process[!is.na(process[["TARGET"]]),]
+      data[[zone]][[t]] <- filter(data[[zone]][[t]], !is.na(TARGET))
     }
   }
   return(data)
@@ -79,6 +78,34 @@ getWindAttributes <- function(data, init=FALSE) {
                                   A100 = atan2(V100, U100) * 360 / (2*pi)) %>%
         relocate(TARGET, .after = last_col())
     }
+  }
+  return(data)
+}
+
+genRanTemp <- function(data, init=FALSE) {
+  name <- "genRan5Temp"
+  if (init) {
+    outputPreprocessing(name)
+    return(name)
+  }
+  tCols <- paste0("w", 1:25)
+  for(zone in data$Zones) {
+    newW <- mutate(data[[zone]]$Train, h=hour(TIMESTAMP), d=day(TIMESTAMP),
+                   m=month(TIMESTAMP)) %>%
+      group_by(m, d, h) %>%
+      summarise(across(tCols, ~mean(sample(., 5, replace=TRUE))),
+                .groups="drop")
+    findRow <- function(t) {
+      r <- which(newW[["m"]]==month(t) & newW[["d"]]==day(t) &
+                   newW[["h"]]==hour(t))
+      return(as.numeric(newW[r, tCols]))
+    }
+    # sapply packs individual results in columns => transpose it
+    filtered <- t(sapply(data[[zone]]$Test$TIMESTAMP, findRow))
+    colnames(filtered) <- tCols
+
+    data[[zone]]$Test <- cbind(data[[zone]]$Test, data.frame(filtered))
+    data[[zone]]$Train <- filter(data[[zone]]$Train, !is.na(TARGET))
   }
   return(data)
 }
