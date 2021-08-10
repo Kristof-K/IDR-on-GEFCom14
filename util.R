@@ -359,10 +359,9 @@ getWdayWithHolidays <- function(data, group_nr=NA, getCategories=FALSE,
                                 getGroupVar=FALSE, getName=FALSE, label=FALSE,
                                 test=FALSE) {
   groups <- 1:17
-  labs <- c("So", "Mo", "Di", "Mi", "Do", "Fr", "Sa",
-                    "NewYear", "MLKing", "Washing", "Memorial", "Independence",
-                    "Labour", "Columbus", "Veterans", "Thanksgiving",
-                    "Christmas")
+  labs <- c("So", "Mo", "Di", "Mi", "Do", "Fr", "Sa", "NewYear", "MLKing",
+            "Washing", "Memorial", "Independence", "Labour", "Columbus",
+            "Veterans", "Thanksgiving", "Christmas")
   if (getCategories) return(groups)
   if (getGroupVar) return("TIMESTAMP")
   if (getName) return("7wday+10Holidays")

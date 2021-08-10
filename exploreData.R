@@ -201,7 +201,10 @@ examineLoad <- function() {
     plotTimeSeries(data, "2011-02-09 00:00:00 UTC",
                     "2011-02-19 00:00:00 UTC", track,
                     name=paste0("TimeSeries_Load_Feb_", z, ".png"))
-    plotRanges(data, "Load", z, getWdayWithHolidays)
+    plotRanges(data, track, z, getWdayWithHolidays)
+    plotHolidays(data, track, z)
+    plotHolidays(data, track, z, e=FALSE)
+
     data %>% filter(month(TIMESTAMP) ==4) %>% mutate(X=day(TIMESTAMP)) %>%
     select(-TIMESTAMP) %>%
     pivot_longer(cols=c(-TARGET, -X), names_to="Temperature") %>%

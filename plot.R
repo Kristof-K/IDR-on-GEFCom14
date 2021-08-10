@@ -560,3 +560,35 @@ plotRanges <- function(data, track, zone, groupingfct) {
       ggsave(paste0("Violinplots_", zone, "_", gr_name, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=12)
 }
+
+# plot mean / median power lines with separate holiday groups
+# - data : data.frame with all variables as columns
+# - track : current track for naming the plot
+# - zone : current zone for naming the plot
+# - e : use expectation or if FALSE use median
+plotHolidays <- function(data, track, zone, e=TRUE) {
+  target <- getTarget(track)
+  fnc_label <- if(e) "Mean" else "Median"
+  fnc <- if (e) mean else function(x) quantile(x, probs=0.5)[["50%"]]
+  plotData <- filter(data, !is.na(TARGET))
+  holidays <- getWdayWithHolidays(plotData, label=TRUE)
+  hGroup <- ifelse(holidays %in% c("Mo", "Di", "Mi", "Do"), "Mo-Do",
+                        as.character(holidays))
+
+  mutate(plotData, HOUR = hour(TIMESTAMP),
+         Group = factor(hGroup, ordered=TRUE,
+                         levels=unique(c(c("Mo-Do", "Fr", "Sa", "So"), hGroup))),
+         FACET = get4Seasons(plotData, label=TRUE),
+         Holiday = !(Group %in% c("Mo-Do", "Fr", "Sa", "So"))) %>%
+    select(-TIMESTAMP) %>% group_by(HOUR, Group, FACET) %>%
+    summarise(TARGET = fnc(TARGET), Holiday = Holiday, .groups="drop") %>%
+    ggplot(aes(x=HOUR, y=TARGET, color=Group)) +
+      geom_line(aes(linetype = Holiday), size = 1.2) +
+      xlab("hour") +
+      ylab(paste(target)) +
+      ggtitle(paste(fnc_label, target, "curves of", track, "in", zone)) +
+      facet_wrap(~FACET, scales="free_y") +
+      scale_color_manual(values = c(rainbow(4), rainbow(10))) +
+      ggsave(paste0(fnc_label, "_holiday_", target, "Curves_", zone, ".png"),
+             path=paste0("plots/", track, "/"), width=18, height=8)
+}
