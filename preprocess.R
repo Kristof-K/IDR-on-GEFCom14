@@ -82,33 +82,39 @@ getWindAttributes <- function(data, init=FALSE) {
   return(data)
 }
 
-genRanTemp <- function(data, init=FALSE) {
-  name <- "genRan5Temp"
-  if (init) {
-    outputPreprocessing(name)
-    return(name)
-  }
-  tCols <- paste0("w", 1:25)
-  for(zone in data$Zones) {
-    newW <- mutate(data[[zone]]$Train, h=hour(TIMESTAMP), d=day(TIMESTAMP),
-                   m=month(TIMESTAMP)) %>%
-      group_by(m, d, h) %>%
-      summarise(across(tCols, ~mean(sample(., 5, replace=TRUE))),
-                .groups="drop")
-    findRow <- function(t) {
-      r <- which(newW[["m"]]==month(t) & newW[["d"]]==day(t) &
-                   newW[["h"]]==hour(t))
-      return(as.numeric(newW[r, tCols]))
-    }
-    # sapply packs individual results in columns => transpose it
-    filtered <- t(sapply(data[[zone]]$Test$TIMESTAMP, findRow))
-    colnames(filtered) <- tCols
+constructTempGenerator <- function(fct) {
 
-    data[[zone]]$Test <- cbind(data[[zone]]$Test, data.frame(filtered))
-    data[[zone]]$Train <- filter(data[[zone]]$Train, !is.na(TARGET))
-  }
-  return(data)
+tempGenerator <- (function(data, init=FALSE) {
+    name <- "genRan5Temp"
+    if (init) {
+      outputPreprocessing(name)
+      return(name)
+    }
+    tCols <- paste0("w", 1:25)
+    for(zone in data$Zones) {
+      newW <- mutate(data[[zone]]$Train, h=hour(TIMESTAMP), d=day(TIMESTAMP),
+                     m=month(TIMESTAMP)) %>%
+        group_by(m, d, h) %>%
+        summarise(across(all_of(tCols), ~fct(.)), .groups="drop")
+      findRow <- function(t) {
+        r <- which(newW[["m"]]==month(t) & newW[["d"]]==day(t) &
+                   newW[["h"]]==hour(t))
+        return(as.numeric(newW[r, tCols]))
+      }
+      # sapply packs individual results in columns => transpose it
+      filtered <- t(sapply(data[[zone]]$Test$TIMESTAMP, findRow))
+      colnames(filtered) <- tCols
+
+      data[[zone]]$Test <- cbind(data[[zone]]$Test, data.frame(filtered))
+      data[[zone]]$Train <- filter(data[[zone]]$Train, !is.na(TARGET))
+    }
+    return(data)
+  })
+  return(tempGenerator)
 }
+
+meanTemp <- constructTempGenerator(mean)
+lastTemp <- constructTempGenerator(function(x) return(last(x)))
 
 addLoadMeans <- function(data, init=FALSE) {
   name <- "AddLoadMeans"
