@@ -82,10 +82,9 @@ getWindAttributes <- function(data, init=FALSE) {
   return(data)
 }
 
-constructTempGenerator <- function(fct) {
+constructTempGenerator <- function(fct, name) {
 
 tempGenerator <- (function(data, init=FALSE) {
-    name <- "genRan5Temp"
     if (init) {
       outputPreprocessing(name)
       return(name)
@@ -113,8 +112,17 @@ tempGenerator <- (function(data, init=FALSE) {
   return(tempGenerator)
 }
 
-meanTemp <- constructTempGenerator(mean)
-lastTemp <- constructTempGenerator(function(x) return(last(x)))
+meanTemp <- constructTempGenerator(mean, "meanTemp")
+lastTemp <- constructTempGenerator(function(x) return(last(x)),
+                                   "lastTemp")
+sampleTemp <- constructTempGenerator(function(x) sample(x, 1),
+                                     "sampleTemp")
+# mean linear weighted x, so that last x comcponent has double the weight of 1st
+linWeight2 <- function(x) {
+  n <- length(x)
+  return(sum(x * (1:n * 2/(3*(n^2-n)) + 2/3 * (n-2)/(n^2-n))))
+}
+lwMeanTemp <- constructTempGenerator(linWeight2, "lwMeanTemp")
 
 addLoadMeans <- function(data, init=FALSE) {
   name <- "AddLoadMeans"

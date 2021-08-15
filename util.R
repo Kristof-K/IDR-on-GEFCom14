@@ -177,7 +177,7 @@ getGroupingfct <- function(nr) {
   return(switch(nr, no_gr, getHours, getMonths, getSeasons, get4Seasons,
                 getWind100Directions, getSeasonHours, getSeasonLargeHours,
                 getSeasonDayTime, getWday, getMonthWday, getMonthDayTime,
-                getMonthWdTimeHour))
+                getMonthWdTimeHour, getWdayWithHolidays))
 }
 
 no_gr <- function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
@@ -457,7 +457,7 @@ getMonthWdTimeHour <- function(data, group_nr=NA, getCategories=FALSE,
   timestamps <- data$TIMESTAMP
   w <- wday(timestamps)
   h <- hour(timestamps)
-  dayGroup <- 1 * (w %in% 1:5) + 2 * (w %in% c(6,0))
+  dayGroup <- 1 * (w %in% 2:6) + 2 * (w %in% c(7,1))
   hourGroup <- 0 * (h %in% 4:9) + 1 * (h %in% 10:15) + 2 * (h %in% 16:21) +
     3 * (h %in% c(22, 23, 0, 1, 2, 3))
   grouped <- 8 * (month(timestamps) - 1) + 2 * hourGroup + dayGroup

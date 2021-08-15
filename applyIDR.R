@@ -39,7 +39,7 @@ idrByGroup <- function(X_train, y_train, X_test, groups, orders, thresh=1,
     output[,1] <- which(test_indices)   # original indices in 1st column
 
     trainByGroup <- subset(train, train_indices)[!(names(train) %in% c("TARGET", removeVars))]
-    makePred <- subset(X_test, test_indices)[!(names(X_train) %in% removeVars)]
+    makePred <- subset(X_test, test_indices)[!(names(X_test) %in% removeVars)]
     output[,-1] <- myIDR(trainByGroup, y, makePred, groups, orders, bag_number,
                          bag_size)
     return(output)   # eveything worked
@@ -191,11 +191,10 @@ M3 <- list(VAR = "M3", ADA = list(INV_WIN))
 MED3 <- list(VAR = "Med3", ADA = list(INV_WIN))
 M6 <- list(VAR = "M6", ADA = list(INV_WIN))
 MED6 <- list(VAR = "Med6", ADA = list(INV_WIN))
-B2 <- list(VAR = c("w10", "w13"), ADA = list(INV_WIN, INV_WIN))
-BM2 <- list(VAR = c("M6", "w10"), ADA = list(INV_WIN, INV_WIN))
+B2a <- list(VAR = c("w1", "w11"), ADA = list(INV_WIN, INV_WIN))
+B2b <- list(VAR = c("w1", "w15"), ADA = list(INV_WIN, INV_WIN))
+B2c <- list(VAR = c("w1", "w23"), ADA = list(INV_WIN, INV_WIN))
 BMM2 <- list(VAR = c("M6", "Med6"), ADA = list(INV_WIN, INV_WIN))
-B3 <- list(VAR = c("w10", "w13", "w25"), ADA = list(INV_WIN, INV_WIN, INV_WIN))
-BM3 <- list(VAR = c("w10", "w13", "M6"), ADA = list(INV_WIN, INV_WIN, INV_WIN))
 
 FTL <- list(VAR = "Forecasted.Total.Load", ADA = list(ONE))
 FZL <- list(VAR = "Forecasted.Zonal.Load", ADA = list(ONE))
@@ -227,7 +226,7 @@ getVariableSelection <- function(id, track) {
     return(switch(id[1], W10, W100, W110))
   } else if (track == "Load") {
     return(switch(id[1], L1, L2, L10, L25, L11, L13, L15, L22, L23, L24, M3,
-                  MED3, M6, MED6, B2, BM2, BMM2, B3, BM3))
+                  MED3, M6, MED6, B2a, B2b, B2c, BMM2))
   } else if (track == "Price") {
     return(switch(id[1], FTL, FZL, FTZL))
   }
