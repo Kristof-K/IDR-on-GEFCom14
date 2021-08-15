@@ -265,6 +265,22 @@ plotsForSlides <- function() {
       ggtitle("Scatterplot: Power ~ Solar radiation downwards"))
   }
 
+  d <- loadLoad(15)
+  d$Zone1$Train %>% select(TIMESTAMP, TARGET, w1) %>% filter(!is.na(TARGET)) %>%
+    mutate(Month = month(TIMESTAMP, label=TRUE),
+           t = day(TIMESTAMP), m = month(TIMESTAMP),
+           Positiv = m %in% 5:9 | (m == 4 & t > 20) | (m == 10 & t <= 20)) %>%
+    select(Month, TARGET, w1, Positiv) %>%
+    ggplot(aes(x=w1, y=TARGET, color=Positiv)) +
+    geom_point(alpha=0.1) +
+    facet_wrap(~Month) +
+    xlab("Temperature") +
+    ylab("Load") +
+    theme_bw() +
+    ggtitle("Scatterplot: Load ~ Temperature") +
+    ggsave(paste0("LoadTemp.pdf"), path="../Overview",
+             width=10, height=6)
+
   S <- data.frame(score=c(0.012132, 0.012247, 0.012785, 0.013342, 0.014166,
                           0.014288, 0.014294, 0.0149964, 0.0154773, 0.01549,
                           0.015977, 0.0165608, 0.0166733, 0.01755, 0.0178692,
@@ -316,15 +332,13 @@ plotsForSlides <- function() {
                           8.62505818, 8.93657583, 9.26274090, 9.407766,
                           9.48056416, 9.5641, 10.00587875, 10.25994833,
                           10.62373454, 11.50976555, 11.76980833, 12.17955666,
-                          13.32187909, 15.5810025, 9.584264),
-                  group=c(rep("par", 21), "ben", rep("idr", 1)),
+                          13.32187909, 15.5810025, 10.61661, 8.610069),
+                  group=c(rep("par", 21), "ben", rep("idr", 2)),
                   name=c(paste0(1:21, c("st", "nd", "rd", rep("th", 18))),
-                         "Benchmark", "IDR by months"),
-                  label=c(rep("", 22),
-                          "IDR on\n1 variable\n+ different grouping")) %>%
-    arrange(desc(score)) %>%
-    mutate(name = factor(name, ordered=TRUE, levels=name),
-           index=1:length(score))
+                         "Benchmark", "IDR", "seasons+hours*"),
+                  label=c(rep("", 22), "",
+                          "IDR on 1 variable,\nmean temp.\nas forecast")) %>%
+    arrange(desc(score)) %>% mutate(index=1:length(score))
 
   plotResults <- function(data, track, f=0.5) {
     ggplot(data) +
