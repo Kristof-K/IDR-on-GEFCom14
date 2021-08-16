@@ -269,9 +269,10 @@ plotsForSlides <- function() {
   d$Zone1$Train %>% select(TIMESTAMP, TARGET, w1) %>% filter(!is.na(TARGET)) %>%
     mutate(Month = month(TIMESTAMP, label=TRUE),
            t = day(TIMESTAMP), m = month(TIMESTAMP),
-           Positiv = m %in% 5:9 | (m == 4 & t > 20) | (m == 10 & t <= 20)) %>%
-    select(Month, TARGET, w1, Positiv) %>%
-    ggplot(aes(x=w1, y=TARGET, color=Positiv)) +
+           p = m %in% 5:9 | (m == 4 & t > 18) | (m == 10 & t <= 18),
+           Period = ifelse(p, "19.04 - 18.10", "19.10 - 18.04")) %>%
+    select(Month, TARGET, w1, Period) %>%
+    ggplot(aes(x=w1, y=TARGET, color=Period)) +
     geom_point(alpha=0.1) +
     facet_wrap(~Month) +
     xlab("Temperature") +
