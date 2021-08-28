@@ -273,14 +273,13 @@ plotsForSlides <- function() {
            Period = ifelse(p, "19.04 - 18.10", "19.10 - 18.04")) %>%
     select(Month, TARGET, w1, Period) %>%
     ggplot(aes(x=w1, y=TARGET, color=Period)) +
-    geom_point(alpha=0.1) +
+    geom_point(alpha=0.25) +
     facet_wrap(~Month) +
     xlab("Temperature") +
     ylab("Load") +
     theme_bw() +
     ggtitle("Scatterplot: Load ~ Temperature") +
-    ggsave(paste0("LoadTemp.pdf"), path="../Overview",
-             width=10, height=6)
+    ggsave("LoadTemp.pdf", path="../Overview", width=10, height=6)
 
   S <- data.frame(score=c(0.012132, 0.012247, 0.012785, 0.013342, 0.014166,
                           0.014288, 0.014294, 0.0149964, 0.0154773, 0.01549,

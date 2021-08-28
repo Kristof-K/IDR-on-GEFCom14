@@ -574,11 +574,14 @@ plotHolidays <- function(data, track, zone, e=TRUE) {
   holidays <- getWdayWithHolidays(plotData, label=TRUE)
   hGroup <- ifelse(holidays %in% c("Mo", "Di", "Mi", "Do"), "Mo-Do",
                         as.character(holidays))
+  col_vec <- c("#eb0c0c", "#bd0b56", "#980dba", "#1a16f8", "#07ab8b", "#05fa97",
+               "#05fa72", "#05fa46", "#2cbd3d", "#1cfa05", "#9eed77", "#61a30e",
+               "#d1f910", "#99ab09")
 
   mutate(plotData, HOUR = hour(TIMESTAMP),
          Group = factor(hGroup, ordered=TRUE,
                          levels=unique(c(c("Mo-Do", "Fr", "Sa", "So"), hGroup))),
-         FACET = get4Seasons(plotData, label=TRUE),
+         FACET = getMonths(plotData, label=TRUE),
          Holiday = !(Group %in% c("Mo-Do", "Fr", "Sa", "So"))) %>%
     select(-TIMESTAMP) %>% group_by(HOUR, Group, FACET) %>%
     summarise(TARGET = fnc(TARGET), Holiday = Holiday, .groups="drop") %>%
@@ -588,7 +591,7 @@ plotHolidays <- function(data, track, zone, e=TRUE) {
       ylab(paste(target)) +
       ggtitle(paste(fnc_label, target, "curves of", track, "in", zone)) +
       facet_wrap(~FACET, scales="free_y") +
-      scale_color_manual(values = c(rainbow(4), rainbow(10))) +
+      scale_color_manual(values = col_vec) +
       ggsave(paste0(fnc_label, "_holiday_", target, "Curves_", zone, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=8)
 }
