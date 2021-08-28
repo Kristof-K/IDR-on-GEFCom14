@@ -193,7 +193,7 @@ no_gr <- function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
 
 getHours <- function(data, hour=NA, getCategories=FALSE, getGroupVar=FALSE,
                      getName=FALSE, test=FALSE, label=FALSE) {
-  hours <- 0:23
+  hours <- 1:24
   if (getCategories) return(hours)
   if (getGroupVar) return("TIMESTAMP")
   if (getName) return("hours")
@@ -202,9 +202,9 @@ getHours <- function(data, hour=NA, getCategories=FALSE, getGroupVar=FALSE,
     if (label) {
       return(factor(paste0(hour(timestamps), "h"), ordered=TRUE, levels=labs))
     }
-    return(hour(timestamps))
+    return(hour(timestamps) + 1)
   }
-  return(hour(timestamps) == hour)
+  return(hour(timestamps) + 1 == hour)
 }
 
 getMonths <- function(data, month=NA, getCategories=FALSE, getGroupVar=FALSE,
@@ -232,8 +232,7 @@ getSeasons <- function(data, season=NA, getCategories=FALSE, getGroupVar=FALSE,
   if (getCategories) return(seasons)
   if (getGroupVar) return("TIMESTAMP")
   if (getName) return("3seasons")
-  timestamps <- data$TIMESTAMP
-  m <- month(timestamps)
+  m <- month(data$TIMESTAMP)
   seasonized <- 1 * (m %in% c(12, 1, 2)) + 2 * (m %in% c(3:5, 9:11) ) +
     3 * (m %in% 6:8)
   if (is.na(season)) {
@@ -252,8 +251,7 @@ get4Seasons <- function(data, season=NA, getCategories=FALSE, getGroupVar=FALSE,
   if (getCategories) return(seasons)
   if (getGroupVar) return("TIMESTAMP")
   if (getName) return("4seasons")
-  timestamps <- data$TIMESTAMP
-  m <- month(timestamps)
+  m <- month(data$TIMESTAMP)
   seasonized <- 1 * (m %in% c(12, 1, 2)) + 2 * (m %in% 3:5) + 3 * (m %in% 6:8) +
     4 * (m %in% 9:11)
   if (is.na(season)) {
@@ -282,61 +280,33 @@ getWind100Directions <- function(data, direction=NA, getCategories=FALSE,
   return(windDirections == direction)
 }
 
-getSeasonHours <- function(data, group_nr=NA, getCategories=FALSE,
-                           getGroupVar=FALSE, getName=FALSE, test=FALSE) {
-  groups <- 1:(4*24)
+get6DayTime <- function(data, group_nr=NA, getCategories=FALSE,
+                        getGroupVar=FALSE, getName=FALSE, test=FALSE) {
+  groups <- 1:6
   if (getCategories) return(groups)
   if (getGroupVar) return("TIMESTAMP")
-  if (getName) return("hours+4seasons")
+  if (getName) return("6hours")
   timestamps <- data$TIMESTAMP
-  m <- month(timestamps)
-  grouped <- 1 * (m %in% c(12, 1, 2)) + 25 * (m %in% 3:5) + 49 * (m %in% 6:8) +
-    73 * (m %in% 9:11) + hour(timestamps)
+  grouped <- hour(timestamps) %/% 4 + 1
   if (is.na(group_nr)) {
     return(grouped)
   }
   return(grouped == group_nr)
 }
 
-getSeasonLargeHours <- function(data, group_nr=NA, getCategories=FALSE,
-                                getGroupVar=FALSE, getName=FALSE, test=FALSE) {
-  groups <- 1:(4*24)
+get4DayTime <- function(data, group_nr=NA, getCategories=FALSE,
+                        getGroupVar=FALSE, getName=FALSE, test=FALSE) {
+  groups <- 1:4
   if (getCategories) return(groups)
   if (getGroupVar) return("TIMESTAMP")
-  if (getName) return("extended_hours+4seasons")
-  timestamps <- data$TIMESTAMP
-  m <- month(timestamps)
-  grouped <- 1 * (m %in% c(12, 1, 2)) + 25 * (m %in% 3:5) + 49 * (m %in% 6:8) +
-    73 * (m %in% 9:11) + hour(timestamps)
+  if (getName) return("4hours")
+  h <- hour(data$TIMESTAMP)
+  grouped <- 1 * (h %in% 4:9) + 2 * (h %in% 10:15) + 3 * (h %in% 16:21) +
+    4 * (h %in% c(22, 23, 0, 1, 2, 3))
   if (is.na(group_nr)) {
     return(grouped)
   }
-  if (test) {
-    return(grouped == group_nr)
-  } else {
-    prev <- if(group_nr %% 24 == 1) group_nr else group_nr - 1
-    succ <- if(group_nr %% 24 == 0) group_nr else group_nr + 1
-    return(grouped %in% c(prev, group_nr, succ))
-  }
-}
-
-getSeasonDayTime <- function(data, group_nr, getCategories=FALSE,
-                             getGroupVar=FALSE, getName=FALSE, test=FALSE) {
-  groups <- 1:(4*6)
-  if (getCategories) return(groups)
-  if (getGroupVar) return("TIMESTAMP")
-  if (getName) return("6hours+4seasons")
-  timestamps <- data$TIMESTAMP
-  m <- month(timestamps)
-  h <- hour(timestamps)
-  seasonGroup <- 1 * (m %in% c(12, 1, 2)) + 7 * (m %in% c(3, 4, 5)) +
-    13 * (m %in% c(6, 7, 8)) + 19 * (m %in% c(9, 10, 11))
-  hourGroup <- 0 * (h %in% 0:3) + 1 * (h %in% 4:7) + 2 * (h %in% 8:11) +
-    3 * (h %in% 12:15) + 4 * (h %in% 16:19) + 5 * (h %in% 20:23)
-  if (is.na(group_nr)) {
-    return(seasonGroup + hourGroup)
-  }
-  return(group_nr == (seasonGroup + hourGroup))
+  return(grouped == group_nr)
 }
 
 getWday <- function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
@@ -353,6 +323,66 @@ getWday <- function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
     return(wday(timestamps))
   }
   return(wday(timestamps) == group_nr)
+}
+
+get2Wday <- function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
+                    getName=FALSE, test=FALSE) {
+  wdays <- 1:2
+  if (getCategories) return(wdays)
+  if (getGroupVar) return("TIMESTAMP")
+  if (getName) return("2wdays")
+  w <- wday(data$TIMESTAMP)
+  grouped <- 1 * (w %in% 2:6) + 2 * (w %in% c(7,1))
+  if(is.na(group_nr)) {
+    return(grouped)
+  }
+  return(grouped == group_nr)
+}
+
+# construct product of two groupings (assume groups assign numbers 1,...,n and
+# 1,...,m
+productGrouping <- function(gr_one, gr_two) {
+  return(function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
+                  getName=FALSE, test=FALSE) {
+    n <- length(gr_one(NA, getCategories=TRUE))
+    m <- length(gr_two(NA, getCategories=TRUE))
+    groups <- 1:(n*m)
+    v <- unique(c(gr_one(NA, getGroupVar=TRUE), gr_two(NA, getGroupVar=TRUE)))
+    if (getCategories) return(groups)
+    if (getGroupVar) return(paste(v, collapse=","))
+    if (getName) return(paste(gr_one(NA, getName=TRUE),
+                              gr_two(NA, getName=TRUE), sep = "+"))
+    grouped = (gr_one(data) - 1) * m + gr_two(data)
+    if (is.na(group_nr)) return(grouped)
+    return(grouped == group_nr)
+  })
+}
+
+getSeasonHours <- productGrouping(get4Seasons, getHours)
+getSeasonDayTime <- productGrouping(get4Seasons, get6DayTime)
+getMonthWday <- productGrouping(getMonths, getWday)
+getMonthWdTimeHour <- productGrouping(getMonths, get6DayTime)
+getMonthWdTimeHour <- productGrouping(getMonths,
+                                      productGrouping(get4DayTime, get2Wday))
+
+getSeasonLargeHours <- function(data, group_nr=NA, getCategories=FALSE,
+                                getGroupVar=FALSE, getName=FALSE, test=FALSE) {
+  if (getCategories) return(getSeasonHours(NA, getCategories=TRUE))
+  if (getGroupVar) return(getSeasonHours(NA, getGroupVar=TRUE))
+  if (getName) return(paste0("extended_", getSeasonHours(NA, getName=TRUE)))
+  grouped <- getSeasonHours(data)
+  if (is.na(group_nr)) {
+    return(grouped)
+  }
+  if (test) {
+    return(grouped == group_nr)
+  } else {
+    # use group plus lower and upper neighboring group for training
+    # attention: 24 blocks are cyclic
+    prev <- if(group_nr %% 24 == 1) (group_nr %/% 24 + 1)*24 else group_nr - 1
+    succ <- if(group_nr %% 24 == 0) (group_nr %/% 24 - 1)*24+1 else group_nr + 1
+    return(grouped %in% c(prev, group_nr, succ))
+  }
 }
 
 getWdayWithHolidays <- function(data, group_nr=NA, getCategories=FALSE,
@@ -412,56 +442,6 @@ getWdayWithHolidays <- function(data, group_nr=NA, getCategories=FALSE,
     if (label) {
       return(factor(labs[grouped], ordered=TRUE, levels=labs))
     }
-    return(grouped)
-  }
-  return(grouped == group_nr)
-}
-
-getMonthWday <- function(data, group_nr=NA, getCategories=FALSE,
-                         getGroupVar=FALSE, getName=FALSE, test=FALSE) {
-  groups <- 1:(12*7)
-  if (getCategories) return(groups)
-  if (getGroupVar) return("TIMESTAMP")
-  if (getName) return("month+wday")
-  timestamps <- data$TIMESTAMP
-  grouped <- 7 * (month(timestamps) - 1) + wday(timestamps)
-  if (is.na(group_nr)) {
-    return(grouped)
-  }
-  return(grouped == group_nr)
-}
-
-getMonthDayTime <- function(data, group_nr=NA, getCategories=FALSE,
-                            getGroupVar=FALSE, getName=FALSE, test=FALSE) {
-  groups <- 1:(12*6)
-  if (getCategories) return(groups)
-  if (getGroupVar) return("TIMESTAMP")
-  if (getName) return("month+6hours")
-  timestamps <- data$TIMESTAMP
-  h <- hour(timestamps)
-  hourGroup <- 0 * (h %in% 0:3) + 1 * (h %in% 4:7) + 2 * (h %in% 8:11) +
-    3 * (h %in% 12:15) + 4 * (h %in% 16:19) + 5 * (h %in% 20:23)
-  grouped <- 1 + 6 * (month(timestamps) - 1) + hourGroup
-  if (is.na(group_nr)) {
-    return(grouped)
-  }
-  return(grouped == group_nr)
-}
-
-getMonthWdTimeHour <- function(data, group_nr=NA, getCategories=FALSE,
-                               getGroupVar=FALSE, getName=FALSE, test=FALSE) {
-  groups <- 1:(12*4*2)
-  if (getCategories) return(groups)
-  if (getGroupVar) return("TIMESTAMP")
-  if (getName) return("month+2wday+4hour")
-  timestamps <- data$TIMESTAMP
-  w <- wday(timestamps)
-  h <- hour(timestamps)
-  dayGroup <- 1 * (w %in% 2:6) + 2 * (w %in% c(7,1))
-  hourGroup <- 0 * (h %in% 4:9) + 1 * (h %in% 10:15) + 2 * (h %in% 16:21) +
-    3 * (h %in% c(22, 23, 0, 1, 2, 3))
-  grouped <- 8 * (month(timestamps) - 1) + 2 * hourGroup + dayGroup
-  if (is.na(group_nr)) {
     return(grouped)
   }
   return(grouped == group_nr)
