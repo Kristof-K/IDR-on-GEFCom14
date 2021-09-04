@@ -106,14 +106,17 @@ get_pred_df <- function(fit, val) {
 # Additionally via pred predicted conditdional distribution fct.s can also be
 # added.
 # if print_all equals False only predicted cdfs are drawn
-visualizeIDR <- function(x, y, pred=numeric(0), print_all=TRUE) {
+visualizeIDR <- function(x, y, pred=numeric(0), print_all=TRUE, ret=FALSE) {
   # apply IDR
   fit <- idr(y=y, X=data.frame(X=x))
 
   pointcloud <- data.frame(x=x, y=y, p=paste0("p", 1:length(y))) %>%
     ggplot(mapping = aes(x=x, y=y, group=p, color=x)) +
       geom_point(show.legend = FALSE) +
-      labs(title = "point cloud")
+      labs(title = "Point cloud") +
+      xlab("X") +
+      ylab("Y") +
+      theme_bw()
 
   if (print_all) {
     # plot all estimated conditional cdfs (predict on training data x!)
@@ -123,7 +126,9 @@ visualizeIDR <- function(x, y, pred=numeric(0), print_all=TRUE) {
     cdfs_plot <- ggplot(mapping = aes(x=X, y=value, group=cdfs, color=color))
   }
   # add title and remove labels
-  cdfs_plot <- cdfs_plot + labs(title = "CDFs") + ylab("") + xlab("")
+  cdfs_plot <- cdfs_plot + labs(title = "CDF estimates of IDR") +
+    ylab("") + xlab("") +
+    theme_bw()
 
   # if there are predictions, draw them also in the graphs
   s <- length(pred)
@@ -137,6 +142,9 @@ visualizeIDR <- function(x, y, pred=numeric(0), print_all=TRUE) {
     cdfs_plot <- cdfs_plot +
       geom_step(data=get_pred_df(fit, pred), linetype = "dashed",
                 show.legend = FALSE)
+  }
+  if (ret) {
+    return(list(pointCloud=pointcloud, cdfs=cdfs_plot))
   }
   # now draw plots in one grid
   grid.arrange(pointcloud, cdfs_plot, ncol=2)
@@ -158,7 +166,7 @@ visualizeIDR(x=c(1,2), y=c(2,1))
 
 # And now a more complex example (from the simulation study in the IDR paper) --
 
-n <- 600
+n <- 500
 X <- runif(n, 0, 10)     # X ~ U(0, 10)
 Y <- rgamma(n, sqrt(X), scale=pmin(pmax(1, X), 6))
 
@@ -169,10 +177,15 @@ plot_stochDom(X=grid , F=pgamma(grid, sqrt(2), scale=2),
 
 # look at data
 ggplot(data = data.frame(X=X, Y=Y)) +
-  geom_point(mapping = aes(x=X, y=Y))
+  geom_point(mapping = aes(x=X, y=Y)) +
+  ggtitle("Bivariate point cloud of (X,Y)") +
+  theme_bw()
 
 # apply IDR
 visualizeIDR(x=X, y=Y)
+plotList <- visualizeIDR(x=X, y=Y, ret=TRUE)
+P1 <- plotList$pointCloud
+P2 <- plotList$cdfs
 # make some predictions
 visualizeIDR(x=X, y=Y, pred=c(0.5, 3, 5, 7, 9.5), print_all=FALSE)
 
@@ -185,6 +198,8 @@ fit <- idr(y=Y, X=data.frame(X=X), groups, orders)
 predict_val <- c(0.5, 3, 5, 7, 9.5)
 idr_cdfs <- get_pred_df(fit, val=predict_val)
 
+col_vec <- c("#808000", "#228B22", "#32CD32", "#ADFF2F", "#00FF7F")
+
 # determine true CDFs
 true_cdfs <- data.frame()
 grid <- seq(min(Y)-0.15*(max(Y)-min(Y)), max(Y)+0.15*(max(Y)-min(Y)), 0.1)
@@ -195,18 +210,26 @@ for(t in predict_val) {
   true_cdfs <- rbind(true_cdfs, gamma_dist)
 }
 
-ggplot(mapping = aes(x=X, y=value, group=cdfs, color=color)) +
-  geom_step(data=idr_cdfs, linetype = "dashed", show.legend = FALSE) +
-  geom_line(data=true_cdfs) +
+P3 <- ggplot(mapping = aes(x=X, y=value, group=cdfs, color=factor(color))) +
+  geom_step(data=idr_cdfs, show.legend = FALSE) +
+  geom_line(data=true_cdfs, linetype = "dashed", show.legend=FALSE) +
   ggtitle(label = paste0("true cdf (solid,continuous) vs. ",
-                         "predicted cdf (dashed,stepfunction)"))
+                         "predicted cdf (dashed,stepfunction)")) +
+  ylab("Probability") +
+  xlab("Threshold") +
+  scale_color_manual(values = col_vec) +
+  theme_bw()
 
+P3
 
 
 # Extract mean and some quantiles ----------------------------------------------
 
 predictions <- predict(fit, data=data.frame(X=X))
-q <- c(0.1, 0.3, 0.5, 0.7, 0.9)
+q <- c(0.25, 0.5, 0.75)
+
+col_vec2 <- c("#FF0000", "#4B0082", "#FF00FF", "#DB7093")
+#col_vec2 <- c("#FF0000", "#4B0082", "#9932CC", "#FF00FF", "#DB7093")
 
 quantiles <- qpred(predictions, quantiles = q)
 
@@ -221,12 +244,16 @@ expectations <- sapply(predictions, calc_expectation)
 features <- data.frame(cbind(quantiles, expectations, X))
 colnames(features) <- c(paste0("q_", q), "E", "X")
 
-pivot_longer(features, cols = -X, names_to = "feature") %>%
-  ggplot(mapping = aes(x=X, y=value, color=feature)) +
-    geom_step(size=2) +
+P4 <- pivot_longer(features, cols = -X, names_to = "Functional") %>%
+  ggplot(mapping = aes(x=X, y=value, color=Functional)) +
+    geom_step(size=1.3, show.legend = FALSE) +
     geom_point(data = data.frame(X=X, value=Y), color="black") +
-    ggtitle(label = "point cloud and estimated expectation and quantiles")
-
+    ggtitle(label = "Point cloud and conditional functionals with IDR") +
+    xlab("X") +
+    ylab("Y") +
+    scale_color_manual(values = col_vec2) +
+    theme_bw()
+P4
 
 
 # Extract all quantiles --------------------------------------------------------
@@ -260,7 +287,15 @@ data.frame(quantiles) %>% select(starts_with("u")) %>%
 cat("Fertig")
 
 
-
+# plot for bachelor thesis =====================================================
+P1 <- P1 + 
+  geom_vline(xintercept=predict_val, color=col_vec, size=1.3, alpha=0.5) +
+  ggtitle("(a) Point cloud of training data")
+P2 <- P2 + ylab("Probability") + xlab("Threshold") +
+  ggtitle("(b) CDF estimates of IDR")
+P3 <- P3 + ggtitle("(c) Predicted CDFs vs. true CDFs")
+P4 <- P4 + ggtitle("(d) Functional estimates and forecasts of IDR ")
+grid.arrange(P1, P2, P3, P4, nrow=4)
 
 # old quantile plot ============================================================
 library(stringr)      # to manipulate strings
