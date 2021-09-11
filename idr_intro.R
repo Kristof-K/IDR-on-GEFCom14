@@ -294,7 +294,7 @@ P1 <- P1 +
 P2 <- P2 + ylab("Probability") + xlab("Threshold") +
   ggtitle("(b) CDF estimates of IDR")
 P3 <- P3 + ggtitle("(c) Predicted CDFs vs. true CDFs")
-P4 <- P4 + ggtitle("(d) Functional estimates and forecasts of IDR ")
+P4 <- P4 + ggtitle("(d) Mean, median and quartil estimates of IDR ")
 grid.arrange(P1, P2, P3, P4, nrow=4)
 
 # old quantile plot ============================================================

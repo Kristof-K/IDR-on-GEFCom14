@@ -239,7 +239,7 @@ examinePrice <- function() {
 plotsForSlides <- function() {
   data_all <- deaccumulateSol(loadSolar(15))
 
-  for(zone in "ZONE3") {
+  for(zone in "Zone3") {
     data <- rbind(data_all[[zone]]$Train, data_all[[zone]]$Test)
     plotData <- transmute(data, Power=TARGET, Radiation=VAR169,
                           Hour=as.factor(hour(TIMESTAMP)))
