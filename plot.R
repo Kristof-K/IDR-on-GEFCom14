@@ -6,8 +6,8 @@ library(lubridate)  # for working with dates
 
 source("util.R")
 
-solarVars <- c("VAR78" = "liquid water",
-               "VAR79" = "Ice water",
+solarVars <- c("VAR78" = "total column liquid water",
+               "VAR79" = "total columbn ice water",
                "VAR134" = "surface pressure",
                "VAR157" = "relative humidity",
                "VAR164" = "total cloud cover",
@@ -594,4 +594,36 @@ plotHolidays <- function(data, track, zone, e=TRUE) {
       scale_color_manual(values = col_vec) +
       ggsave(paste0(fnc_label, "_holiday_", target, "Curves_", zone, ".png"),
              path=paste0("plots/", track, "/"), width=18, height=8)
+}
+
+
+# plot empirical conditional CDFs whereby covariate space is binned
+# - data : data.frame with all variables as columns
+# - track : current track for naming the plot
+# - zone : current zone for naming the plot
+plotCondEmpCDF <- function(data, track, zone) {
+  n <- 10
+  vars <- getVars(track)
+  target <- getTarget(track)
+
+  processCol <- function(col) {
+    select(data, TARGET, all_of(col)) %>% rename(X=col) %>%
+      mutate(X_bin = cut_interval(X, n=n, labels=FALSE)) %>%
+      group_by(X_bin) %>%
+      summarise(Y_prob = cumsum(unname(table(TARGET))) / n(),
+                Y = as.numeric(names(table(TARGET))), .groups = "drop") %>%
+      mutate(Col = col)
+  }
+  # calc empirical conditional CDFs for all variables
+  do.call(rbind, lapply(names(vars), processCol)) %>%
+    mutate(Var = vars[Col]) %>%
+    ggplot(aes(x=Y, y=Y_prob, group=factor(X_bin), color=X_bin)) +
+    geom_step() +
+    facet_wrap(~Var) +
+    ggtitle(paste("Empirical conditional CDFs of", target,
+                  "\nCovariates are binned with n =", n)) +
+    ylab("Probability") +
+    xlab("Threshold") +
+    ggsave(paste0("EmpConCDF_", zone, ".png"),
+           path=paste0("plots/", track, "/"), width=18, height=8)
 }
