@@ -3,8 +3,8 @@ library(dplyr)
 library(tidyr)      # for pivot_wider
 
 QUANTILES <- seq(0.01, 0.99, 0.01)
-TASKS <- 1:15
-FIRST_EVAL_TASK <- 4        # in GEFCom14 the first 3 tasks weren't evaluated
+TASKS <- 4:15
+TUNE_TASKS <- 1:3
 
 PRINT_WIDTH <- 70
 NONE <- "None"

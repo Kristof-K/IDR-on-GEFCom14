@@ -151,16 +151,19 @@ INV_WIN <- function(data, col) {
   return((2 * one - 1) * data[[col]])
 }
 
-ada_list <- list(ONE, INV, INV_WIN)
-
 solarV <- c("VAR169", "VAR178", "VAR167", "VAR157", "VAR228", "VAR79", "VAR78",
             "VAR164", "VAR175", "VAR134", "VAR165", "VAR166")
+solarA <- list(ONE, ONE, ONE, INV, INV, INV, INV, INV, ONE, ONE, INV, INV)
 
 windV <- c("S10", "S100", "U10", "V10", "U100", "V100", "A10", "A100")
+windA <- list(ONE, ONE, ONE, ONE, ONE, ONE, ONE, ONE)
 
 loadV <- c("w1", "w2", "w10", "w25", "w11", "w13", "w15", "w22", "w23", "w24")
+loadA <- list(INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN,
+              INV_WIN, INV_WIN, INV_WIN)
 
 priceV <- c("Forecasted.Total.Load", "Forecasted.Zonal.Load")
+priceA <- list(ONE, ONE)
 
 # ORDERs
 COMP <- "comp"
@@ -180,19 +183,22 @@ getVariant <- function(id) {
 
 getVariableSelection <- function(id, track) {
   # array of digits
-  indices <- as.numeric(strsplit(as.character(id[1]), split ="")[[1]])
+  indices <- as.numeric(strsplit(as.character(format(id[1], scientific=FALSE)),
+                                 split ="")[[1]])
   # which indices are non_zero
   nonzero_ind <- which(rev(indices != 0))
-  ada_fcns <- ada_list[rev(indices[indices != 0])]
   if (track == "Solar") {
     vars <- solarV[nonzero_ind]
+    ada_fcns <- solarA[nonzero_ind]
   } else if (track == "Wind") {
     vars <- windV[nonzero_ind]
+    ada_fcns <- windA[nonzero_ind]
   } else if (track == "Load") {
-    return(switch(id[1], L1, L2, L10, L25, L11, L13, L15, L22, L23, L24, M3,
-                  MED3, M6, MED6, B2a, B2b, B2c, BMM2))
+    vars <- loadV[nonzero_ind]
+    ada_fcns <- loadA[nonzero_ind]
   } else if (track == "Price") {
     vars <- priceV[nonzero_ind]
+    ada_fcns <- priceA[nonzero_ind]
   }
   return(list(VAR = vars, ADA = ada_fcns))
 }
