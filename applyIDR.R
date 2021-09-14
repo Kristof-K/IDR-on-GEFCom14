@@ -146,60 +146,21 @@ ONE <- function(data, col) return(data[[col]])
 INV <- function(data, col) return((-1) * data[[col]])
 INV_WIN <- function(data, col) {
   t <- data$TIMESTAMP
-  one <- month(t) %in% 5:9 | (month(t) == 4 & day(t) > 15) |
-    (month(t) == 10 & day(t) <= 15)
+  one <- month(t) %in% 5:9 | (month(t) == 4 & day(t) > 20) |
+    (month(t) == 10 & day(t) <= 20)
   return((2 * one - 1) * data[[col]])
 }
 
-SUN_1 <- list(VAR = "VAR169", ADA = list(ONE))
-SUN_2 <- list(VAR = "VAR178", ADA = list(ONE))
-SUN_BOTH <- list(VAR = c("VAR169", "VAR178"), ADA = list(ONE, ONE))
-SUN_T <- list(VAR = c("VAR169", "VAR178", "VAR167"), ADA = list(ONE, ONE, ONE))
-SUN_T_H <- list(VAR = c("VAR169", "VAR178", "VAR167", "VAR157"),
-                ADA = list(ONE, ONE, ONE, -1))
-SUN_H <- list(VAR = c("VAR169", "VAR178", "VAR157"), ADA = list(ONE, ONE, INV))
-SUN_1_H <- list(VAR = c("VAR169", "VAR157"), ADA = list(ONE, -1))
-SUN_1_W <- list(VAR = c("VAR169", "VAR157", "VAR228"), ADA = list(ONE, INV, INV))
-S1_W_I <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79"),
-               ADA = list(ONE, INV, INV, INV))
-S1_W_L <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR78"),
-               ADA = list(ONE, INV, INV, INV))
-S1_W_I_C <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR164"),
-               ADA = list(ONE, INV, INV, INV, INV))
-S1_W_I_L <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR78"),
-               ADA = list(ONE, INV, INV, INV, INV))
-S1_W_I_T <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR175"),
-               ADA = list(ONE, INV, INV, INV, ONE))
-SUN_W_I <- list(VAR = c("VAR169", "VAR157", "VAR228", "VAR79", "VAR178"),
-               ADA = list(ONE, INV, INV, INV, ONE))
+ada_list <- list(ONE, INV, INV_WIN)
 
-W10 <- list(VAR = "S10", ADA = list(ONE))
-W100 <- list(VAR = "S100", ADA = list(ONE))
-W110 <- list(VAR = c("S10", "S100"), ADA = list(ONE, ONE))
+solarV <- c("VAR169", "VAR178", "VAR167", "VAR157", "VAR228", "VAR79", "VAR78",
+            "VAR164", "VAR175", "VAR134", "VAR165", "VAR166")
 
-L1 <- list(VAR = "w1", ADA = list(INV_WIN))
-L2 <- list(VAR = "w2", ADA = list(INV_WIN))
-L10 <- list(VAR = "w10", ADA = list(INV_WIN))
-L25 <- list(VAR = "w25", ADA = list(INV_WIN))
-L11 <- list(VAR = "w11", ADA = list(INV_WIN))
-L13 <- list(VAR = "w13", ADA = list(INV_WIN))
-L15 <- list(VAR = "w15", ADA = list(INV_WIN))
-L22 <- list(VAR = "w22", ADA = list(INV_WIN))
-L23 <- list(VAR = "w23", ADA = list(INV_WIN))
-L24 <- list(VAR = "w24", ADA = list(INV_WIN))
-M3 <- list(VAR = "M3", ADA = list(INV_WIN))
-MED3 <- list(VAR = "Med3", ADA = list(INV_WIN))
-M6 <- list(VAR = "M6", ADA = list(INV_WIN))
-MED6 <- list(VAR = "Med6", ADA = list(INV_WIN))
-B2a <- list(VAR = c("w1", "w11"), ADA = list(INV_WIN, INV_WIN))
-B2b <- list(VAR = c("w1", "w15"), ADA = list(INV_WIN, INV_WIN))
-B2c <- list(VAR = c("w1", "w23"), ADA = list(INV_WIN, INV_WIN))
-BMM2 <- list(VAR = c("M6", "Med6"), ADA = list(INV_WIN, INV_WIN))
+windV <- c("S10", "S100", "U10", "V10", "U100", "V100", "A10", "A100")
 
-FTL <- list(VAR = "Forecasted.Total.Load", ADA = list(ONE))
-FZL <- list(VAR = "Forecasted.Zonal.Load", ADA = list(ONE))
-FTZL <- list(VAR = c("Forecasted.Total.Load", "Forecasted.Zonal.Load"),
-             ADA = list(ONE, ONE))
+loadV <- c("w1", "w2", "w10", "w25", "w11", "w13", "w15", "w22", "w23", "w24")
+
+priceV <- c("Forecasted.Total.Load", "Forecasted.Zonal.Load")
 
 # ORDERs
 COMP <- "comp"
@@ -218,18 +179,22 @@ getVariant <- function(id) {
 }
 
 getVariableSelection <- function(id, track) {
+  # array of digits
+  indices <- as.numeric(strsplit(as.character(id[1]), split ="")[[1]])
+  # which indices are non_zero
+  nonzero_ind <- which(rev(indices != 0))
+  ada_fcns <- ada_list[rev(indices[indices != 0])]
   if (track == "Solar") {
-    return(switch(id[1], SUN_1, SUN_2, SUN_BOTH, SUN_T, SUN_T_H, SUN_H,
-                  SUN_1_H, SUN_1_W, S1_W_I, S1_W_L, S1_W_I_C, S1_W_I_L, S1_W_I_T,
-                  SUN_W_I))
+    vars <- solarV[nonzero_ind]
   } else if (track == "Wind") {
-    return(switch(id[1], W10, W100, W110))
+    vars <- windV[nonzero_ind]
   } else if (track == "Load") {
     return(switch(id[1], L1, L2, L10, L25, L11, L13, L15, L22, L23, L24, M3,
                   MED3, M6, MED6, B2a, B2b, B2c, BMM2))
   } else if (track == "Price") {
-    return(switch(id[1], FTL, FZL, FTZL))
+    vars <- priceV[nonzero_ind]
   }
+  return(list(VAR = vars, ADA = ada_fcns))
 }
 
 getOrder <- function(id) {
