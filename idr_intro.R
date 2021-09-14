@@ -210,6 +210,7 @@ for(t in predict_val) {
   true_cdfs <- rbind(true_cdfs, gamma_dist)
 }
 
+
 P3 <- ggplot(mapping = aes(x=X, y=value, group=cdfs, color=factor(color))) +
   geom_step(data=idr_cdfs, show.legend = FALSE) +
   geom_line(data=true_cdfs, linetype = "dashed", show.legend=FALSE) +
@@ -242,17 +243,19 @@ calc_expectation <- function(step_cdf) {
 expectations <- sapply(predictions, calc_expectation)
 
 features <- data.frame(cbind(quantiles, expectations, X))
-colnames(features) <- c(paste0("q_", q), "E", "X")
+colnames(features) <- c("Lower Quartil", "Median", "Upper Quartil",
+                        "Expectation", "X")
 
 P4 <- pivot_longer(features, cols = -X, names_to = "Functional") %>%
   ggplot(mapping = aes(x=X, y=value, color=Functional)) +
-    geom_step(size=1.3, show.legend = FALSE) +
+    geom_step(size=1.3) +
     geom_point(data = data.frame(X=X, value=Y), color="black") +
     ggtitle(label = "Point cloud and conditional functionals with IDR") +
     xlab("X") +
     ylab("Y") +
     scale_color_manual(values = col_vec2) +
-    theme_bw()
+    theme_bw() +
+    theme(legend.position = "bottom")
 P4
 
 
@@ -290,11 +293,15 @@ cat("Fertig")
 # plot for bachelor thesis =====================================================
 P1 <- P1 + 
   geom_vline(xintercept=predict_val, color=col_vec, size=1.3, alpha=0.5) +
-  ggtitle("(a) Point cloud of training data")
+  ggtitle("(a) Point cloud of training data") +
+  theme(text = element_text(size = 16), axis.text = element_text(size = 13))
 P2 <- P2 + ylab("Probability") + xlab("Threshold") +
-  ggtitle("(b) CDF estimates of IDR")
-P3 <- P3 + ggtitle("(c) Predicted CDFs vs. true CDFs")
-P4 <- P4 + ggtitle("(d) Mean, median and quartil estimates of IDR ")
+  ggtitle("(b) CDF estimates of IDR") +
+  theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+P3 <- P3 + ggtitle("(c) Predicted CDFs vs. true CDFs") +
+  theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+P4 <- P4 + ggtitle("(d) Functional estimates of IDR ") +
+  theme(text = element_text(size = 16), axis.text = element_text(size = 13))
 grid.arrange(P1, P2, P3, P4, nrow=4)
 
 # old quantile plot ============================================================

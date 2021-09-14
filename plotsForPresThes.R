@@ -134,22 +134,83 @@ plotsForSlides <- function() {
 }
 
   plotsForThesis <- function() {
+    # prevent labels from overlapping (just leave labels out)
+    # scale_x_continuous(guide = guide_axis(check.overlap = TRUE))+
+    # use scientific labels
+    # scale_x_continuous(labels = function(x) format(x, scientific=TRUE)
     data <- deaccumulateSol(loadSolar(3))
+    var <- "VAR169"
+    groupName <- "Hour"
+    groupfct <- function(d) getHours(d) - 1
+    nrow <- 4
+    target <- "Solar power production"
 
     for (zone in data$Zones) {
+      # scatter all variables
       data[[zone]]$Train %>% select(-ZONEID) %>%
+        mutate(across(.cols = c(-TARGET, -TIMESTAMP),
+                      .fns = function(x) (x-min(x))/(max(x)-min(x)))) %>%
         pivot_longer(cols = c(-TARGET, -TIMESTAMP),
                      names_to = "ECMWF") %>%
-        mutate(Hour = factor(hour(TIMESTAMP)), ECMWF = solarVars[ECMWF]) %>%
-        ggplot(aes(x=value, y=TARGET, color=Hour)) +
-        facet_wrap(~ECMWF, scales = "free_x") +
+        mutate(Group = factor(groupfct(data[[zone]]$Train)),
+               ECMWF = solarVars[ECMWF]) %>%
+        ggplot(aes(x=value, y=TARGET, color=Group)) +
+        facet_wrap(~ECMWF) +
         geom_point(alpha = 0.5) +
-        ylab("Solar power production") +
+        ylab(target) +
         xlab("ECMF weather forecast") +
         ggtitle(paste("Solar power production vs. ECMWF weather forecasts",
-                      "colored by hour")) +
+                      "colored by hour (normalized)")) +
         theme_bw()  +
+        theme(legend.position = "bottom", text = element_text(size = 16),
+              axis.text = element_text(size = 13)) +
+        scale_x_continuous(breaks = 0:4 * 0.25, 
+                           labels = c("0", "0.25", "0.5", "0.75", "1")) +
+        guides(color = guide_legend(nrow = 2, byrow = TRUE)) +
+        scale_color_discrete(name = groupName) +
         ggsave(paste0("SolarScatterAll_", zone, ".png"),
                path="plots/ForThesis/", width=18, height=8)
+      # plot single variable
+      data[[zone]]$Train %>% select(all_of(var), TARGET, TIMESTAMP) %>%
+        rename(X=var) %>%
+        mutate(across(.cols = c(-TARGET, -TIMESTAMP),
+                      .fns = function(x) (x-min(x))/(max(x)-min(x)))) %>%
+        mutate(Group = factor(groupfct(data[[zone]]$Train))) %>%
+        ggplot(aes(x=X, y=TARGET, color=Group)) +
+        facet_wrap(~Group, nrow=nrow) +
+        geom_point(alpha = 0.5, show.legend = FALSE) +
+        ylab(target) +
+        xlab("Surface solar radiation downwards") +
+        ggtitle(paste("Solar power production vs. surface solar rad down",
+                      "(normalized) facetted by hour")) +
+        theme_bw()  +
+        theme(text = element_text(size = 16),
+              axis.text = element_text(size = 13)) +
+        scale_x_continuous(breaks = 0:4 * 0.25, 
+                           labels = c("0", "0.25", "0.5", "0.75", "1")) +
+        ggsave(paste0("SolarScatterVAR169_", zone, ".png"),
+               path="plots/ForThesis/", width=18, height=8)
     }
+    colors <- c("#FC717F", "#ED8141", "#CF9400", "#A3A500", "#72B000",
+                "#00BC59", "#00C19C", "#00B4EF", "#7997FF", "#DC71FA",
+                "#F763E0", "#FF65AE")
+    data[[zone]]$Train %>% 
+      transmute(TARGET = TARGET, 
+                Hour = factor(hour(TIMESTAMP), ordered = TRUE,
+                              levels = c(15:23, 0:14)),
+                Month = getMonths(data[[zone]]$Train, label=TRUE)) %>% 
+      group_by(Hour, Month)  %>% 
+      summarise(TARGET = mean(TARGET), .groups="drop") %>%
+      ggplot(aes(x=Hour, y=TARGET, color=Month, group=Month)) +
+      geom_line(size = 1.2) +
+      scale_color_manual(values = colors) +
+      xlab("Hour") +
+      ylab(target) +
+      ggtitle("Mean solar power production curves by hour and month") +
+      theme_bw()  +
+      theme(legend.position = "bottom", text = element_text(size = 16),
+            axis.text = element_text(size = 13)) +
+      guides(color = guide_legend(nrow = 1, byrow = TRUE)) +
+      ggsave(paste0("SolarPowerMean_", zone, ".png"),
+             path="plots/ForThesis/", width=18, height=8)
   }
