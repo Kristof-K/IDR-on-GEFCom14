@@ -33,8 +33,9 @@ source("preprocess.R")
 #   If init=TRUE, then print text and return name of this preprocess method
 # - tune : true to consider only the initial tuning phase in the competition,
 #   false to use the preceding competition phase
+# - ret : true return list of all single scores, false then not
 evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp,
-                       tune=FALSE) {
+                       tune=FALSE, ret=FALSE) {
   # in order to run the foeach loop in parallel
   cl <- makeCluster(3)
   registerDoParallel(cl)
@@ -62,6 +63,7 @@ evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp,
   end_ts <- now()
   duration <- as.numeric(difftime(end_ts, start_ts, unit="mins"))
   outputAndLog(scoreList, duration, info, tune)
+  if (ret) return(scoreList)
 }
 
 goParallel <- function(predictionfct, scoringfct, data, id, goByZone) {
@@ -172,9 +174,9 @@ gridSearch <- function() {
     return(out)
   }
 
-  for(k in 1:max_c) {
+  for(k in 3) {
     # get all 0-1-numbers with k ones
-    for (first in 1:(num - k + 1)) {
+    for (first in 3:(num - k + 1)) {
       for(n in getNextNum(first, num, k)) {
         print(evaluation(unleashSolIDR, pinBallLoss, c(n, 1, 2),
                          preprocessfct=deaccumulateSol, tune=TRUE))
@@ -182,4 +184,17 @@ gridSearch <- function() {
     }
   }
 }
-gridSearch()
+#gridSearch()
+
+printScoresByZone <- function() {
+  for(g in c(1,10)) {
+    scoreList <- evaluation(unleashWinIDR, pinBallLoss, c(g, 1, 10),
+                            preprocessfct=getWindAttributes, tune=TRUE)
+    scoreByZone <- do.call(rbind, scoreList) %>% group_by(ZONEID) %>%
+      summarise(MeanScore = mean(SCORE, na.rm=TRUE), .groups = "drop")
+    results <- data.frame(t(scoreByZone$MeanScore))
+    colnames(results) <- scoreByZone$ZONEID
+    print(g)
+    print(results)
+  }
+}

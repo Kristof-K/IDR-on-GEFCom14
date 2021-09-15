@@ -133,43 +133,42 @@ plotsForSlides <- function() {
   plotResults(L, "load")
 }
 
-  plotsForThesis <- function() {
-    # prevent labels from overlapping (just leave labels out)
-    # scale_x_continuous(guide = guide_axis(check.overlap = TRUE))+
-    # use scientific labels
-    # scale_x_continuous(labels = function(x) format(x, scientific=TRUE)
-    data <- deaccumulateSol(loadSolar(3))
-    var <- "VAR169"
-    groupName <- "Hour"
-    groupfct <- function(d) getHours(d) - 1
-    nrow <- 4
-    target <- "Solar power production"
+plotsForThesisSolar <- function() {
+  # prevent labels from overlapping (just leave labels out)
+  # scale_x_continuous(guide = guide_axis(check.overlap = TRUE))+
+  # use scientific labels
+  # scale_x_continuous(labels = function(x) format(x, scientific=TRUE)
+  data <- deaccumulateSol(loadSolar(3))
+  var <- "VAR169"
+  groupName <- "Hour"
+  groupfct <- function(d) getHours(d) - 1
+  nrow <- 4
+  target <- "Solar power production"
 
-    for (zone in data$Zones) {
-      # scatter all variables
-      data[[zone]]$Train %>% select(-ZONEID) %>%
-        mutate(across(.cols = c(-TARGET, -TIMESTAMP),
-                      .fns = function(x) (x-min(x))/(max(x)-min(x)))) %>%
-        pivot_longer(cols = c(-TARGET, -TIMESTAMP),
-                     names_to = "ECMWF") %>%
-        mutate(Group = factor(groupfct(data[[zone]]$Train)),
+  for (zone in data$Zones) {
+    # scatter all variables
+    data[[zone]]$Train %>% select(-ZONEID) %>%
+      mutate(across(.cols = c(-TARGET, -TIMESTAMP),
+                    .fns = function(x) (x-min(x))/(max(x)-min(x)))) %>%
+      pivot_longer(cols = c(-TARGET, -TIMESTAMP), names_to = "ECMWF") %>%
+      mutate(Group = factor(groupfct(data[[zone]]$Train)),
                ECMWF = solarVars[ECMWF]) %>%
-        ggplot(aes(x=value, y=TARGET, color=Group)) +
-        facet_wrap(~ECMWF) +
-        geom_point(alpha = 0.5) +
-        ylab(target) +
-        xlab("ECMF weather forecast") +
-        ggtitle(paste("Solar power production vs. ECMWF weather forecasts",
-                      "colored by hour (normalized)")) +
-        theme_bw()  +
-        theme(legend.position = "bottom", text = element_text(size = 16),
-              axis.text = element_text(size = 13)) +
-        scale_x_continuous(breaks = 0:4 * 0.25, 
-                           labels = c("0", "0.25", "0.5", "0.75", "1")) +
-        guides(color = guide_legend(nrow = 2, byrow = TRUE)) +
-        scale_color_discrete(name = groupName) +
-        ggsave(paste0("SolarScatterAll_", zone, ".png"),
-               path="plots/ForThesis/", width=18, height=8)
+      ggplot(aes(x=value, y=TARGET, color=Group)) +
+      facet_wrap(~ECMWF) +
+      geom_point(alpha = 0.5) +
+      ylab(target) +
+      xlab("ECMF weather forecast") +
+      ggtitle(paste("Solar power production vs. ECMWF weather forecasts",
+                    "colored by hour")) +
+      theme_bw()  +
+      theme(legend.position = "bottom", text = element_text(size = 16),
+            axis.text = element_text(size = 13)) +
+      scale_x_continuous(breaks = 0:4 * 0.25,
+                         labels = c("0", "0.25", "0.5", "0.75", "1")) +
+      guides(color = guide_legend(nrow = 2, byrow = TRUE)) +
+      scale_color_discrete(name = groupName) +
+      ggsave(paste0("SolarScatterAll_", zone, ".png"),
+             path="plots/ForThesis/", width=18, height=8)
       # plot single variable
       data[[zone]]$Train %>% select(all_of(var), TARGET, TIMESTAMP) %>%
         rename(X=var) %>%
@@ -182,7 +181,7 @@ plotsForSlides <- function() {
         ylab(target) +
         xlab("Surface solar radiation downwards") +
         ggtitle(paste("Solar power production vs. surface solar rad down",
-                      "(normalized) facetted by hour")) +
+                      "facetted by hour")) +
         theme_bw()  +
         theme(text = element_text(size = 16),
               axis.text = element_text(size = 13)) +
@@ -213,4 +212,111 @@ plotsForSlides <- function() {
       guides(color = guide_legend(nrow = 1, byrow = TRUE)) +
       ggsave(paste0("SolarPowerMean_", zone, ".png"),
              path="plots/ForThesis/", width=18, height=8)
+}
+
+plotsForThesisWind <- function() {
+  data <-getWindAttributes(loadWind(3))
+  groupName <- "Wind angle"
+  target <- "Wind power production"
+
+  for (zone in data$Zones) {
+    # scatter all variables
+    data[[zone]]$Train %>% select(-ZONEID, -TIMESTAMP) %>%
+      mutate(A100_bin = cut_interval(A100, n = 8)) %>%
+      mutate(across(.cols = c(-TARGET, -A100_bin),
+                    .fns = function(x) (x-min(x))/(max(x)-min(x)))) %>%
+      pivot_longer(cols = c(-TARGET, -A100_bin), names_to = "ECMWF") %>%
+      mutate(ECMWF = windVars[ECMWF]) %>%
+      ggplot(aes(x=value, y=TARGET, color=A100_bin)) +
+      facet_wrap(~ECMWF) +
+      geom_point(alpha = 0.5) +
+      ylab(target) +
+      xlab("ECMF weather forecast") +
+      ggtitle(paste("Wind power production vs. ECMWF weather forecasts",
+                    "colored by discretized wind angle")) +
+      theme_bw()  +
+      theme(legend.position = "bottom", text = element_text(size = 16),
+            axis.text = element_text(size = 13)) +
+      scale_x_continuous(breaks = 0:4 * 0.25,
+                         labels = c("0", "0.25", "0.5", "0.75", "1")) +
+      guides(color = guide_legend(nrow = 1, byrow = TRUE)) +
+      scale_color_discrete(name = groupName) +
+      ggsave(paste0("WindScatterAll_", zone, ".png"),
+             path="plots/ForThesis/", width=18, height=8)
   }
+
+  # look at linear combinations of height of wind speed
+  corr <- data.frame()
+  for (zone in data$Zones) {
+    d <- data[[zone]]$Train
+    for (alpha in seq(0, 1.5, 0.05)) {
+      height <- 10 * (1 - alpha) + 100 * alpha
+      c <- cor(d$TARGET, d$S10 * (1 - alpha) + d$S100 * alpha,
+               method = "spearman")
+      corr <- rbind(corr, data.frame("Zone"=zone, "Value"=c, "Height"=height))
+    }
+  }
+  top3 <- corr %>% group_by(Zone) %>%
+    summarise(Height, Value = 32 - rank(Value), .groups = "drop") %>%
+    filter(Value <= 3)
+  ggplot(mapping = aes(x = Zone, y = Height)) +
+    geom_tile(data = corr, aes(fill = Value)) +
+    geom_text(data = top3, aes(label = Value))
+}
+
+plotsForThesisPrice <- function() {
+  data <- loadPrice(3)$Zone1$Train %>% rename(Price = TARGET)
+
+  outlier <- mutate(data, Outlier = (Price > quantile(Price, probs=0.99))) %>%
+    select(-ZONEID, -TIMESTAMP)
+  # plot histograms
+  outlier %>% pivot_longer(cols = -Outlier, names_to = "Var") %>%
+    mutate(Var = ifelse(Var == "Price", "Price", priceVars[Var])) %>%
+    ggplot(aes(x=value, fill=Outlier)) +
+    facet_wrap(~Var, scales="free") +
+    geom_histogram(bins=40) +
+    theme_bw()
+  # plot scatter plots
+  outlier %>% pivot_longer(cols = c(-Outlier, -Price), names_to = "Var") %>%
+    mutate(Var = ifelse(Var == "Price", "Price", priceVars[Var])) %>%
+    ggplot(aes(x=value, y=Price, color=Outlier)) +
+    facet_wrap(~Var, scales="free") +
+    geom_point() +
+    theme_bw()
+}
+
+plotsForThesisLoad <- function() {
+  d <- loadLoad(3)$Zone1$Train %>% filter(!is.na(TARGET))
+  d %>% select(TIMESTAMP, TARGET, w1) %>%
+    mutate(Month = getMonths(d, label=TRUE),
+           t = day(TIMESTAMP), m = month(TIMESTAMP),
+           p = m %in% 5:9 | (m == 4 & t > 18) | (m == 10 & t <= 18),
+           Period = ifelse(p, "19.04 - 18.10", "19.10 - 18.04")) %>%
+    select(Month, TARGET, w1, Period) %>%
+    ggplot(aes(x=w1, y=TARGET, color=Period)) +
+    geom_point(alpha=0.5) +
+    facet_wrap(~Month) +
+    xlab("Temperature") +
+    ylab("Load") +
+    theme_bw() +
+    theme(legend.position = "bottom", text = element_text(size = 16),
+            axis.text = element_text(size = 13)) +
+    guides(color = guide_legend(nrow = 1, byrow = TRUE)) +
+    ggtitle("Load vs. temperature (w1)") +
+    ggsave("LoadScatterw1.png", path="plots/ForThesis/", width=18,
+           height=8)
+
+  corr <- d %>% mutate(Month = getMonths(d, label=TRUE)) %>% group_by(Month) %>%
+    summarise(across(.cols = starts_with("w"),
+                     .fns = function(x) abs(cor(TARGET, x,
+                                                method="pearson"))),
+    .groups = "drop") %>%
+    pivot_longer(cols = -Month, names_to = "Temperature")
+  top10 <- corr %>% group_by(Month) %>%
+    summarise(Temperature, value = 26 - rank(value), .groups = "drop") %>%
+    filter(value <= 10)
+
+  ggplot(mapping = aes(y=Month, x = Temperature)) +
+    geom_tile(data = corr, aes(fill = value)) +
+    geom_text(data = top10, aes(label = value))
+}
