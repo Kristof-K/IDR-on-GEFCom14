@@ -18,7 +18,8 @@ solarVars <- c("VAR78" = "total column liquid water",
                "VAR175" = "surface thermal rad down",
                "VAR178" = "top net solar rad",
                "VAR228" = "total precipitation")
-windVars <- c("U10"="U10", "V10"="V10", "U100"="U100", "V100"="V100",
+windVars <- c("U10"="10-meter u-wind", "V10"="10-meter v-wind",
+              "U100"="100-meter u-wind", "V100"="100-meter v-wind",
               "S10" = "10m wind speed", "S100" = "100m wind speed",
               "A10" = "10m wind angle", "A100" = "100m wind angle")
 loadVars <- setNames(paste("Temperature", 1:25), paste0("w", 1:25))

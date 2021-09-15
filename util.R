@@ -176,8 +176,8 @@ benchmarkWind <- function(X_train, y_train, X_test, id=1, init=FALSE) {
 getGroupingfct <- function(nr) {
   return(switch(nr, no_gr, getHours, getMonths, getSeasons, get4Seasons,
                 getWind100Directions, getSeasonHours, getSeasonLargeHours,
-                getSeasonDayTime, getWday, getMonthWday, getMonthDayTime,
-                getMonthWdTimeHour, getWdayWithHolidays))
+                getHourLargeSeasons, getSeasonDayTime, getWday, getMonthWday,
+                getMonthDayTime, getMonthWdTimeHour, getWdayWithHolidays))
 }
 
 no_gr <- function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
@@ -301,15 +301,16 @@ productGrouping <- function(gr_one, gr_two) {
 getSeasonHours <- productGrouping(get4Seasons, getHours)
 getSeasonDayTime <- productGrouping(get4Seasons, get6DayTime)
 getMonthWday <- productGrouping(getMonths, getWday)
-getMonthWdTimeHour <- productGrouping(getMonths, get6DayTime)
+getMonthDayTime <- productGrouping(getMonths, get6DayTime)
 getMonthWdTimeHour <- productGrouping(getMonths,
                                       productGrouping(get4DayTime, get2Wday))
 
+# include neighbor hours to train on
 getSeasonLargeHours <- function(data, group_nr=NA, getCategories=FALSE,
                                 getGroupVar=FALSE, getName=FALSE, test=FALSE) {
   if (getCategories) return(getSeasonHours(NA, getCategories=TRUE))
   if (getGroupVar) return(getSeasonHours(NA, getGroupVar=TRUE))
-  if (getName) return(paste0("extended_", getSeasonHours(NA, getName=TRUE)))
+  if (getName) return(paste0("extendedH_", getSeasonHours(NA, getName=TRUE)))
   grouped <- getSeasonHours(data)
   if (is.na(group_nr)) {
     return(grouped)
@@ -319,8 +320,30 @@ getSeasonLargeHours <- function(data, group_nr=NA, getCategories=FALSE,
   } else {
     # use group plus lower and upper neighboring group for training
     # attention: 24 blocks are cyclic
-    prev <- if(group_nr %% 24 == 1) (group_nr %/% 24 + 1)*24 else group_nr - 1
-    succ <- if(group_nr %% 24 == 0) (group_nr %/% 24 - 1)*24+1 else group_nr + 1
+    seas <- group_nr %/% 24
+    prev <- if(group_nr %% 24 == 1) (seas + 1) * 24 else group_nr - 1
+    succ <- if(group_nr %% 24 == 0) (seas - 1) * 24 + 1 else group_nr + 1
+    return(grouped %in% c(prev, group_nr, succ))
+  }
+}
+
+# include neighbor seasons to train on
+getHourLargeSeasons <- function(data, group_nr=NA, getCategories=FALSE,
+                                getGroupVar=FALSE, getName=FALSE, test=FALSE) {
+  if (getCategories) return(getSeasonHours(NA, getCategories=TRUE))
+  if (getGroupVar) return(getSeasonHours(NA, getGroupVar=TRUE))
+  if (getName) return(paste0("extendedS_", getSeasonHours(NA, getName=TRUE)))
+  grouped <- getSeasonHours(data)
+  if (is.na(group_nr)) {
+    return(grouped)
+  }
+  if (test) {
+    return(grouped == group_nr)
+  } else {
+    # use group plus lower and upper neighboring group for training
+    # attention: 24 blocks are cyclic (this time jump 24 group up and down)
+    prev <- if(group_nr <= 24) group_nr + 72 else group_nr - 24
+    succ <- if(group_nr > 72) group_nr - 72 else group_nr + 24
     return(grouped %in% c(prev, group_nr, succ))
   }
 }
