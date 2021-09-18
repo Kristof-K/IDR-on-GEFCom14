@@ -30,8 +30,19 @@ idrByGroup <- function(X_train, y_train, X_test, groups, orders, thresh=1,
     if(sum(test_indices) == 0) {    # test_data belongs to other group
       return(numeric(0))
     }
-    if(sum(train_indices) == 0) {
-      return("ERROR: training period doesn't comprise necessary groups")
+    if(sum(train_indices) <= 10) {
+      # increase train data by using neighboring groups
+      for(i in 1:ceiling(length(categories) / 2)) {
+        prev <- if (g - i < 1) length(categories) + (g - i) else g - i
+        succ <- if (g + i > length(categories)) (g + i) %% length(categories)
+                    else g + i
+        train_indices <- train_indices | groupingfct(train, prev) |
+                           groupingfct(train, succ)
+        if (sum(train_indices) > 10) break
+      }
+      if(sum(train_indices) <= 10) {
+        return("ERROR: training period doesn't comprise necessary groups")
+      }
     }
     y <- subset(train, train_indices)$TARGET
     # matrix containing in every row quantile forecast plus original indices
@@ -158,7 +169,9 @@ solarA <- list(ONE, ONE, ONE, INV, INV, INV, INV, INV, ONE, ONE, INV, INV)
 windV <- c("S10", "S100", "U10", "V10", "U100", "V100", "A10", "A100")
 windA <- list(ONE, ONE, ONE, ONE, ONE, ONE, ONE, ONE)
 
-loadV <- c("w1", "w2", "w10", "w25", "w11", "w13", "w15", "w22", "w23", "w24")
+#loadV <- c("w1", "w2", "w10", "w25", "w11", "w13", "w15", "w22", "w23", "w24")
+#loadV <- c("w3", "w4", "w5", "w6", "w7", "w8", "w9", "w12", "w14", "w15")
+loadV <- c("w16", "w17", "w18", "w19", "w20", "w21")
 loadA <- list(INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN,
               INV_WIN, INV_WIN, INV_WIN)
 
