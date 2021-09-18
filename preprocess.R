@@ -70,12 +70,18 @@ getWindAttributes <- function(data, init=FALSE) {
     outputPreprocessing(name)
     return(name)
   }
+  # determined as max of Spearman correlation between wind power prod. and
+  # linearly approximated wind speed at height h (use subagging to stabilize)
+  indivHeights <- setNames(c(81, 113, 107, 77, 106, 117, 83, 92, 83, 134),
+                           paste0("Zone", 1:10))
   for(zone in data$Zones) {
+    alpha <- (indivHeights[[zone]] - 10) / (100 - 10)
     for(t in c("Train", "Test")) {
       data[[zone]][[t]] <- mutate(data[[zone]][[t]], S10 = sqrt(U10^2 + V10^2),
                                   S100 = sqrt(U100^2 + V100^2),
                                   A10 = atan2(V10, U10) * 360 / (2*pi),
-                                  A100 = atan2(V100, U100) * 360 / (2*pi)) %>%
+                                  A100 = atan2(V100, U100) * 360 / (2*pi),
+                                  SX = (1-alpha) * S10 + alpha * S100) %>%
         relocate(TARGET, .after = last_col())
     }
   }

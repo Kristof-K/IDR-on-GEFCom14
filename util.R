@@ -243,9 +243,9 @@ get4Seasons <- constructGrouping(
 )
 
 getWind100Directions <- constructGrouping(
-  paste(1:12), "A100", "12WindDir",
+  paste(1:8), "A100", "8WindDir",
   function(data) {
-    bins <- 12
+    bins <- 8
     binWinDir <- ceiling((data$A100 + 180) / 360 * bins)
     return(binWinDir + 1 * (binWinDir == 0))    # remove 0 bin
   }
