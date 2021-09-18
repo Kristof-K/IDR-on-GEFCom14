@@ -234,7 +234,7 @@ getSeasons <- constructGrouping(
 
 get4Seasons <- constructGrouping(
   c("Dez,Jan,Feb", "Mar,Apr,May", "Jun,Jul,Aug", "Sep,Oct,Nov"),
-  "TIMESTAMP","3seasons",
+  "TIMESTAMP","seasons",
   function(data) {
     m <- month(data$TIMESTAMP)
     return(1 * (m %in% c(12, 1, 2)) + 2 * (m %in% 3:5) + 3 * (m %in% 6:8) +
