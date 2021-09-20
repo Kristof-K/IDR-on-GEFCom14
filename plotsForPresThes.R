@@ -133,6 +133,9 @@ plotsForSlides <- function() {
   plotResults(L, "load")
 }
 
+# ==============================================================================
+# SOLAR
+# ==============================================================================
 plotsForThesisSolar <- function() {
   # prevent labels from overlapping (just leave labels out)
   # scale_x_continuous(guide = guide_axis(check.overlap = TRUE))+
@@ -251,6 +254,9 @@ plotsForThesisSolar <- function() {
              path="plots/ForThesis/", width=11.69, height=5)
 }
 
+# ==============================================================================
+# WIND
+# ==============================================================================
 plotsForThesisWind <- function() {
   data <-getWindAttributes(loadWind(4))
   groupName <- "Wind angle"
@@ -371,7 +377,7 @@ plotsForThesisWind <- function() {
     ggtitle("Wind Power vs. Wind Speed") +
     theme_bw() +
     theme(legend.position = "bottom", text = element_text(size = 16),
-            axis.text = element_text(size = 13)) +
+          axis.text = element_text(size = 13)) +
     scale_x_continuous(breaks = 0:4 * 0.25,
                          labels = c("0", "0.25", "0.5", "0.75", "1")) +
     guides(color = guide_legend(nrow = 1, byrow = TRUE)) +
@@ -406,8 +412,7 @@ plotsForThesisWind <- function() {
     ggtitle(paste("Correlation Wind Power with Wind Speed",
                   "at Different Heights")) +
     theme_bw() +
-    theme(text = element_text(size = 16),
-            axis.text = element_text(size = 13)) +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13)) +
     ggsave("WindCorrelations.pdf",
              path="plots/ForThesis/", width=11.69, height=5)
   # use subagging to get more reliable estimates for the height of the optimal
@@ -441,6 +446,9 @@ plotsForThesisWind <- function() {
   max_vals / n
 }
 
+# ==============================================================================
+# PRICE
+# ==============================================================================
 plotsForThesisPrice <- function() {
   data <- loadPrice(4)$Zone1$Train %>% rename(Price = TARGET)
 
@@ -460,8 +468,129 @@ plotsForThesisPrice <- function() {
     facet_wrap(~Var, scales="free") +
     geom_point() +
     theme_bw()
+
+  # scatter plot with histogram
+  library(gridExtra)    # for combining plots
+  scatter <- data %>% mutate(Season = get4Seasons(data, label=TRUE)) %>%
+    select(-ZONEID, -TIMESTAMP) %>%
+    pivot_longer(cols = c(-Price, -Season), names_to = "Var") %>%
+    mutate(Var = priceVars[Var]) %>%
+    ggplot(aes(x=value, y=Price, color=Season)) +
+    geom_point(alpha = 0.5, show.legend = FALSE) +
+    facet_wrap(~Var, nrow=1, scales="free_x") +
+    ylab("Electricity price") +
+    xlab("Forecasted load") +
+    ggtitle("Overview Price Track") +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+  histogram <- data %>%
+    mutate(Season = get4Seasons(data, label=TRUE), Type="price histogram") %>%
+    select(Price, Season, Type) %>%
+    ggplot(aes(y=Price, fill=Season)) +
+    geom_histogram(bins=45) +
+    ylab("") +
+    xlab("Frequency") +
+    scale_y_continuous(labels = NULL) +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+          legend.justification=c(1,1), legend.position=c(1,1)) +
+    facet_wrap(~Type) +
+    ggtitle("")
+  grid.arrange(scatter, histogram, nrow=1, widths = c(5,2))
+  #ggsave("PriceOverview.png", path="plots/ForThesis/", width=11.69, height=5)
+
+  d <- mutate(data, Month = getMonths(data, label=TRUE)) %>% 
+    mutate(across(.cols = c(names(priceVars), Price), 
+                  .fns = function(x) (x - min(x)) / (max(x)-min(x))))
+  ftl_cor <- d %>% group_by(Month) %>%
+    summarise(Spearman_cor =  round(cor(Price, Forecasted.Total.Load, 
+                                        method = "spearman"), digits=3),
+              .groups = "drop") %>% 
+    mutate(Price = 0.89, Forecasted.Total.Load = 0.18)
+  fzl_cor <- d %>% group_by(Month) %>%
+    summarise(Spearman_cor = round(cor(Price, Forecasted.Zonal.Load, 
+                                       method = "spearman"), digits=3),
+              .groups = "drop") %>% 
+    mutate(Price = 0.89, Forecasted.Zonal.Load = 0.18)
+  
+  # scatter plott by month
+  ftl_plot <- ggplot(mapping = aes(x=Forecasted.Total.Load, y=Price)) +
+    geom_point(data = d, aes(color=Month), alpha = 0.5, show.legend=FALSE) +
+    geom_label(data = ftl_cor, aes(label = Spearman_cor), show.legend=FALSE,
+               size=5.8) +
+    facet_wrap(~Month, nrow=4) +
+    xlab("Forecasted total load") +
+    ylab("Electricity price") +
+    scale_x_continuous(breaks = 0:4 * 0.25,
+                      labels = c("0", "0.25", "0.5", "0.75", "1")) +
+    ggtitle("Electricity Price vs. Forecasted Load") +
+    theme_bw() +
+    theme(text = element_text(size = 18), axis.text = element_text(size = 13))
+  fzl_plot <- ggplot(mapping = aes(x=Forecasted.Zonal.Load, y=Price)) +
+    geom_point(data = d, aes(color=Month), alpha = 0.5, show.legend=FALSE) +
+    geom_label(data = fzl_cor, aes(label = Spearman_cor), show.legend=FALSE,
+               size=5.8) +
+    facet_wrap(~Month, nrow=4) +
+    xlab("Forecasted zonal load") +
+    ylab("") +
+    scale_x_continuous(breaks = 0:4 * 0.25,
+                      labels = c("0", "0.25", "0.5", "0.75", "1")) +
+    ggtitle("") +
+    scale_y_continuous(labels = NULL) +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+  grid.arrange(ftl_plot, fzl_plot, nrow=1)
+  #ggsave("PriceOverview.png", path="plots/ForThesis/", width=11.69, height=8.95)
+  
+  # plot log headtmap of price values
+  n <- nrow(data)
+  ticks <- as.integer(seq(1, n, (n - 1) / 6))
+  labels <- paste0(month(data$TIMESTAMP[ticks], label=TRUE),
+                   year(data$TIMESTAMP[ticks]))
+  data %>% mutate(logPrice = log(Price), x = (0:(n-1)) %/% 24,
+                  hour = factor(hour(TIMESTAMP), ordered=TRUE,
+                                levels=c(1:23, 0))) %>%
+    ggplot() +
+    geom_tile(mapping = aes(x=x, y=hour, fill=logPrice)) +
+    ggtitle("Electricity Price During Initial Tuning Phase") +
+    ylab("Hour") +
+    scale_x_continuous(breaks = (ticks-1) %/% 24, labels = labels, name = "") +
+    ggsave("PriceHeatmap,png", path="plots/ForThesis/", width=5, height=8.95)
+
+  # plot confidence area curves
+  getConfidence <- function(x) {
+    intervals <- c("100%", "80%", "60%", "40%", "20%")
+    lowerVals <- c(min(x), unname(quantile(x, probs=1:4 * 0.1)))
+    upperVals <- c(max(x), unname(quantile(x, probs=9:6 * 0.1)))
+    return(data.frame(Width=intervals, L=lowerVals, U=upperVals))
+  }
+  plotData <- data %>%
+    mutate(HOUR=hour(TIMESTAMP), SEASON=get4Seasons(data, label=TRUE)) %>%
+    select(-TIMESTAMP) %>% group_by(HOUR, SEASON)
+
+  meanAndMedian <- summarise(plotData, Mean=mean(Price), Median=median(Price),
+                  .groups="drop")
+  c_intervals <- summarise(plotData, getConfidence(Price), .groups="drop")
+
+  ggplot(mapping = aes(x=HOUR)) +
+    facet_wrap(~SEASON) +
+    geom_ribbon(data = c_intervals, mapping=aes(ymin=L, ymax=U, group=Width,
+                                                fill=SEASON),
+                alpha = 0.15, show.legend=FALSE) +
+    geom_line(data = meanAndMedian, mapping = aes(y=Mean, color=SEASON),
+              linetype=1, size=1.2, show.legend=FALSE) +
+    geom_line(data = meanAndMedian, mapping = aes(y=Median, color=SEASON),
+              linetype=2, size=1.2, show.legend=FALSE) +
+    ylab("Electricity price") +
+    xlab("Hour") +
+    ggtitle("Mean, Median And Confidence Intervals of Electricity Price") +
+    ggsave("PriceSummaryCurves.png",
+             path="plots/ForThesis/", width=11.69, height=5)
 }
 
+# ==============================================================================
+# LOAD
+# ==============================================================================
 plotsForThesisLoad <- function() {
   d <- loadLoad(4)$Zone1$Train %>% filter(!is.na(TARGET))
   d %>% select(TIMESTAMP, TARGET, w1) %>%
