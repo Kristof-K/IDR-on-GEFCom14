@@ -219,12 +219,12 @@ getHours <- constructGrouping(
 
 getMonths <- constructGrouping(
   c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
-    "Dez"), "TIMESTAMP", "months",
+    "Dec"), "TIMESTAMP", "months",
   function(data) return(month(data$TIMESTAMP))
 )
 
 getSeasons <- constructGrouping(
-  c("Dez,Jan,Feb", "Mar-May,Sep-Nov", "Jun,Jul,Aug"), "TIMESTAMP",
+  c("Dec,Jan,Feb", "Mar-May,Sep-Nov", "Jun,Jul,Aug"), "TIMESTAMP",
   "3seasons",
   function(data) {
     m <- month(data$TIMESTAMP)
@@ -233,7 +233,7 @@ getSeasons <- constructGrouping(
 )
 
 get4Seasons <- constructGrouping(
-  c("Dez,Jan,Feb", "Mar,Apr,May", "Jun,Jul,Aug", "Sep,Oct,Nov"),
+  c("Dec,Jan,Feb", "Mar,Apr,May", "Jun,Jul,Aug", "Sep,Oct,Nov"),
   "TIMESTAMP","seasons",
   function(data) {
     m <- month(data$TIMESTAMP)
