@@ -215,7 +215,7 @@ plotsForThesisSolar <- function() {
             axis.text = element_text(size = 13)) +
       guides(color = guide_legend(nrow = 1, byrow = TRUE)) +
       ggsave(paste0("SolarPowerMean_", zone, ".pdf"),
-             path="plots/ForThesis/", width=11.69, height=5.8)
+             path="plots/ForThesis/", width=11.69, height=5)
 
   tune_results <- c(0.01267822,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA, 0.012639036, 0.013172959, 0.012828283,
                     0.012673956, 0.012886168, 0.012400424, 0.012990511, 0.012939531, 0.013277446, 0.014445207,
@@ -544,48 +544,88 @@ plotsForThesisPrice <- function() {
   
   # plot log headtmap of price values
   n <- nrow(data)
-  ticks <- as.integer(seq(1, n, (n - 1) / 6))
+  ticks <- as.integer(seq(1, n, (n - 1) / 9))
   labels <- paste0(month(data$TIMESTAMP[ticks], label=TRUE),
                    year(data$TIMESTAMP[ticks]))
-  data %>% mutate(logPrice = log(Price), x = (0:(n-1)) %/% 24,
-                  hour = factor(hour(TIMESTAMP), ordered=TRUE,
-                                levels=c(1:23, 0))) %>%
+  d <- data %>% mutate(logPrice = log(Price), x = (0:(n-1)) %/% 24)
+  
+  heatmap <- d %>% 
+    mutate(hour=factor(hour(TIMESTAMP), ordered=TRUE,levels=c(1:23, 0))) %>%
     ggplot() +
     geom_tile(mapping = aes(x=x, y=hour, fill=logPrice)) +
     ggtitle("Electricity Price During Initial Tuning Phase") +
     ylab("Hour") +
     scale_x_continuous(breaks = (ticks-1) %/% 24, labels = labels, name = "") +
-    ggsave("PriceHeatmap,png", path="plots/ForThesis/", width=5, height=8.95)
-
-  # plot confidence area curves
-  getConfidence <- function(x) {
-    intervals <- c("100%", "80%", "60%", "40%", "20%")
-    lowerVals <- c(min(x), unname(quantile(x, probs=1:4 * 0.1)))
-    upperVals <- c(max(x), unname(quantile(x, probs=9:6 * 0.1)))
-    return(data.frame(Width=intervals, L=lowerVals, U=upperVals))
-  }
-  plotData <- data %>%
-    mutate(HOUR=hour(TIMESTAMP), SEASON=get4Seasons(data, label=TRUE)) %>%
-    select(-TIMESTAMP) %>% group_by(HOUR, SEASON)
-
-  meanAndMedian <- summarise(plotData, Mean=mean(Price), Median=median(Price),
-                  .groups="drop")
-  c_intervals <- summarise(plotData, getConfidence(Price), .groups="drop")
-
-  ggplot(mapping = aes(x=HOUR)) +
-    facet_wrap(~SEASON) +
-    geom_ribbon(data = c_intervals, mapping=aes(ymin=L, ymax=U, group=Width,
-                                                fill=SEASON),
-                alpha = 0.15, show.legend=FALSE) +
-    geom_line(data = meanAndMedian, mapping = aes(y=Mean, color=SEASON),
-              linetype=1, size=1.2, show.legend=FALSE) +
-    geom_line(data = meanAndMedian, mapping = aes(y=Median, color=SEASON),
-              linetype=2, size=1.2, show.legend=FALSE) +
-    ylab("Electricity price") +
+    scale_fill_gradient(low="darkorchid4", high="coral", name = "ln(Price)") +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+  #ggsave("PriceHeatmap,png", path="plots/ForThesis/", width=4.2, height=8.95)
+    
+  
+  byTime <- d %>% mutate(Hour = get6DayTime(d, label=TRUE)) %>% 
+    group_by(Hour, x) %>% 
+    summarise(Mean_price = mean(logPrice), .groups="drop") %>%
+    ggplot(aes(x=x, y=Mean_price, color=Hour)) +
+    geom_point(alpha=0.5) +
+    ylab("ln(Price)") +
+    ggtitle("Mean ln(Price) by Hour Group and Day") +
+    scale_color_discrete() +
+    scale_x_continuous(breaks = (ticks-1) %/% 24, labels = labels, name = "") +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+  
+  byWeekday <- d %>%
+    transmute(logPrice = logPrice, Hour = hour(TIMESTAMP), 
+              Weekday = getWday(d, label=TRUE)) %>% 
+    group_by(Hour, Weekday)  %>% 
+    summarise(logPrice = mean(logPrice), .groups="drop") %>%
+    ggplot(aes(x=Hour, y=logPrice, color=Weekday, group=Weekday)) +
+    geom_line(size = 1.2) +
+    geom_vline(xintercept=c(3.5, 7.5, 11.5, 15.5, 19.5), linetype=2,
+               color="gray")+
+    scale_color_discrete() +
     xlab("Hour") +
-    ggtitle("Mean, Median And Confidence Intervals of Electricity Price") +
-    ggsave("PriceSummaryCurves.png",
-             path="plots/ForThesis/", width=11.69, height=5)
+    ylab("ln(Price)") +
+    ggtitle("Mean ln(Price) by Hour and Weekday") +
+    theme_bw()  +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+    
+  grid.arrange(byTime, byWeekday, nrow=2)
+  #ggsave("PriceHeatmap,png", path="plots/ForThesis/", width=7.8, height=8.95)
+    
+
+  # Get mean values by HourGroupd and Weekday
+  tmp <- data %>% mutate(HourGroup = get6DayTime2(data, label=TRUE),
+                         Weekday = getWday(data, label=TRUE)) %>%
+    group_by(HourGroup, Weekday) %>%
+    summarise(MeanPrice = mean(Price), .groups="drop") %>%
+    pivot_wider(id_cols=c(HourGroup, Weekday), names_from = Weekday,
+                values_from=MeanPrice)
+
+  data %>% mutate(Month = month(TIMESTAMP)) %>% filter(Month %in% c(10,11,12)) %>%
+    ggplot(aes(x=Forecasted.Total.Load, y=TARGET, color=factor(Month))) +
+    geom_point(alpha=0.5) +
+    ylab("Electricity price") +
+    xlab("Forecasted zonal load") +
+    theme_bw()
+
+  t1 <- loadPrice(1)$Zone1$Test$TIMESTAMP
+  t2 <- loadPrice(2)$Zone1$Test$TIMESTAMP
+  t3 <- loadPrice(3)$Zone1$Test$TIMESTAMP
+
+  data %>%
+    mutate(Type = 1 * (TIMESTAMP %within% interval(t1[1], t1[length(t1)]))
+      + 2 * (TIMESTAMP %within% interval(t2[1], t2[length(t2)]))
+      + 3 * (TIMESTAMP %within% interval(t3[1], t3[length(t3)]))) %>%
+    mutate(Type = ifelse(Type == 0, "Train", paste("Task", Type)),
+           Month = getMonths(data, label=TRUE)) %>%
+    filter(Month %in% c("Jun", "Jul")) %>%
+    ggplot(aes(x=Forecasted.Zonal.Load, y=Price, color=Type,
+               shape=Month)) +
+    geom_point(alpha=0.5, size=1.8) +
+    facet_wrap(~Month) +
+    theme_bw()
+
 }
 
 # ==============================================================================
