@@ -177,7 +177,9 @@ getGroupingfct <- function(nr) {
   return(switch(nr, no_gr, getHours, getMonths, getSeasons, get4Seasons,
                 getWind100Directions, getSeasonHours, getSeasonLargeHours,
                 getHourLargeSeasons, getSeasonDayTime, getWday, getMonthWday,
-                getMonthDayTime, getMonthWdTimeHour, getWdayWithHolidays))
+                getMonthDayTime, getMonthWdTimeHour, getWdayWithHolidays,
+                get5Month, get5Month6Hour, get5Month2Wday, get5Month7Wday,
+                get5Month6Hour2Wday, get5Month6Hour7Wday))
 }
 
 no_gr <- function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
@@ -252,12 +254,22 @@ getWind100Directions <- constructGrouping(
 )
 
 get6DayTime <- constructGrouping(
-  paste(1:6), "TIMESTAMP", "6hours",
+  c("0-3", "4-7", "8-11", "12-15", "16-19", "20-23"), "TIMESTAMP", "6hours",
   function(data) return(hour(data$TIMESTAMP) %/% 4 + 1)
 )
 
+get6DayTime2 <- constructGrouping(
+  c("2-5", "6-9", "10-13", "14-17", "18-21", "22,23,0,1"), "TIMESTAMP", 
+  "6hours2", function(data) {
+    h <- hour(data$TIMESTAMP)
+    return(1 * (h %in% 2:5) + 2 * (h %in% 6:9) + 3 * (h %in% 10:13) +
+             4 * (h %in% 14:17) + 5 * (h %in% 18:21) +
+             6 * (h %in% c(22, 23, 0, 1)))
+  }
+)
+
 get4DayTime <- constructGrouping(
-  paste(1:4), "TIMESTAMP", "4hours",
+  c("4-9", "10-15", "16-21","22,23,0-3"), "TIMESTAMP", "4hours",
   function(data) {
     h <- hour(data$TIMESTAMP)
     return(1 * (h %in% 4:9) + 2 * (h %in% 10:15) + 3 * (h %in% 16:21) +
@@ -276,6 +288,17 @@ get2Wday <- constructGrouping(
   function(data) {
     w <- wday(data$TIMESTAMP)
     return(1 * (w %in% 2:6) + 2 * (w %in% c(7,1)))
+  }
+)
+
+# for price track
+get5Month <- constructGrouping(
+  c("Jan,Feb", "Mar,Apr" , "May,Aug,Sep", "Jun,Jul", "Oct,Nov,Dec"),
+  "TIMESTAMP","seasons",
+  function(data) {
+    m <- month(data$TIMESTAMP)
+    return(1 * (m %in% c(1, 2)) + 2 * (m %in% c(3,4)) + 3 * (m %in% c(5,8,9)) +
+             4 * (m %in% c(6,7)) + 5 * (m %in% c(10,11,12)))
   }
 )
 
@@ -304,6 +327,15 @@ getMonthWday <- productGrouping(getMonths, getWday)
 getMonthDayTime <- productGrouping(getMonths, get6DayTime)
 getMonthWdTimeHour <- productGrouping(getMonths,
                                       productGrouping(get4DayTime, get2Wday))
+
+getWday6Hour <- productGrouping(getWday, get6DayTime)
+get2Wday6Hour <- productGrouping(get2Wday, get6DayTime)
+
+get5Month6Hour <- productGrouping(get5Month, get6DayTime)
+get5Month2Wday <- productGrouping(get5Month, get2Wday)
+get5Month7Wday <- productGrouping(get5Month, getWday)
+get5Month6Hour2Wday <- productGrouping(get5Month6Hour, get2Wday)
+get5Month6Hour7Wday <- productGrouping(get5Month6Hour, getWday)
 
 # include neighbor hours to train on
 getSeasonLargeHours <- function(data, group_nr=NA, getCategories=FALSE,
