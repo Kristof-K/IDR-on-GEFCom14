@@ -175,8 +175,9 @@ loadV <- c("w16", "w17", "w18", "w19", "w20", "w21")
 loadA <- list(INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN,
               INV_WIN, INV_WIN, INV_WIN)
 
-priceV <- c("Forecasted.Total.Load", "Forecasted.Zonal.Load")
-priceA <- list(ONE, ONE)
+priceV <- c("Forecasted.Total.Load", "Forecasted.Zonal.Load", "WDAY", "HOUR6",
+            "WDAYHOUR6", "WDAY4", "WDAY4_CAT", "WDAY2", "WDAY2HOUR6")
+priceA <- list(ONE, ONE, ONE, ONE, ONE, ONE, ONE, ONE, ONE)
 
 # ORDERs
 COMP <- "comp"
