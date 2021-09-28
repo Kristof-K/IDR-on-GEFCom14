@@ -129,6 +129,8 @@ addPriceRegressors <- function(data, init=FALSE) {
   return(data)
 }
 
+# Construct a temperatue forecast generator just by defining a method with
+# summarizes a vector to a number
 constructTempGenerator <- function(fct, name) {
 
 tempGenerator <- (function(data, init=FALSE) {
@@ -170,6 +172,33 @@ linWeight2 <- function(x) {
   return(sum(x * (1:n * 2/(3*(n^2-n)) + 2/3 * (n-2)/(n^2-n))))
 }
 lwMeanTemp <- constructTempGenerator(linWeight2, "lwMeanTemp")
+
+# Transform temperature values to temperature differences just by defining
+# metric
+transformToDiffs <- function(diff, name, tmpGen) {
+  diffed <- (function(data, init=FALSE) {
+    if (init) {
+      outputPreprocessing(name)
+      return(name)
+    }
+    tCols <- paste0("w", 1:25)
+
+    for(zone in data$Zones) {
+      d <- filter(data[[zone]]$Train, !is.na(TARGET))
+      lower10Tail <- (d$TARGET <= quantile(d$TARGET, probs=0.1))
+
+      getDiff <- function(col) return(diff(col, median(col[lower10Tail])))
+      data[[zone]]$Train <- mutate(d, across(.cols = tCols, .fns = getDiff))
+    }
+    return(tmpGen(data))
+  })
+  return(diffed)
+}
+
+abs_meanTmp <- transformToDiffs(function(x, y) abs(x -y), "abs_meanTmp",
+                                meanTemp)
+squared_meanTmp <- transformToDiffs(function(x, y) (x -y)^2, "squared_meanTmp",
+                                meanTemp)
 
 addLoadMeans <- function(data, init=FALSE) {
   name <- "AddLoadMeans"
