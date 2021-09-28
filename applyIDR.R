@@ -155,12 +155,7 @@ IDR_BY_ZONE <- list(FUN = idrByZones, TIT = "IDR zone combined data",
 
 ONE <- function(data, col) return(data[[col]])
 INV <- function(data, col) return((-1) * data[[col]])
-INV_WIN <- function(data, col) {
-  t <- data$TIMESTAMP
-  one <- month(t) %in% 5:9 | (month(t) == 4 & day(t) > 20) |
-    (month(t) == 10 & day(t) <= 20)
-  return((2 * one - 1) * data[[col]])
-}
+INV_WIN <- function(data, col) return((2 * getSumWin(data) - 3) * data[[col]])
 
 solarV <- c("VAR169", "VAR178", "VAR167", "VAR157", "VAR228", "VAR79", "VAR78",
             "VAR164", "VAR175", "VAR134", "VAR165", "VAR166")

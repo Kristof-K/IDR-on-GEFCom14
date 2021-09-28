@@ -179,7 +179,7 @@ getGroupingfct <- function(nr) {
                 getHourLargeSeasons, getSeasonDayTime, getWday, getMonthWday,
                 getMonthDayTime, getMonthWdTimeHour, getWdayWithHolidays,
                 get4Month, get4Month6Hour, get4Month2Wday, get4Month7Wday,
-                get4Month6Hour2Wday, get4Month6Hour7Wday))
+                get4Month6Hour2Wday, get4Month6Hour7Wday, getSumWin))
 }
 
 no_gr <- function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
@@ -299,6 +299,17 @@ get4Month <- constructGrouping(
     m <- month(data$TIMESTAMP)
     return(1 * (m %in% c(1, 2)) + 2 * (m %in% c(3,4,5)) +
              3 * (m %in% c(6,7,8,9)) + 4 * (m %in% c(10,11,12)))
+  }
+)
+
+# for load track
+getSumWin <- constructGrouping(
+  c("Summer", "Winter"), "TIMESTAMP", "2Season",
+  function(data) {
+    t <- data$TIMESTAMP
+    one <- month(t) %in% 5:9 | (month(t) == 4 & day(t) > 16) |
+      (month(t) == 10 & day(t) <= 14)
+    return(one + 1)
   }
 )
 
