@@ -632,15 +632,41 @@ plotsForThesisPrice <- function() {
 # LOAD
 # ==============================================================================
 plotsForThesisLoad <- function() {
+  cols <- paste0("w", 1:25)
   d <- loadLoad(4)$Zone1$Train %>% filter(!is.na(TARGET))
+
+  dist_fnc <- list("absolute dist" = function(x, y) abs(x - y),
+                   "squared dist" = function(x, y) (x - y)^2)
+
+  plot_data <- data.frame()
+  for (fnc in names(dist_fnc)) {
+    for (q in c(0.1, 1)) {
+      mid <- median(filter(d, TARGET<=quantile(TARGET, probs=q)) %>% pull(w10))
+      add_df <- data.frame(Load=d$TARGET, T=dist_fnc[[fnc]](d$w10, mid),
+                           Lab=paste0(fnc, ", q=",q), Col=fnc)
+      plot_data <- rbind(plot_data, add_df)
+    }
+  }
+  ggplot(plot_data, aes(x=T, y=Load, color=Col)) +
+    geom_point(alpha=0.05, show.legend=FALSE) +
+    facet_wrap(~Lab, nrow=1, scales="free_x") +
+    ylab("Load") +
+    xlab("Temperature deviation") +
+    ggtitle("Load vs. Temperature Deviation (w10)") +
+    scale_color_brewer(palette="Dark2") +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+  ggsave("LoadDist.pdf", path="plots/ForThesis/", width=11.69,
+         height=4)
+
   d %>% select(TIMESTAMP, TARGET, w1) %>%
     mutate(Month = getMonths(d, label=TRUE),
            t = day(TIMESTAMP), m = month(TIMESTAMP),
-           p = m %in% 5:9 | (m == 4 & t > 18) | (m == 10 & t <= 18),
-           Period = ifelse(p, "19.04 - 18.10", "19.10 - 18.04")) %>%
+           p = m %in% 5:9 | (m == 4 & t > 16) | (m == 10 & t <= 14),
+           Period = ifelse(p, "17.04 - 14.10", "15.10 - 16.04")) %>%
     select(Month, TARGET, w1, Period) %>%
     ggplot(aes(x=w1, y=TARGET, color=Period)) +
-    geom_point(alpha=0.5) +
+    geom_point(alpha=0.2) +
     facet_wrap(~Month) +
     xlab("Temperature") +
     ylab("Load") +
@@ -648,9 +674,9 @@ plotsForThesisLoad <- function() {
     theme(legend.position = "bottom", text = element_text(size = 16),
             axis.text = element_text(size = 13)) +
     guides(color = guide_legend(nrow = 1, byrow = TRUE)) +
-    ggtitle("Load vs. temperature (w1)") +
-    ggsave("LoadScatterw1.png", path="plots/ForThesis/", width=18,
-           height=8)
+    ggtitle("Load vs. Temperature (w1)")
+  ggsave("LoadScatterw1.pdf", path="plots/ForThesis/", width=11.69,
+         height=7.5)
 
   corr <- d %>% mutate(Month = getMonths(d, label=TRUE)) %>% group_by(Month) %>%
     summarise(across(.cols = starts_with("w"),
@@ -671,7 +697,172 @@ plotsForThesisLoad <- function() {
     scale_fill_gradient2() +
     xlab("Weather station") +
     ylab("Month") +
-    ggtitle("Spearman Correlation: Load - Temperature") +
-    ggsave("LoadCorrelationsTask4.png",
-             path="plots/ForThesis/", width=18, height=8)
+    ggtitle("Spearman Correlation: Load And Temperature") +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+  ggsave("LoadCorrelationsSub3.png", path="plots/ForThesis/", width=11.69,
+         height=6)
+
+  # use subagging to get more reliable estimates of most correlated weather stat
+  n <- 77
+  frac <- 0.66
+
+  corr <- NA
+  for (i in 1:n) {
+    sampled <- slice_sample(d, prop = frac, replace = TRUE)
+    corr_add <- sampled %>%
+    mutate(Month = getMonths(sampled, label=TRUE)) %>% group_by(Month) %>%
+    summarise(across(.cols = starts_with("w"),
+                     .fns = function(x) cor(TARGET, x,
+                                                method="spearman")),
+    .groups = "drop")
+    if (all(is.na(corr))) corr <- corr_add
+    else corr[cols] <- corr[cols] + corr_add[cols]
+  }
+  corr[cols] <- corr[cols] / n
+  top10 <- corr %>% pivot_longer(cols = -Month, names_to = "Temperature",
+                            values_to = "Correlation") %>%
+    group_by(Month) %>%
+    summarise(Temperature, Correlation = 26 - rank(abs(Correlation)),
+              .groups = "drop") %>%
+    filter(Correlation <= 10)
+
+  # examine separation of winter / summer
+  ex_m <- 10
+  plot_data <- data.frame()
+  for(i in 10:21) {
+    add <- d %>% select(TIMESTAMP, TARGET, w1) %>%
+      mutate(t = day(TIMESTAMP), m = month(TIMESTAMP),
+             p = m %in% 5:9 | (m == 4 & t > i) | (m == 10 & t <= i),
+             Period = ifelse(p, "Summer", "Winter")) %>%
+      filter(m == ex_m) %>%
+      select(TARGET, w1, Period) %>% mutate(Sep = i)
+    plot_data <- rbind(plot_data, add)
+  }
+  ggplot(data=plot_data, aes(x=w1, y=TARGET, color=Period)) +
+    geom_point(alpha=0.25) +
+    facet_wrap(~Sep) +
+    ggtitle("Different separation days for October")
+  ggsave("LoadSepOctober.png", path="plots/ForThesis/", width=18,
+         height=8)
+
+  # EXAMINE LOAD DIFFERENCES BETWEEN MONTHS AND WEEKDAYS =======================
+  byMonth <- d %>% mutate(Month = getMonths(d, label=TRUE),
+                          Hour = hour(TIMESTAMP)) %>%
+    group_by(Month, Hour) %>% summarise(Mean=mean(TARGET), .groups="drop") %>%
+    ggplot(aes(x=Hour, y=Mean, color=Month)) +
+    geom_line(size=1.0) +
+    xlab("Hour") +
+    ylab("Load") +
+    ggtitle("Mean Load by Hour, Month and Weekday") +
+    scale_color_discrete() +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+          legend.position="bottom") +
+    guides(color = guide_legend(nrow = 2, byrow = TRUE))
+  byWday <- d %>% mutate(Weekday = getWday(d, label=TRUE),
+                         Hour = hour(TIMESTAMP)) %>%
+    group_by(Weekday, Hour) %>% summarise(Mean=mean(TARGET), .groups="drop") %>%
+    ggplot(aes(x=Hour, y=Mean, color=Weekday)) +
+    geom_line(size=1.0) +
+    xlab("Hour") +
+    ylab("") +
+    ggtitle("") +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+          legend.position="bottom") +
+    guides(color = guide_legend(nrow = 2, byrow = TRUE))
+
+  library("gridExtra")
+  grid.arrange(byMonth, byWday, nrow=1)
+  ggsave("LoadDev.pdf", path="plots/ForThesis/", width=11.69,
+         height=5)
+
+  # EXAMINE TEMPERATURE DEVELOPMENT OVER THE YEARS =============================
+  getConfidence <- function(x) {
+    intervals <- c("100%", "80%", "60%", "40%", "20%")
+    lowerVals <- c(min(x), unname(quantile(x, probs=1:4 * 0.1)))
+    upperVals <- c(max(x), unname(quantile(x, probs=9:6 * 0.1)))
+    return(data.frame(Width=intervals, L=lowerVals, U=upperVals))
+  }
+
+  plot_data <- loadLoad(4)$Zone1$Train %>%
+    mutate(Time = paste(month(TIMESTAMP), year(TIMESTAMP), sep="."),
+           x = month(TIMESTAMP) + 12 * (year(TIMESTAMP) - 2001))
+
+  n <- max(plot_data$x)
+  ticks <- seq(1, n, (n - 1) / 6)
+  labels <- unique(plot_data$Time)[ticks]
+
+  plot_data <- plot_data %>% group_by(x)
+  meanAndMedian <-
+    summarise(plot_data, Mean=mean(w25), Median=median(w25), .groups="drop") %>%
+    pivot_longer(cols = -x, names_to="Curve")
+  c_intervals <- summarise(plot_data, getConfidence(w25), .groups="drop")
+
+  ggplot(mapping = aes(x=x)) +
+    geom_ribbon(data = c_intervals, mapping=aes(ymin=L, ymax=U, group=Width),
+                alpha = 0.15) +
+    geom_line(data = meanAndMedian, mapping = aes(y=value, color=Curve),
+              size=1.1) +
+    ylab("Temperature") +
+    scale_x_continuous(breaks = ticks, labels = labels, name = "") +
+    ggtitle("Temperature Summary Statistics (w25)") +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+          legend.justification=c(1,0), legend.position=c(1,0)) +
+     guides(color = guide_legend(nrow = 1, byrow = TRUE, title="",
+                                 title.position="left"))
+  ggsave("LoadTempDev.pdf", path="plots/ForThesis/", width=11.69,
+         height=4)
+
+  # ANALYZE SCORES RETURNED BY simulateCompetition (stored in tmp) =============
+  tmp <- evaluation(unleashLoaIDR, pinBallLoss, c(100, 1, 22),
+                    preprocessfct=meanTemp, tune=TRUE, ret=TRUE)
+  plot_data <- data.frame()
+  for(i in 1:length(tmp)) {
+    plot_data <- rbind(plot_data, cbind(tmp[[i]], Task=i, x=1:nrow(tmp[[i]])))
+  }
+
+  group_fct <- day
+  name <- "Day"
+
+  plot_data %>% mutate(Group = group_fct(TIMESTAMP)) %>%
+    group_by(Task, Group) %>%
+    summarise(Mean_score = mean(SCORE), .groups="drop") %>%
+    ggplot(aes(x=Group, y=Mean_score, color=factor(Task))) +
+    geom_line() +
+    ylab("Mean score") +
+    xlab(name)+
+    ggtitle("Mean Pinball Score In Initial Tuning Phase") +
+    scale_color_discrete(name="Month", labels=c("Oct", "Nov", "Dec")) +
+    theme_bw()
+  ggsave(paste0("LoadScoreBy", name, "2.png"), path="plots/ForThesis/", width=18,
+         height=8)
+  n <- nrow(plot_data)
+  ticks <- as.integer(seq(1, n, (n - 1) / 4))
+  labels <- paste0(month(plot_data$TIMESTAMP[ticks], label=TRUE),
+                   year(plot_data$TIMESTAMP[ticks]))
+  plot_data %>%
+    mutate(x = (0:(n-1)) %/% 24,
+           hour=factor(hour(TIMESTAMP), ordered=TRUE,levels=c(1:23, 0))) %>%
+    ggplot() +
+    geom_tile(mapping = aes(x=x, y=hour, fill=SCORE)) +
+    ggtitle("Electricity Price During Initial Tuning Phase") +
+    ylab("Hour") +
+    scale_x_continuous(breaks = (ticks-1) %/% 24, labels = labels, name = "") +
+    scale_fill_gradient(low="darkorchid4", high="coral", name = "Score") +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+
+  # ANAlYZE TEMPERATURE FORECAST DEVIATIONS ====================================
+  task <- 4
+  curr_test <- meanTemp(loadLoad(task))$Zone1$Test
+  last <- curr_test$TIMESTAMP[1]
+  pred <- curr_test[cols]
+  true <- loadLoad(task + 1)$Zone1$Train %>% filter(TIMESTAMP >= last) %>%
+    select(all_of(cols))
+
+  colMeans(abs(true - pred))
+  colMeans((true - pred)^2)
 }
