@@ -166,12 +166,26 @@ lastTemp <- constructTempGenerator(function(x) return(last(x)),
                                    "lastTemp")
 sampleTemp <- constructTempGenerator(function(x) sample(x, 1),
                                      "sampleTemp")
-# mean linear weighted x, so that last x comcponent has double the weight of 1st
-linWeight2 <- function(x) {
-  n <- length(x)
-  return(sum(x * (1:n * 2/(3*(n^2-n)) + 2/3 * (n-2)/(n^2-n))))
+
+weightFctGen <- function(fct) {
+  return(
+    function(x) {
+      n <- length(x)
+      return(sum(x * fct(1:n) / sum(fct(1:n))))
+    }
+  )
 }
-lwMeanTemp <- constructTempGenerator(linWeight2, "lwMeanTemp")
+# last weight should always have only double the weight of first weight
+lin2 <- function(x) 1 / (length(x) - 2) * x + 1
+linWeightMean <- quadWeightMean <- constructTempGenerator(weightFctGen(lin2),
+                                         "lwMeanTemp")
+quad2 <- function(x) 1 / (length(x)^2 - 2) * x^2 - 1 / (length(x) - 2) * x
+quadWeightMean <- constructTempGenerator(weightFctGen(quad2),
+                                         "lwMeanTemp")
+root2 <- function(x) 1 / (length(x)^0.5 - 2) * x^0.5 -
+  1 / (length(x)^(1/3) - 2) * x^(1/3)
+rootWeightMean <- constructTempGenerator(weightFctGen(function(x) x^0.5),
+                                         "lwMeanTemp")
 
 # Transform temperature values to temperature differences just by defining
 # metric
@@ -188,7 +202,7 @@ transformToDiffs <- function(diff, name, tmpGen) {
       lower10Tail <- (d$TARGET <= quantile(d$TARGET, probs=0.1))
 
       getDiff <- function(col) return(diff(col, median(col[lower10Tail])))
-      data[[zone]]$Train <- mutate(d, across(.cols = tCols, .fns = getDiff))
+      data[[zone]]$Train <- mutate(d, across(all_of(tCols), .fns = getDiff))
     }
     return(tmpGen(data))
   })
@@ -197,8 +211,18 @@ transformToDiffs <- function(diff, name, tmpGen) {
 
 abs_meanTmp <- transformToDiffs(function(x, y) abs(x -y), "abs_meanTmp",
                                 meanTemp)
-squared_meanTmp <- transformToDiffs(function(x, y) (x -y)^2, "squared_meanTmp",
-                                meanTemp)
+squared_meanTmp <- transformToDiffs(function(x, y) (x -y)^2,
+                                    "squared_meanTmp", meanTemp)
+squared_lastTmp <- transformToDiffs(function(x, y) (x -y)^2,
+                                    "squared_lastTmp", lastTemp)
+squared_sampleTmp <- transformToDiffs(function(x, y) (x -y)^2,
+                                      "squared_sampleTmp", sampleTemp)
+squared_lwMean <- transformToDiffs(function(x, y) (x -y)^2,
+                                   "squared_lwMean", linWeightMean)
+squared_qwMean <- transformToDiffs(function(x, y) (x -y)^2,
+                                   "squared_qwMean", quadWeightMean)
+squared_rwMean <- transformToDiffs(function(x, y) (x -y)^2,
+                                   "squared_rwMean", rootWeightMean)
 
 addLoadMeans <- function(data, init=FALSE) {
   name <- "AddLoadMeans"
