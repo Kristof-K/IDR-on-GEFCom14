@@ -151,28 +151,18 @@ IDR_BY_ZONE <- list(FUN = idrByZones, TIT = "IDR zone combined data",
 
 # Variable selections
 # VAR : list of variables that are used
-# ADA : sign correction (1 for positive relation, -1 for negative)
-
-ONE <- function(data, col) return(data[[col]])
-INV <- function(data, col) return((-1) * data[[col]])
-INV_WIN <- function(data, col) return((2 * getSumWin(data) - 3) * data[[col]])
 
 solarV <- c("VAR169", "VAR178", "VAR167", "VAR157", "VAR228", "VAR79", "VAR78",
             "VAR164", "VAR175", "VAR134", "VAR165", "VAR166")
-solarA <- list(ONE, ONE, ONE, INV, INV, INV, INV, INV, ONE, ONE, INV, INV)
 
 windV <- c("S10", "S100", "U10", "V10", "U100", "V100", "A10", "A100", "SX")
-windA <- list(ONE, ONE, ONE, ONE, ONE, ONE, ONE, ONE, ONE)
 
-#loadV <- c("w1", "w2", "w10", "w25", "w11", "w13", "w15", "w22", "w23", "w24")
-#loadV <- c("w3", "w4", "w5", "w6", "w7", "w8", "w9", "w12", "w14", "w15")
-loadV <- c("w16", "w17", "w18", "w19", "w20", "w21")
-loadA <- list(INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN, INV_WIN,
-              INV_WIN, INV_WIN, INV_WIN)
+loadV <- c("w1", "w2", "w10", "w25", "w11", "w13", "w15", "w22", "w23", "w24")
+#loadV <- c("w3", "w4", "w5", "w6", "w7", "w8", "w9", "w12", "w14", ("w16")
+#loadV <- c("w17", "w18", "w19", "w20", "w21")
 
 priceV <- c("Forecasted.Total.Load", "Forecasted.Zonal.Load", "WDAY", "HOUR6",
             "WDAYHOUR6", "WDAY4", "WDAY4_CAT", "WDAY2", "WDAY2HOUR6")
-priceA <- list(ONE, ONE, ONE, ONE, ONE, ONE, ONE, ONE, ONE)
 
 # ORDERs
 COMP <- "comp"
@@ -196,20 +186,8 @@ getVariableSelection <- function(id, track) {
                                  split ="")[[1]])
   # which indices are non_zero
   nonzero_ind <- which(rev(indices != 0))
-  if (track == "Solar") {
-    vars <- solarV[nonzero_ind]
-    ada_fcns <- solarA[nonzero_ind]
-  } else if (track == "Wind") {
-    vars <- windV[nonzero_ind]
-    ada_fcns <- windA[nonzero_ind]
-  } else if (track == "Load") {
-    vars <- loadV[nonzero_ind]
-    ada_fcns <- loadA[nonzero_ind]
-  } else if (track == "Price") {
-    vars <- priceV[nonzero_ind]
-    ada_fcns <- priceA[nonzero_ind]
-  }
-  return(list(VAR = vars, ADA = ada_fcns))
+  return(switch(track, "Solar"=solarV, "Wind"=windV, "Price"=priceV,
+                "Load"=loadV)[nonzero_ind])
 }
 
 getOrder <- function(id) {
@@ -220,7 +198,8 @@ getOrder <- function(id) {
 # wrapper ======================================================================
 
 unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
-  variables <- getVariableSelection(id, track)
+  vars <- getVariableSelection(id, track)
+
   pOrder <- getOrder(id)
   # addional arguments
   if(is.na(id[3])) id[3] <- 1           # grouping : default no grouping
@@ -234,17 +213,10 @@ unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
   if (init) {
     pbz <- (id[4] >= 1)
     tit <- paste0(idr_v$TIT, " (", id_str, ")")
-    outputForecastingMethod(tit, idr_v$DES, variables$VAR)
-    return(list(TRACK=track, TIT=idr_v$TIT, VAR=variables$VAR, OR=pOrder,
-                PBZ=pbz, ID=id_str, GR=groupingfct(NA, NA, getName=TRUE)))
+    outputForecastingMethod(tit, idr_v$DES, vars)
+    return(list(TRACK=track, TIT=idr_v$TIT, VAR=vars, OR=pOrder, PBZ=pbz,
+                ID=id_str, GR=groupingfct(NA, NA, getName=TRUE)))
   }
-  # get variable list and adapt them
-  vars <- variables$VAR
-  for (i in 1:length(vars)) {
-    X_train[vars[i]] <- variables$ADA[[i]](X_train, vars[i])
-    X_test[vars[i]] <- variables$ADA[[i]](X_test, vars[i])
-  }
-
   groups <- setNames(rep(1, length(vars)), vars)
   orders <- setNames(1, pOrder)
 

@@ -6,6 +6,7 @@ library(dplyr)    # for lag in deaccumulateSun and transmute in
 source("util.R")
 
 ACCUMULATED <- c("VAR169", "VAR178", "VAR175", "VAR228")
+INVERT <- c("VAR157", "VAR228", "VAR79", "VAR78", "VAR164", "VAR165", "VAR166")
 
 # Method output description consistently for a preprocessing function
 # - name : name of the forecasting method (it should be a vector of words in
@@ -38,8 +39,8 @@ rm_na <- function(data, init=FALSE) {
 }
 
 # expect data to be of format definied in load.R
-deaccumulateSol <- function(data, init=FALSE) {
-  name <- paste("deacc", paste(ACCUMULATED, collapse="_"), sep="_")
+deaccuInvertSol <- function(data, init=FALSE) {
+  name <- "deacc_and_invert_vars"
   if (init) {
     outputPreprocessing(name)
     return(name)
@@ -50,14 +51,17 @@ deaccumulateSol <- function(data, init=FALSE) {
   # assume that data is ordered in time and conitnuous and first entry starts
   # at 1:00, since there starts the daily sun accumulation
   for (zone in data$Zones) {
-    for(var in ACCUMULATED) {
-      for(t in c("Train", "Test")) {
+    for(t in c("Train", "Test")) {
+      for(var in ACCUMULATED) {
         current <- data[[zone]][[t]][[var]]
         asMatrix <- matrix(current, nrow=24)    # every column contains one day
         # deaccumulate every day individually
         deacc <- apply(asMatrix, 2, subShifted)
 
         data[[zone]][[t]][[var]] <- as.vector(deacc)
+      }
+      for(var in INVERT) {
+        data[[zone]][[t]][[var]] <- (-1) * data[[zone]][[t]][[var]]
       }
     }
   }
@@ -177,8 +181,7 @@ weightFctGen <- function(fct) {
 }
 # last weight should always have only double the weight of first weight
 lin2 <- function(x) 1 / (length(x) - 2) * x + 1
-linWeightMean <- quadWeightMean <- constructTempGenerator(weightFctGen(lin2),
-                                         "lwMeanTemp")
+linWeightMean <- constructTempGenerator(weightFctGen(lin2), "lwMeanTemp")
 quad2 <- function(x) 1 / (length(x)^2 - 2) * x^2 - 1 / (length(x) - 2) * x
 quadWeightMean <- constructTempGenerator(weightFctGen(quad2),
                                          "lwMeanTemp")
@@ -186,6 +189,28 @@ root2 <- function(x) 1 / (length(x)^0.5 - 2) * x^0.5 -
   1 / (length(x)^(1/3) - 2) * x^(1/3)
 rootWeightMean <- constructTempGenerator(weightFctGen(function(x) x^0.5),
                                          "lwMeanTemp")
+
+# Invert Winter temperatures for a given Temperature generator
+invertWinter <- function(name, tmpGen) {
+  inverted <- (function(data, init=FALSE) {
+    if (init) {
+      outputPreprocessing(name)
+      return(name)
+    }
+    tCols <- paste0("w", 1:25)
+
+    for(zone in data$Zones) {
+      curr <- data[[zone]]$Train
+      # Summer is 2 => multiply with 1; Winter is 1 => multiply with -1
+      data[[zone]]$Train[,tCols] <- (2 * getSumWin(curr) - 3) * curr[,tCols]
+    }
+    return(tmpGen(data))
+  })
+  return(inverted)
+}
+
+invWin_meanTmp <- invertWinter("invWin_meanTmp", meanTemp)
+invWin_lwMean <- invertWinter("invWin_lwMean", linWeightMean)
 
 # Transform temperature values to temperature differences just by defining
 # metric
