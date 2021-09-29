@@ -120,28 +120,40 @@ trivialForecast <- function(X_train, y_train, X_test, id=c(1, 1), init=FALSE) {
   return(t(joinedForecast))
 }
 
-
-# GEFCOM14 solar benchmark forecast : predict for all quantiles (1% up to 99%)
-# the power generation value of last year at exactly the same date
-# Therefore train has to comprise the one year past of test
-benchmarkSolar <- function(X_train, y_train, X_test, id=1, init=FALSE) {
+# GEFCOM14 solar, load and price benchmark forecast : predict for all quantiles
+# the respective value of last year (solar [use (1,1)] and laod [use (1,2)]) or
+# last week (price [use (3,2)]) at exactly the same date
+LastVal <- function(X_train, y_train, X_test, id=c(1, 1), init=FALSE) {
+  track <- switch(id[1], "Solar", "Load", "Price", "Wind")
+  if (id[2] == 1) {
+    text <- "year'"
+    fcn <- function(t) {
+      year(t) <- year(t) - 1
+      return(t)
+    }
+  } else if (id[2] == 2) {
+    text <- "week"
+    fcn <- function(t) {
+      day(t) <- day(t) - 7
+      return(t)
+    }
+  }
   if (init) {
-    outputForecastingMethod("solar benchmark forecast",
+    outputForecastingMethod(paste0("last ", text, "'s value"),
                             c("Issue", "for", "every", "timestamp", "the",
-                              "power", "production", "of", "last", "year",
-                              "ago", "as", "all", "quantiles", "(point-measure",
-                            "on", "value", "one", "year", "ago)"))
+                              "target", "value", "of", "last", text, "as", "all",
+                              "quantiles", "(point-measure)"))
     return(list(TIT="benchmark", VAR="None", OR="None", PBZ=TRUE,
-                TRACK="Solar", ID="1", GR="no_grouping"))
+                TRACK=track, ID="1", GR="no_grouping"))
   }
   forecast_in <- X_test$TIMESTAMP
 
   # predict for all quantiles the one year past power generation
   getLastYearVal <- function(date) {
-    year(date) <- year(date) - 1
-    power <- X_train %>% mutate(POWER = y_train) %>% filter(TIMESTAMP == date)
+    date <- fcn(date)
+    target <- X_train %>% mutate(TARGET = y_train) %>% filter(TIMESTAMP == date)
     # it could be that train doesn't contain last year's value, then return NA
-    out <-if(!identical(power$POWER, numeric(0)))  power$POWER  else NA
+    out <-if(!identical(target$TARGET, numeric(0))) target$TARGET  else NA
     return(rep(out, length(QUANTILES)))
   }
 
