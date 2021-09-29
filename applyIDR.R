@@ -157,9 +157,9 @@ solarV <- c("VAR169", "VAR178", "VAR167", "VAR157", "VAR228", "VAR79", "VAR78",
 
 windV <- c("S10", "S100", "U10", "V10", "U100", "V100", "A10", "A100", "SX")
 
-loadV <- c("w1", "w2", "w10", "w25", "w11", "w13", "w15", "w22", "w23", "w24")
-#loadV <- c("w3", "w4", "w5", "w6", "w7", "w8", "w9", "w12", "w14", ("w16")
-#loadV <- c("w17", "w18", "w19", "w20", "w21")
+loadV <- c("w9", "w13", "w21", "w22", "w18", "w11", "w23", "w20", "w8", "w25",
+           "w7", "w17", "w12", "w14", "w3", "w2", "w15", "w19", "w6", "w5",
+           "w4", "w24", "w10", "w16", "w1")
 
 priceV <- c("Forecasted.Total.Load", "Forecasted.Zonal.Load", "WDAY", "HOUR6",
             "WDAYHOUR6", "WDAY4", "WDAY4_CAT", "WDAY2", "WDAY2HOUR6")
@@ -180,10 +180,17 @@ getVariant <- function(id) {
   return(IDR_BY_GROUP)
 }
 
+# 1 indicate use of vars => 10101 = use 1st, 3rd and 5th variable from the list
+# Since in load there are 25 variables the 11th number indiceates which set:
+# 0 - vars 1 to 10; 1 - vars 11 to 20; 2 - vars 21 - 25
 getVariableSelection <- function(id, track) {
   # array of digits
   indices <- as.numeric(strsplit(as.character(format(id[1], scientific=FALSE)),
                                  split ="")[[1]])
+  if (track == "Load" && length(indices) == 11) {
+    indices <- c(indices, rep(0, 10 * indices[1]))
+    indices[1] <- 0
+  }
   # which indices are non_zero
   nonzero_ind <- which(rev(indices != 0))
   return(switch(track, "Solar"=solarV, "Wind"=windV, "Price"=priceV,
