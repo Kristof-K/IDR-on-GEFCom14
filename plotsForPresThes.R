@@ -635,15 +635,39 @@ plotsForThesisLoad <- function() {
   cols <- paste0("w", 1:25)
   d <- loadLoad(4)$Zone1$Train %>% filter(!is.na(TARGET))
 
+  # TRANSFORM TEMPERATURES IN DISTANCES ========================================
   dist_fnc <- list("absolute dist" = function(x, y) abs(x - y),
                    "squared dist" = function(x, y) (x - y)^2)
+  mid_fnc <- list("median" = median,
+                  "conditional median" = function(x) {
+                    median(filter(d, TARGET<=quantile(TARGET, probs=0.1))
+                             %>% pull(w10))
+                  },
+                  "mean"=mean,
+                  "weighted mean" = function(x) {
+                    weights <- (max(d$TARGET) - d$TARGET)
+                    normalize <- nrow(d) * max(d$TARGET) - sum(d$TARGET)
+                    return(sum(x * weights) / normalize)
+                  })
+  manual_mid <- d %>% mutate(bins = cut_interval(d$w10, n=500)) %>%
+    group_by(bins) %>% summarise(q95 = quantile(TARGET, probs=0.95),
+                                 mid = median(w10), .groups="drop") %>%
+    filter(q95 == min(q95)) %>% pull(mid)
+
+  ggplot(data=d) +
+    geom_point(aes(x=w10, y=TARGET)) +
+    geom_vline(xintercept=mid_fnc[["mean"]](d$w10), color="red") +
+    geom_vline(xintercept=mid_fnc[["median"]](d$w10), color="blue") +
+    geom_vline(xintercept=mid_fnc[["conditional median"]](d$w10), color="cyan") +
+    geom_vline(xintercept=mid_fnc[["weighted mean"]](d$w10), color="coral") +
+    geom_vline(xintercept=manual_mid, color="lightgreen")
 
   plot_data <- data.frame()
-  for (fnc in names(dist_fnc)) {
-    for (q in c(0.1, 1)) {
-      mid <- median(filter(d, TARGET<=quantile(TARGET, probs=q)) %>% pull(w10))
-      add_df <- data.frame(Load=d$TARGET, T=dist_fnc[[fnc]](d$w10, mid),
-                           Lab=paste0(fnc, ", q=",q), Col=fnc)
+  for (fnc_d in names(dist_fnc)) {
+    for (fnc_m in c("conditional median", "median")) {
+      mid <- mid_fnc[[fnc_m]](d$w10)
+      add_df <- data.frame(Load=d$TARGET, T=dist_fnc[[fnc_d]](d$w10, mid),
+                           Lab=paste0(fnc_d, ", ", fnc_m), Col=fnc_d)
       plot_data <- rbind(plot_data, add_df)
     }
   }
@@ -659,6 +683,7 @@ plotsForThesisLoad <- function() {
   ggsave("LoadDist.pdf", path="plots/ForThesis/", width=11.69,
          height=4)
 
+  # LOOK AT MONTHS SEPARATELY OF ONE TEMPERATURE SERIES ========================
   d %>% select(TIMESTAMP, TARGET, w1) %>%
     mutate(Month = getMonths(d, label=TRUE),
            t = day(TIMESTAMP), m = month(TIMESTAMP),
@@ -676,7 +701,7 @@ plotsForThesisLoad <- function() {
     guides(color = guide_legend(nrow = 1, byrow = TRUE)) +
     ggtitle("Load vs. Temperature (w1)")
   ggsave("LoadScatterw1.pdf", path="plots/ForThesis/", width=11.69,
-         height=7.5)
+         height=6.2)
 
   corr <- d %>% mutate(Month = getMonths(d, label=TRUE)) %>% group_by(Month) %>%
     summarise(across(.cols = starts_with("w"),
@@ -923,9 +948,9 @@ plotsForThesisLoad <- function() {
                   data.frame(score_matrix)) %>%
     arrange(linW)
   sorted %>% mutate(WS=factor(WS, ordered=TRUE, levels=sorted[["WS"]])) %>%
-    pivot_longer(cols=-WS, names_to="y") %>%
+    pivot_longer(cols=-WS, names_to="y", values_to="Score") %>%
     mutate(y=factor(col_names[y], ordered=TRUE, levels=unname(col_names))) %>%
-    ggplot(aes(x=WS, y=y, fill=value)) +
+    ggplot(aes(x=WS, y=y, fill=Score)) +
     geom_tile() +
     xlab("Weather station") +
     ylab("") +
