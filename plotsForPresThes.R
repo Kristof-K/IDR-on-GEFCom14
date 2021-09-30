@@ -636,52 +636,70 @@ plotsForThesisLoad <- function() {
   d <- loadLoad(4)$Zone1$Train %>% filter(!is.na(TARGET))
 
   # TRANSFORM TEMPERATURES IN DISTANCES ========================================
-  dist_fnc <- list("absolute dist" = function(x, y) abs(x - y),
-                   "squared dist" = function(x, y) (x - y)^2)
-  mid_fnc <- list("median" = median,
-                  "conditional median" = function(x) {
-                    median(filter(d, TARGET<=quantile(TARGET, probs=0.1))
-                             %>% pull(w10))
-                  },
-                  "mean"=mean,
-                  "weighted mean" = function(x) {
-                    weights <- (max(d$TARGET) - d$TARGET)
-                    normalize <- nrow(d) * max(d$TARGET) - sum(d$TARGET)
-                    return(sum(x * weights) / normalize)
-                  })
-  manual_mid <- d %>% mutate(bins = cut_interval(d$w10, n=500)) %>%
-    group_by(bins) %>% summarise(q95 = quantile(TARGET, probs=0.95),
-                                 mid = median(w10), .groups="drop") %>%
-    filter(q95 == min(q95)) %>% pull(mid)
+  source("preprocess.R")
+  mid_fnc <- list("median" = getDiffMed,
+                  "cond-median" = getDiffMedS,
+                  "mean"=getDiffMean,
+                  "weigh-mean" = getDiffMeanS,
+                  "min-max-bin" = getDiffMax)
 
-  ggplot(data=d) +
-    geom_point(aes(x=w10, y=TARGET)) +
-    geom_vline(xintercept=mid_fnc[["mean"]](d$w10), color="red") +
-    geom_vline(xintercept=mid_fnc[["median"]](d$w10), color="blue") +
-    geom_vline(xintercept=mid_fnc[["conditional median"]](d$w10), color="cyan") +
-    geom_vline(xintercept=mid_fnc[["weighted mean"]](d$w10), color="coral") +
-    geom_vline(xintercept=manual_mid, color="lightgreen")
+  mid_points <- summarise(d,
+                          across(cols, .fns = mid_fnc, .names = "{.col}_{.fn}",
+                                 TARGET)) %>%
+    pivot_longer(cols = everything(), names_to=c("WeatherStation", "MidPoint"), names_sep = "_")
+  point_clouds <- select(d, all_of(cols), TARGET) %>%
+    pivot_longer(cols = -TARGET, names_to="WeatherStation")
+
+  ggplot() +
+    geom_point(data=point_clouds, aes(x=value, y=TARGET), alpha=0.1) +
+    geom_vline(data=mid_points, aes(xintercept=value, color=MidPoint)) +
+    facet_wrap(~WeatherStation, ncol=3) +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+          legend.position="bottom")
+  ggsave("LoadMidPoints.pdf", path="plots/ForThesis/", width=11.69,
+         height=30)
+
+  station <- "w10"
+  low10 <- quantile(filter(point_clouds, WeatherStation == station)$TARGET,
+                    probs=0.1)
+  point_cloud <- ggplot() +
+    geom_point(data=filter(point_clouds, WeatherStation == station),
+                           aes(x=value, y=TARGET), alpha=0.1) +
+    geom_vline(data=filter(mid_points, WeatherStation == station),
+               aes(xintercept=value, color=MidPoint), size=1.2) +
+    geom_hline(yintercept = low10, color="gray", linetype=2, size=1.2) +
+    theme_bw() +
+    ylab("Load") +
+    xlab("Temperature") +
+    ggtitle("Temperature Deviations (w10)") +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+          legend.justification=c(1,0), legend.position=c(1,0)) +
+    guides(color = guide_legend(title=NULL))
 
   plot_data <- data.frame()
-  for (fnc_d in names(dist_fnc)) {
-    for (fnc_m in c("conditional median", "median")) {
-      mid <- mid_fnc[[fnc_m]](d$w10)
-      add_df <- data.frame(Load=d$TARGET, T=dist_fnc[[fnc_d]](d$w10, mid),
-                           Lab=paste0(fnc_d, ", ", fnc_m), Col=fnc_d)
-      plot_data <- rbind(plot_data, add_df)
-    }
+  for (fnc_m in c("cond-median", "median")) {
+    mid <- mid_fnc[[fnc_m]](d$w9, d$TARGET)
+    add_df <- data.frame(Load=d$TARGET, T=abs(d$w9 - mid),
+                         Lab=fnc_m,
+                         Col=ifelse(d$w9 > mid, "Right arm", "Left arm"))
+    plot_data <- rbind(plot_data, add_df)
   }
-  ggplot(plot_data, aes(x=T, y=Load, color=Col)) +
-    geom_point(alpha=0.05, show.legend=FALSE) +
+  preprocessed <- ggplot(plot_data, aes(x=T, y=Load, color=Col)) +
+    geom_point(alpha=0.1) +
     facet_wrap(~Lab, nrow=1, scales="free_x") +
-    ylab("Load") +
-    xlab("Temperature deviation") +
-    ggtitle("Load vs. Temperature Deviation (w10)") +
+    ylab("") +
+    xlab("Absolute temperature deviation") +
+    ggtitle("") +
     scale_color_brewer(palette="Dark2") +
     theme_bw() +
-    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
-  ggsave("LoadDist.pdf", path="plots/ForThesis/", width=11.69,
-         height=4)
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+          legend.justification=c(1,0), legend.position=c(1,0)) +
+    guides(color = guide_legend(title=NULL))
+  library(gridExtra)
+  grid.arrange(point_cloud, preprocessed, nrow=1)
+  ggsave("LoadDist2.pdf", path="plots/ForThesis/", width=11.69,
+         height=4.2)
 
   # LOOK AT MONTHS SEPARATELY OF ONE TEMPERATURE SERIES ========================
   d %>% select(TIMESTAMP, TARGET, w1) %>%
