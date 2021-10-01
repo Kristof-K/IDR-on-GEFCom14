@@ -904,15 +904,21 @@ plotsForThesisLoad <- function() {
     theme(text = element_text(size = 16), axis.text = element_text(size = 13))
 
   # ANAlYZE TEMPERATURE FORECAST DEVIATIONS ====================================
-  task <- 4
-  curr_test <- meanTemp(loadLoad(task))$Zone1$Test
+  task <- 1
+  curr_test <- loadLoad(task)
+  curr_test$Zone1$Train <- filter(curr_test$Zone1$Train, !is.na(TARGET))
+  curr_test <- meanTemp(curr_test)$Zone1$Test
+  #curr_test <- meanTemp(loadLoad(task))$Zone1$Test
   last <- curr_test$TIMESTAMP[1]
   pred <- curr_test[cols]
   true <- loadLoad(task + 1)$Zone1$Train %>% filter(TIMESTAMP >= last) %>%
     select(all_of(cols))
 
-  colMeans(abs(true - pred))
-  colMeans((true - pred)^2)
+  #colMeans(abs(true - pred))
+  squ_error <- colMeans((true - pred)^2)
+  mean(squ_error)
+
+  # vals with all data 77.67 77.39 168.89
 
   # INITAIL TRIES ===============================================================
   scores <- c(14.34551477,14.53104756,14.48916046,14.52237191,14.53769826,14.51583732,14.50215342,14.52127188,
@@ -969,7 +975,7 @@ plotsForThesisLoad <- function() {
                 "LastT"="Last temp")
   colnames(score_matrix)  <- names(col_names)
 
-  sorted <- cbind("WS"=c(1,2,10,25,11,13,15,22,23,24,3,4,5,6,7,8,9,12,14,16,17,18,19,20,21),
+  sorted <- cbind("WS"=c(9,13,21,22,18,11,23,20,8,25,7,17,12,14,3,2,15,19,6,5,4,24,10,16,1),
                   data.frame(score_matrix)) %>%
     arrange(Mean)
   sorted %>% mutate(WS=factor(WS, ordered=TRUE, levels=sorted[["WS"]])) %>%
