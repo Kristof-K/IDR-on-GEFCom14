@@ -1,4 +1,4 @@
-library(foreach)    # to parallel central task loop
+library(foreach)   # to parallel central task loop
 library(doParallel)
 library(dplyr)
 
@@ -8,9 +8,7 @@ source("applyIDR.R")
 source("preprocess.R")
 
 # TODO
-# - wind speed linear interpolated for different heights?
 # - Loss-plot
-# - Temperature forecasts, Load-Temperature relation
 
 
 # Routine conducting evaluation for a given prediciton and scoring method
@@ -34,8 +32,9 @@ source("preprocess.R")
 # - tune : true to consider only the initial tuning phase in the competition,
 #   false to use the preceding competition phase
 # - ret : true return list of all single scores, false then not
+# - write : write predictions, true observations and scores in extra log file
 evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp,
-                       tune=FALSE, ret=FALSE) {
+                       tune=FALSE, ret=FALSE, write=FALSE) {
   # in order to run the foeach loop in parallel
   cl <- makeCluster(3)
   registerDoParallel(cl)
@@ -50,13 +49,20 @@ evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp,
   dataList <- foreach(task=tasks) %do% {
     preprocessfct(loadSet(info[["TRACK"]], task))
   }
+  # add directory that contains predictions if they should be saved
+  path <- NULL
+  if (write) {
+    path <- paste0("predictions/", info[["TRACK"]], "-",
+                   paste(id, collapse="_"), "-", info[["PP"]])
+    dir.create(path)
+  }
   # run in parallel through tasks and store results in scoreList
   scoreList <- foreach(task=1:length(dataList),
                        .export=c("goParallel", "predAndEval")) %dopar% {
     source("util.R") # source necessary files (thread starts in empty env)
     source("applyIDR.R")
     saveScores <- goParallel(predictionfct, scoringfct, dataList[[task]], id,
-                             info$PBZ)
+                             info$PBZ, path, task)
     saveScores      # store result in list
   }
   stopCluster(cl)   # due to parallel programming
@@ -66,7 +72,8 @@ evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp,
   if (ret) return(scoreList)
 }
 
-goParallel <- function(predictionfct, scoringfct, data, id, goByZone) {
+goParallel <- function(predictionfct, scoringfct, data, id, goByZone, path,
+                       task) {
   df_list <- list()
   # When predicitionfct wants data of all zones at once, unite it
   if (!goByZone) {
@@ -84,11 +91,11 @@ goParallel <- function(predictionfct, scoringfct, data, id, goByZone) {
   }
   # apply predAndEval on every element of df_list and rbind it afterwards
   allScores <- do.call(rbind, lapply(df_list, predAndEval, predictionfct,
-                                     scoringfct, id))
+                                     scoringfct, id, path, task))
   return(allScores)
 }
 
-predAndEval <- function(data, predictionfct, scoringfct, id) {
+predAndEval <- function(data, predictionfct, scoringfct, id, path, task) {
   y <- data$Test$TARGET
   y_train <- data$Train$TARGET
   X_train <- select(data$Train, -TARGET)
@@ -99,6 +106,12 @@ predAndEval <- function(data, predictionfct, scoringfct, id) {
   prediction <- predictionfct(X_train, y_train, X_test, id)
   # conduct scoring
   scores <- scoringfct(prediction, y)
+  if (!is.null(path)) {
+    colnames(prediction) <- paste(1:99 * 0.01)
+    write_df <- data.frame(time = paste(times), zoneid = zone, y = y,
+                           prediction, score = scores)
+    write.csv(write_df, paste0(path, "/Task", task, "_", zone[1], ".csv"))
+  }
   return(data.frame(TIMESTAMP=times, ZONEID=zone, SCORE=scores))
 }
 
@@ -132,32 +145,39 @@ outputAndLog <- function(scoreList, duration, info, tune) {
 }
 
 
-#evaluation(trivialForecast, pinBallLoss, c(2,1))
-#evaluation(benchmarkSolar, pinBallLoss, 1))
-#evaluation(unleashSolIDR, pinBallLoss, c(1, 1, 2), preprocessfct=deaccumulateSol, tune=TRUE)
-#evaluation(unleashSolIDR, pinBallLoss, c(15, 1, 2), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(16, 1, 2), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(9, 2, 2), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(1, 1, 2, 0.95), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(1, 1, 8), preprocessfct=deaccumulateSol)
-#evaluation(unleashSolIDR, pinBallLoss, c(14, 1, 7, 1, 75, 0.25), preprocessfct=deaccumulateSol)
+#evaluation(trivialForecast, pinBallLoss)
+#evaluation(LastVal, pinBallLoss, c(3,2))
+#evaluation(unleashSolIDR, pinBallLoss, c(100001, 2, 9), preprocessfct=deaccuInvertSol, tune=TRUE)
+#evaluation(unleashSolIDR, pinBallLoss, c(1, 1, 2, 0.95), preprocessfct=deaccuInvertSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(1, 1, 9), preprocessfct=deaccuInvertSol)
+#evaluation(unleashSolIDR, pinBallLoss, c(100001, 1, 9, 1, 75, 0.25), preprocessfct=deaccuInvertSol)
 
 #evaluation(benchmarkWind, pinBallLoss, 1)
-#evaluation(unleashWinIDR, pinBallLoss, c(2, 1, 2), preprocessfct=getWindAttributes)
-#evaluation(unleashWinIDR, pinBallLoss, c(2, 1), preprocessfct=getWindAttributes)
-#evaluation(unleashWinIDR, pinBallLoss, c(2, 1, 6), preprocessfct=getWindAttributes)
-#evaluation(unleashWinIDR, pinBallLoss, c(2, 1, 4), preprocessfct=getWindAttributes)
+#evaluation(unleashWinIDR, pinBallLoss, c(10, 1, 3), preprocessfct=getWindAttributes, tune=TRUE)
+#evaluation(unleashWinIDR, pinBallLoss, c(100000001, 1, 6), preprocessfct=getWindAttributes, tune=TRUE)
 #evaluation(unleashWinIDR, pinBallLoss, c(2, 1, 6, 0.8), preprocessfct=getWindAttributes)
 
-#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 1), preprocessfct=meanTemp)
-#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8), preprocessfct=meanTemp)
-#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8), preprocessfct=lwMeanTemp)
-#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8, 1, 75, 0.25), preprocessfct=lwMeanTemp)
-#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8, 1, 100, 0.5), preprocessfct=lwMeanTemp)
+#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 1), preprocessfct=squared_lastTmp, tune=TRUE)
+#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8), preprocessfct=invWin_meanTmp)
+#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8, 1, 75, 0.25), preprocessfct=invWin_lwMean)
+#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8, 1, 100, 0.5), preprocessfct=invWin_lwMean)
+#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 1), preprocessfct=squ_meanTmp, tune=TRUE, write=TRUE)
 
-#evaluation(unleashPriIDR, pinBallLoss, c(2, 1, 5))
-#evaluation(unleashPriIDR, pinBallLoss, c(2, 1, 8))
-#evaluation(unleashPriIDR, pinBallLoss, c(2, 1, 8, 1, 75, 0.25))
+#evaluation(unleashPriIDR, pinBallLoss, c(110, 1, 16), tune=TRUE, preprocessfct=addPriceRegressors)
+#evaluation(unleashPriIDR, pinBallLoss, c(10000010, 1, 17), tune=TRUE, preprocessfct=addPriceRegressors)
+#evaluation(unleashPriIDR, pinBallLoss, c(110, 1, 18), tune=TRUE, preprocessfct=addPriceRegressors)
+#evaluation(unleashPriIDR, pinBallLoss, c(10, 1, 8, 1, 75, 0.25))
+
+checkAllLoad <- function() {
+  max_exp <- c(9, 9, 4)
+
+  for(i in 0:2) {
+    for (j in 0:max_exp[i + 1]) {
+      var <- i * 10^10 + 10^j
+      evaluation(unleashLoaIDR, pinBallLoss, c(var, 1, 1), preprocessfct=squ_meanTmp, tune=TRUE)
+    }
+  }
+}
 
 gridSearch <- function() {
   # Try all variable combinations
@@ -178,13 +198,12 @@ gridSearch <- function() {
     # get all 0-1-numbers with k ones
     for (first in 3:(num - k + 1)) {
       for(n in getNextNum(first, num, k)) {
-        print(evaluation(unleashSolIDR, pinBallLoss, c(n, 1, 2),
-                         preprocessfct=deaccumulateSol, tune=TRUE))
+        evaluation(unleashSolIDR, pinBallLoss, c(n, 1, 2),
+                         preprocessfct=deaccumulateSol, tune=TRUE)
       }
     }
   }
 }
-#gridSearch()
 
 printScoresByZone <- function() {
   for(g in c(1,10)) {
