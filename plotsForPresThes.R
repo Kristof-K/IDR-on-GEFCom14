@@ -71,6 +71,56 @@ plotPIT <- function() {
   ggsave("LoadPIT.pdf", path="plots/ForThesis/", width=11.69, height=4.2)
 }
 
+plotResults <- function() {
+  library("gridExtra")
+  tracks <- c("Load", "Price", "Wind", "Solar")
+  paths <- c("../BestLoad.csv", "../BestPrice.csv", "../BestWind.csv",
+             "../BestSolar.csv")
+  for (i in 1:4) {
+    raw_data <- read.csv2(paths[i])
+    p <- ncol(raw_data) - 1
+    participants <- raw_data %>%
+      pivot_longer(cols = -Task, names_to = "Rank") %>%
+      mutate(Rank = factor(substring(Rank, 2), ordered=TRUE,
+                           levels=paste(1:p)))
+    part_colors <- scales::seq_gradient_pal("#132B43", "#56B1F7",
+                                            "Lab")(seq(0,1,length.out=p-1))
+    my_colors <- c(part_colors, "#FF0000")
+    my_colors2 <- c(rep("white", 10), rep("black", p - 10))
+
+    curves <- ggplot(mapping = aes(x=Task, y=value)) +
+      geom_line(data=participants, aes(color = Rank), show.legend=FALSE) +
+      geom_point(data=participants, aes(color = Rank), show.legend=FALSE) +
+      scale_x_continuous(breaks = 1:12) +
+      scale_color_manual(values=my_colors) +
+      xlab("Task") +
+      ylab("Mean pinball score") +
+      ggtitle(paste("Final Scores", tracks[i], "Track")) +
+      theme_bw() +
+      theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+
+    means <- colMeans(raw_data, na.rm=TRUE)[paste0("X", 1:p)]
+    plot_data <- data.frame(Mean_val=unname(means),
+               Rank=factor(substring(names(means), 2), ordered=TRUE,
+                            levels=paste(p:1))) %>%
+      mutate(Lab = ifelse(Rank == p, "Benchmark", paste(Rank)))
+    bars <- ggplot(plot_data, aes(x=Rank, y=Mean_val, fill=Rank)) +
+      geom_col(show.legend = FALSE) +
+      geom_text(aes(x=Rank, y=Mean_val/2, label=Lab, color=Rank), angle=90,
+                show.legend=FALSE) +
+      scale_fill_manual(values = rev(my_colors)) +
+      scale_color_manual(values = rev(my_colors2)) +
+      ylab("Mean pinball score") +
+      xlab("") +
+      ggtitle("") +
+      theme_bw() +
+      theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+            axis.text.x = element_blank())
+
+    grid.arrange(curves, bars, nrow=1, widths=c(3,2))
+  }
+}
+
 plotsForSlides <- function() {
   data_all <- deaccumulateSol(loadSolar(15))
 
