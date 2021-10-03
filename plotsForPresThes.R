@@ -8,14 +8,67 @@ source("preprocess.R")
 # ==============================================================================
 
 plotPIT <- function() {
-  y_pred_score <- read.csv2("")
-  y <- y_pred_score[["y"]]
-  pred <- y_pred_score[,paste(1:99 * 0.01)]
+  task_color <- c("#F8766D", "#00BA48", "#619CFF")
+  w10 <- data.frame()
+  w9 <- data.frame()
+  for(i in 1:3) {
+    add10 <- paste0("predictions/Load-10000000100_1_1-squ_CondMed_meanTemp/Task",
+                    i, "_1.csv")
+    add9 <- paste0("predictions/Load-1_1_1-squ_Med_meanTemp/Task", i, "_1.csv")
+    w10 <- rbind(w10, cbind(read.csv(add10), Task=i))
+    w9 <- rbind(w9, cbind(read.csv(add9), Task=i))
+  }
+  combine <- rbind(cbind(w10, WS="w10"), cbind(w9, WS="w9"))
 
-  F_y <- rowSums(y >= pred) * 0.01
+  Hist <- transmute(combine, Task = factor(Task, ordered=TRUE, levels=3:1),
+                    WS  = WS,
+            PIT = rowSums(y >= combine[,paste0("X", 1:99 * 0.01)]) * 0.01) %>%
+    ggplot() +
+    geom_histogram(aes(x=PIT, fill=Task), bins=20) +
+    facet_wrap(~WS) +
+    ylab("Count") +
+    ggtitle("Forecast Performance") +
+    scale_fill_manual(values = rev(task_color)) +
+    theme_bw()  +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+          legend.justification=c(1,1), legend.position=c(1,1))
 
-  ggplot(data=data.frame(x=F_y)) +
-    geom_histogram(aes(x=x))
+  n <- nrow(combine) / 2
+  breaks <- as.integer(seq(1, n, (n - 1) / 4))
+  labels <- paste0(day(combine$time[breaks]), ".", month(combine$time[breaks]))
+
+  task12 <- min(which(combine$Task == 2))
+  task23 <- min(which(combine$Task == 3))
+
+  true_obs <- filter(combine, WS=="w9") %>%
+    transmute(x = 1:n, y = y)
+  t_text <- data.frame(x=c(task12 / 2, task12 + (task23 - task12) / 2,
+                           task23 + (n - task23) / 2),
+                     y = rep(312.5, 3), lab=paste("Task", 1:3))
+
+  con_bans <- select(combine, WS = WS, all_of(paste0("X", c(1:4, 6:9) * 0.1))) %>%
+    rename(l_80 = X0.1, l_60 = X0.2, l_40 = X0.3, l_20 = X0.4,
+           u_80 = X0.9, u_60 = X0.8, u_40 = X0.7, u_20 = X0.6) %>%
+    mutate(x = rep(1:n, 2)) %>%
+    pivot_longer(cols = c(-x, -WS), names_to = c("lu", "width"),
+                 names_sep="_") %>%
+    pivot_wider(id_cols = c(WS, x, width), names_from = lu,
+                values_from = value)
+  scatter <- ggplot(mapping=aes(x=x)) +
+    geom_ribbon(data=con_bans, aes(ymin=l, ymax=u, group=width), alpha=0.5) +
+    geom_point(data=true_obs, aes(y=y), color="red", alpha=0.2, size=0.75) +
+    geom_vline(xintercept = c(task12, task23), color="blue", linetype=2) +
+    geom_text(data=t_text, aes(x=x, y=y, label=lab),
+              color=rep(task_color, 2), size=5) +
+    facet_wrap(~WS) +
+    ggtitle("") +
+    ylab("Load") +
+    scale_x_continuous(breaks = breaks, labels = labels, name = "Date") +
+    theme_bw()  +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+  scalibrary(gridExtra)
+  grid.arrange(Hist, scatter, nrow=1)
+  ggsave("LoadPIT.pdf", path="plots/ForThesis/", width=11.69, height=4.2)
 }
 
 plotsForSlides <- function() {
