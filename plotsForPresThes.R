@@ -7,6 +7,17 @@ source("preprocess.R")
 # Plots for slide and thesis
 # ==============================================================================
 
+plotPIT <- function() {
+  y_pred_score <- read.csv2("")
+  y <- y_pred_score[["y"]]
+  pred <- y_pred_score[,paste(1:99 * 0.01)]
+
+  F_y <- rowSums(y >= pred) * 0.01
+
+  ggplot(data=data.frame(x=F_y)) +
+    geom_histogram(aes(x=x))
+}
+
 plotsForSlides <- function() {
   data_all <- deaccumulateSol(loadSolar(15))
 
@@ -400,20 +411,19 @@ plotsForThesisWind <- function() {
     summarise(Height, Correlation = 29 - rank(Correlation),
               .groups = "drop") %>%
     filter(Correlation <= 3)
-  library(scales)  # for muted()
   ggplot(mapping = aes(x = factor(Zone, ordered=TRUE,
                                   levels=paste0("Zone", 1:10)),
                        y = Height)) +
     geom_tile(data = corr, aes(fill = Correlation)) +
     geom_text(data = top3, aes(label = Correlation)) +
-    scale_fill_gradient(low="white", high=muted("blue")) +
+    scale_fill_gradient(low="darkorchid4", high="coral", name = "Correlation") +
     xlab("Zone") +
     ylab("Height [m]") +
-    ggtitle(paste("Correlation Wind Power with Wind Speed",
+    ggtitle(paste("Correlation: Wind Power and Wind Speed",
                   "at Different Heights")) +
     theme_bw() +
-    theme(text = element_text(size = 16), axis.text = element_text(size = 13)) +
-    ggsave("WindCorrelations.pdf",
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+  ggsave("WindCorrelations.pdf",
              path="plots/ForThesis/", width=11.69, height=5)
   # use subagging to get more reliable estimates for the height of the optimal
   # wind speed
@@ -770,7 +780,57 @@ plotsForThesisLoad <- function() {
               .groups = "drop") %>%
     filter(Correlation <= 10)
 
-  # examine separation of winter / summer
+  source("preprocess.R")
+  fns_list <- list("median"=function(col, target) {
+    return(cor(target, squ_diff(col, getDiffMed(col ,target)), method="spearman"))
+  },
+                   "cond-med"=function(col, target) {
+    return(cor(target, squ_diff(col, getDiffMedS(col ,target)), method="spearman"))
+  },
+                   "mean"=function(col, target) {
+    return(cor(target, squ_diff(col, getDiffMean(col ,target)), method="spearman"))
+  },
+                   "weigh-mean"=function(col, target) {
+    return(cor(target, squ_diff(col, getDiffMeanS(col ,target)), method="spearman"))
+  },
+                   "min-max-bin"=function(col, target) {
+    return(cor(target, squ_diff(col, getDiffMax(col ,target)), method="spearman"))
+  })
+
+  n <- 100
+  frac <- 0.7
+
+  out <- data.frame()
+  for (i in 1:n) {
+    corrs <- slice_sample(d, prop = frac, replace = TRUE) %>%
+      summarise(across(all_of(cols), fns_list, .names = "{.col}_{.fn}", TARGET))
+    if (i == 1) {
+      out <- corrs
+    } else {
+      out <- out + corrs
+    }
+  }
+  corr_vals <- (out / n) %>%
+    pivot_longer(cols=everything(), names_to=c("WS", "Mid"), names_sep="_") %>%
+    mutate(WS = factor(substring(WS, 2), ordered=TRUE, levels=paste(1:25)),
+           Mid = factor(Mid, ordered=TRUE, levels=names(fns_list)))
+  top25 <- mutate(corr_vals, rk = 25 * 5 + 1 - rank(value)) %>%
+    filter(rk <= 50) %>% select(-value)
+
+  ggplot(mapping=aes(x=WS, y=Mid)) +
+    geom_tile(data=corr_vals, aes(fill=value)) +
+    geom_text(data=top25, aes(label = rk, alpha = 53 - rk), show.legend=FALSE,
+              size=5) +
+    xlab("Weather station") +
+    ylab("") +
+    ggtitle("Correlation: Load and Squared Temperatuere Deviations") +
+    scale_fill_gradient(low="darkorchid4", high="coral", name = "Correlation") +
+    theme_bw() +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+  ggsave("LoadCorrTempDiff.pdf", path="plots/ForThesis/", width=11.69,
+         height=4)
+
+  # examine separation of winter / summer --------------------------------------
   ex_m <- 10
   plot_data <- data.frame()
   for(i in 10:21) {
@@ -921,63 +981,15 @@ plotsForThesisLoad <- function() {
   # vals with all data 77.67 77.39 168.89
 
   # INITAIL TRIES ===============================================================
-  scores <- c(14.34551477,14.53104756,14.48916046,14.52237191,14.53769826,14.51583732,14.50215342,14.52127188,
-              14.47742568,14.52957191,14.55690806,14.48976961,14.46537847,14.4383698,14.47182605,14.48768181,
-              14.52123614,14.4717041,14.56713092,14.48399414,14.5053785,14.55418732,14.57007256,14.49995036,
-              14.53932364,
-              13.2443355,13.1842294,13.45618307,13.55340879,13.39020555,13.19841407,13.28738272,13.26909824,
-              13.29175145,13.27299008,13.36668116,13.20090137,13.26357544,13.49611723,13.18013447,13.36028107,
-              13.26820797,13.27235071,13.32444159,13.3354492,13.25536974,13.2638044,13.20337731,13.32891089,
-              13.27107218,
-              12.76815024,13.30309944,14.24817037,14.04052828,13.66543905,12.90998023,13.12565861,13.52053365,
-              13.24858983,13.50707799,13.72737465,12.74714552,13.30482232,14.58454636,12.86481691,13.62582707,
-              13.20528437,13.19676789,13.97860528,13.13182825,12.7420828,13.20042637,13.56771223,13.40306529,
-              12.8899781,
-              NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-              10.69011747,10.83852208,10.64703374,11.39344948,11.27578709,10.60364084,11.40802819,11.47940768,
-              11.36660764,11.08737296,11.21055459,11.11988353,11.4031055,10.90919632,11.01017633,11.27332573,
-              10.9684332,10.72983153,11.3101196,11.86758653,11.21752946,11.18486444,11.36336267,11.52445765,
-              11.53754769,
-              10.79801507,11.43568063,11.16433963,11.85281041,11.48317778,10.96542474,11.71351528,11.67387612,
-              11.76341598,11.3173876,11.309213,11.16084524,11.88733844,11.62743946,11.18335044,11.58003477,
-              11.38507672,10.97188488,11.63356205,12.13180275,11.51139998,11.60587376,11.69657429,11.79787398,
-              11.77174278,
-              NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-              10.69011747,10.83852208,10.64703374,11.39344948,11.27578709,10.60364084,11.40802819,11.47940768,
-              11.36660764,11.08737296,11.21055459,11.11988353,11.4031055,10.90919632,11.01017633,11.27332573,
-              10.9684332,10.72983153,11.3101196,11.86758653,11.21752946,11.18486444,11.36336267,11.52445765,
-              11.53754769,
-              10.84010155,11.49546842,11.57919004,11.66027241,11.64263694,11.80537628,11.77481057,11.80838271,
-              11.93389123,11.93199122,11.88394918,11.93515968,11.99814294,12.02773385,12.04427746,12.1188738,
-              12.11767719,12.20446551,12.11279475,12.2379502,12.30859418,12.38235332,12.38510867,12.37781486,
-              12.3938128,
-              11.84986018,11.49546842,11.57919004,13.06472337,11.3462347,10.60364084,11.26687845,11.67366067,
-              11.24687506,11.08737296,11.2797475,12.39263848,11.63623641,10.90919632,11.01017633,12.7487198,
-              11.55349754,10.72983153,12.7591511,11.62388177,11.49866789,10.90165748,11.47991941,11.45464616,
-              11.81178805,
-              NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,
-              10.69011747,10.83852208,10.64703374,11.39344948,11.27578709,10.60364084,11.40802819,11.47940768,
-              11.36660764,11.08737296,11.21055459,11.11988353,11.4031055,10.90919632,11.01017633,11.27332573,
-              10.9684332,10.72983153,11.3101196,11.86758653,11.21752946,11.18486444,11.36336267,11.52445765,
-              11.53754769,
-              10.70399901,10.74634411,10.63878902,11.40475623,11.33409464,10.59366735,11.44475653,11.5233294,
-              11.38060632,11.08507258,11.24444559,11.11264186,11.40675046,10.9346244,11.05466866,11.28300551,
-              10.9296336,10.74210752,11.36468423,11.85178984,11.21841663,11.16641121,11.34640913,11.57007907,
-              11.65583996,
-              10.93730018,10.86624934,11.7253335,11.98847807,12.85554219,10.52157541,11.63656801,12.10180057,
-              11.68440468,11.52732514,12.1095572,10.52001069,11.46454562,12.21113173,11.04040416,11.74934535,
-              10.90254233,10.71983517,12.66142557,11.96414436,10.87670153,11.14891052,11.63722293,12.13031355,
-              12.06543316)
-  score_matrix <- matrix(scores, nrow=25, ncol=14)
-  col_names <-c("simple"="w*", "nn"="w*,-w*", "seas2"="Summer,Winter", "NA1"="1", "squDiff"="squared diff",
-                "absDiff"="absolute diff", "NA2"="2", "Med"="Median", "CMed"="Cond-Median",
-                "MMB"="Min-max-bin", "NA3"="3", "Mean"="Mean temp", "lwMean"="Lin-weigh-mean temp",
-                "LastT"="Last temp")
-  colnames(score_matrix)  <- names(col_names)
+  scores <- read.csv2("../LoadBestSimpleModels.csv") %>%
+    mutate(WS = substring(WS, 2))
+  col_names <-c("simple"="w*", "nn"="w*,-w*", "seas2"="Summer,Winter",
+                "Na1"="1", "squ"="squared diff", "abs"="absolute diff",
+                "Na2"="2", "Med"="Median", "MaxMinBin"="Min-max-bin",
+                "squMean"="Mean", "Na3"="3", "Mean"="Mean temp",
+                "LinMean"="Lin-weigh-mean temp", "Last"="Last temp")
 
-  sorted <- cbind("WS"=c(9,13,21,22,18,11,23,20,8,25,7,17,12,14,3,2,15,19,6,5,4,24,10,16,1),
-                  data.frame(score_matrix)) %>%
-    arrange(Mean)
+  sorted <- arrange(scores, Mean)
   sorted %>% mutate(WS=factor(WS, ordered=TRUE, levels=sorted[["WS"]])) %>%
     pivot_longer(cols=-WS, names_to="y", values_to="Score") %>%
     mutate(y=factor(col_names[y], ordered=TRUE, levels=unname(col_names))) %>%
@@ -991,20 +1003,4 @@ plotsForThesisLoad <- function() {
     theme(text = element_text(size = 16), axis.text = element_text(size = 13))
   ggsave("LoadFirstScores.pdf",
              path="plots/ForThesis/", width=11.69, height=4.5)
-
-  closeS <- c(7.80939322,7.68098064,7.439235256,7.475111749,6.696270351,7.078754127,7.189551632,7.891321237,
-              7.565941458,7.376240768,6.813843353,7.313245302,7.748115021,7.263160951,7.51777695,7.39659634,
-              6.661932864,7.344287173,6.816289725,7.757315657,7.441234441,7.127283589,6.673704016,7.91436031,
-              6.531240605,
-              8.625245791,8.648524663,8.749056734,8.679668561,8.916107043,8.394204798,8.586589127,9.383738356,
-              9.269774102,8.990122741,8.710860985,9.117566063,9.014526936,8.781426866,8.889675982,8.905080527,
-              8.927436672,8.954038412,8.515943869,9.35541069,8.907319585,9.362334582,8.374245174,9.374293462,
-              8.565439169,
-              20.98516322,19.96320076,20.95386646,19.60334418,19.72442974,18.66374753,20.56228025,17.59164663,
-              18.53047164,20.61782323,20.71650076,20.51292635,19.86530048,20.53232033,19.36100683,19.43069825,
-              16.95612165,19.63332122,20.77547734,20.16252508,19.45809118,18.67311115,21.46598564,18.28138655,
-              19.59675793)
-  close_matrix <- matrix(closeS, nrow=3, ncol=25)
-  close_n <- c("T1"="Task1", "T2"="Task2", "T3"="Task3")
-  colnames(close_matrix) <- names(close_n)
 }
