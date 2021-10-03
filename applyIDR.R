@@ -157,9 +157,9 @@ solarV <- c("VAR169", "VAR178", "VAR167", "VAR157", "VAR228", "VAR79", "VAR78",
 
 windV <- c("S10", "S100", "U10", "V10", "U100", "V100", "A10", "A100", "SX")
 
-loadV <- c("w9", "w13", "w21", "w22", "w18", "w11", "w23", "w20", "w8", "w25",
-           "w7", "w17", "w12", "w14", "w3", "w2", "w15", "w19", "w6", "w5",
-           "w4", "w24", "w10", "w16", "w1")
+loadV <- c("w9", "w11", "w21", "w14", "w15", "w13", "w6", "w19", "w24", "w4",
+           "w12", "w18", "w10", "w23", "w3", "w17", "w7", "w22", "w1", "w25",
+           "w16", "w5", "w20", "w8", "w2", "W9", "M2", "M3", "Med2", "Med3")
 
 priceV <- c("Forecasted.Total.Load", "Forecasted.Zonal.Load", "WDAY", "HOUR6",
             "WDAYHOUR6", "WDAY4", "WDAY4_CAT", "WDAY2", "WDAY2HOUR6")
@@ -224,6 +224,7 @@ unleashIDR <- function(track, X_train, y_train, X_test, id, init=FALSE) {
     return(list(TRACK=track, TIT=idr_v$TIT, VAR=vars, OR=pOrder, PBZ=pbz,
                 ID=id_str, GR=groupingfct(NA, NA, getName=TRUE)))
   }
+
   groups <- setNames(rep(1, length(vars)), vars)
   orders <- setNames(1, pOrder)
 
