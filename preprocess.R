@@ -174,9 +174,9 @@ constructTempGenerator <- function(fct, name) {
   return(tempGenerator)
 }
 
-meanTemp <- constructTempGenerator(mean, "meanTemp")
-lastTemp <- constructTempGenerator(function(x) last(x), "lastTemp")
-sampleTemp <- constructTempGenerator(function(x) sample(x, 1),
+meanTmp <- constructTempGenerator(mean, "meanTemp")
+lastTmp <- constructTempGenerator(function(x) last(x), "lastTemp")
+sampleTmp <- constructTempGenerator(function(x) sample(x, 1),
                                      "sampleTemp")
 
 weightFctGen <- function(fct) {
@@ -193,15 +193,15 @@ lin2 <- function(x) 1 / (length(x) - 2) * x + 1
 linWeightMean <- constructTempGenerator(weightFctGen(lin2), "lwMeanTemp")
 quad2 <- function(x) 1 / (length(x)^2 - 2) * x^2 - 1 / (length(x) - 2) * x
 quadWeightMean <- constructTempGenerator(weightFctGen(quad2),
-                                         "lwMeanTemp")
+                                         "qwMeanTemp")
 root2 <- function(x) 1 / (length(x)^0.5 - 2) * x^0.5 -
   1 / (length(x)^(1/3) - 2) * x^(1/3)
 rootWeightMean <- constructTempGenerator(weightFctGen(function(x) x^0.5),
-                                         "lwMeanTemp")
+                                         "rwMeanTemp")
 
 # Temperature preprocessing ----------------------------------------------------
 # Invert Winter temperatures for a given Temperature generator
-invertWinter <- function(tmpGen=meanTemp) {
+invertWinter <- function(tmpGen=meanTmp) {
   inverted <- (function(data, init=FALSE) {
     name <- paste0("invWin_", tmpGen(NA, getName=TRUE))
     if (init) {
@@ -220,11 +220,11 @@ invertWinter <- function(tmpGen=meanTemp) {
   return(inverted)
 }
 
-invWin_meanTmp <- invertWinter(meanTemp)
+invWin_meanTmp <- invertWinter(meanTmp)
 invWin_lwMean <- invertWinter(linWeightMean)
 
 # Transform temperature values to temperature differences
-transformToDiffs <- function(f_diff, f_mid, tmpGen=meanTemp) {
+transformToDiffs <- function(f_diff, f_mid, tmpGen=meanTmp) {
   diffed <- (function(data, init=FALSE) {
     name <- paste(f_diff(NA, NA, init=TRUE), f_mid(NA, NA, init=TRUE),
                   tmpGen(NA, getName=TRUE), sep="_")
@@ -235,10 +235,9 @@ transformToDiffs <- function(f_diff, f_mid, tmpGen=meanTemp) {
     tCols <- paste0("w", 1:25)
 
     for(zone in data$Zones) {
-      d <- filter(data[[zone]]$Train, !is.na(TARGET))
       f_trans <- function(col, target) return(f_diff(col, f_mid(col, target)))
-      data[[zone]]$Train <- mutate(d, across(all_of(tCols), .fns = f_trans,
-                                             TARGET))
+      data[[zone]]$Train <- mutate(data[[zone]]$Train,
+                                   across(all_of(tCols), .fns=f_trans, TARGET))
     }
     return(tmpGen(data))
   })
@@ -252,8 +251,9 @@ getDiffMed <- function(col, target, init=FALSE) {
 }
 getDiffMedS <- function(col, target, init=FALSE) {
   if (init) return("CondMed")
-  lower10Tail <- (target <= quantile(target, probs=0.1))
-  return(median(col[lower10Tail]))
+  non_na <- !is.na(target)
+  lower10Tail <- (target[non_na] <= quantile(target[non_na], probs=0.1))
+  return(median((col[non_na])[lower10Tail]))
 }
 getDiffMean <- function(col, target, init=FALSE) {
   if (init) return("Mean")
@@ -261,12 +261,17 @@ getDiffMean <- function(col, target, init=FALSE) {
 }
 getDiffMeanS <- function(col, target, init=FALSE) {
   if (init) return("WMean")
+  non_na <- !is.na(target)
+  target <- target[non_na]
   weights <- max(target) - target
   normalize <- length(target) * max(target) - sum(target)
-  return(sum(col * weights) / normalize)
+  return(sum(col[non_na] * weights) / normalize)
 }
 getDiffMax <- function(col, target, init=FALSE) {
   if (init) return("MinMax")
+  non_na <- !is.na(target)
+  target <- target[non_na]
+  col <- col[non_na]
   op <- data.frame(cbind(TARGET=target, bins = cut(col, 500), Exa=col)) %>%
     group_by(bins) %>% summarise(q95 = quantile(TARGET, probs=0.95),
                                  mid = median(Exa), .groups="drop") %>%
@@ -283,23 +288,23 @@ abs_diff <- function(x, y, init=FALSE) {
   return(abs(x - y))
 }
 
-abs_meanTmp <- transformToDiffs(abs_diff, getDiffMed, meanTemp)
-squared_meanTmp <- transformToDiffs(squ_diff, getDiffMed, meanTemp)
+abs_meanTmp <- transformToDiffs(abs_diff, getDiffMed, meanTmp)
+squ_meanTmp <- transformToDiffs(squ_diff, getDiffMed, meanTmp)
 
-squared_lastTmp <- transformToDiffs(squ_diff, getDiffMed, lastTemp)
-squared_sampleTmp <- transformToDiffs(squ_diff, getDiffMed, sampleTemp)
-squared_lwMean <- transformToDiffs(squ_diff, getDiffMed, linWeightMean)
-squared_qwMean <- transformToDiffs(squ_diff, getDiffMed, quadWeightMean)
-squared_rwMean <- transformToDiffs(squ_diff, getDiffMed, rootWeightMean)
+squ_lastTmp <- transformToDiffs(squ_diff, getDiffMed, lastTmp)
+squ_sampleTmp <- transformToDiffs(squ_diff, getDiffMed, sampleTmp)
+squ_lwMean <- transformToDiffs(squ_diff, getDiffMed, linWeightMean)
+squ_qwMean <- transformToDiffs(squ_diff, getDiffMed, quadWeightMean)
+squ_rwMean <- transformToDiffs(squ_diff, getDiffMed, rootWeightMean)
 
-abs_meanTmp_CMed <- transformToDiffs(abs_diff, getDiffMedS, meanTemp)
-squ_meanTmp_CMed <- transformToDiffs(squ_diff, getDiffMedS, meanTemp)
-abs_meanTmp_Mea <- transformToDiffs(abs_diff, getDiffMean, meanTemp)
-squ_meanTmp_Mea <- transformToDiffs(squ_diff, getDiffMean, meanTemp)
-abs_meanTmp_WMea <- transformToDiffs(abs_diff, getDiffMeanS, meanTemp)
-squ_meanTmp_WMea <- transformToDiffs(squ_diff, getDiffMeanS, meanTemp)
-abs_meanTmp_MM <- transformToDiffs(abs_diff, getDiffMax, meanTemp)
-squ_meanTmp_MM <- transformToDiffs(squ_diff, getDiffMax, meanTemp)
+abs_meanTmp_CMed <- transformToDiffs(abs_diff, getDiffMedS, meanTmp)
+squ_meanTmp_CMed <- transformToDiffs(squ_diff, getDiffMedS, meanTmp)
+abs_meanTmp_Mea <- transformToDiffs(abs_diff, getDiffMean, meanTmp)
+squ_meanTmp_Mea <- transformToDiffs(squ_diff, getDiffMean, meanTmp)
+abs_meanTmp_WMea <- transformToDiffs(abs_diff, getDiffMeanS, meanTmp)
+squ_meanTmp_WMea <- transformToDiffs(squ_diff, getDiffMeanS, meanTmp)
+abs_meanTmp_MM <- transformToDiffs(abs_diff, getDiffMax, meanTmp)
+squ_meanTmp_MM <- transformToDiffs(squ_diff, getDiffMax, meanTmp)
 
 # linear weighting with last element having 3, 4, n times the weight of first
 lin3 <- function(x) 1 / (length(x) - 3) * x + 1
@@ -313,22 +318,22 @@ squared_lw4Mean <- transformToDiffs(squ_diff, getDiffMed, linWeight4)
 linWeightN <- constructTempGenerator(weightFctGen(function(x) x), "lwNMeanTemp")
 squared_lwNMean <- transformToDiffs(squ_diff, getDiffMed, linWeightN)
 
-addLoadMeans <- function(data, init=FALSE) {
+addLoadSummaries <- function(data, init=FALSE) {
   name <- "AddLoadMeans"
   if (init) {
     outputPreprocessing(name)
     return(name)
   }
-  data <- rm_na(data)
+  data <- squ_meanTmp(data)
   for(zone in data$Zones) {
     for(t in c("Train", "Test")) {
       data[[zone]][[t]] <- mutate(data[[zone]][[t]],
-                                  M3= rowMeans(cbind(w10, w13, w25)),
-                                  M6 = rowMeans(cbind(w10, w13, w25, w24, w23,
-                                                      w22)),
-                                  Med3 = apply(cbind(w10, w13, w25), 1,
+                                  W9=w9,
+                                  M2= rowMeans(cbind(w14, w11)),
+                                  M3 = rowMeans(cbind(w14, w11, w21)),
+                                  Med2 = apply(cbind(w14, w11), 1,
                                                median),
-                                  Med6 = apply(cbind(w10, w13, w25, w24, w23, w22),
+                                  Med3 = apply(cbind(w14, w11, w21),
                                                1, median))
     }
   }
