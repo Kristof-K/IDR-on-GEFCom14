@@ -179,7 +179,7 @@ benchmarkWind <- function(X_train, y_train, X_test, id=1, init=FALSE) {
 
 
 
-# GROUPING FUNCTIONS
+# GROUPING FUNCTIONS ===========================================================
 
 # Group data in categories: these functions should return a vector of categories
 # if getCategories is TRUE, otherwise return boolean vector assigning each
@@ -191,7 +191,10 @@ getGroupingfct <- function(nr) {
                 getHourLargeSeasons, getSeasonDayTime, getWday, getMonthWday,
                 getMonthDayTime, getMonthWdTimeHour, getWdayWithHolidays,
                 get4Month, get4Month6Hour, get4Month2Wday, get4Month7Wday,
-                get4Month6Hour2Wday, get4Month6Hour7Wday, getSumWin))
+                get4Month6Hour2Wday, get4Month6Hour7Wday, getSumWin,
+                getSumWinMonth, get2Wday, getSeason2Wday, get4bMonth,
+                get6DayTime, get4DayTime, get2WdayHour, get2Wday6Hour,
+                getMonth2Wday6Hour))
 }
 
 no_gr <- function(data, group_nr=NA, getCategories=FALSE, getGroupVar=FALSE,
@@ -319,9 +322,19 @@ getSumWin <- constructGrouping(
   c("Summer", "Winter"), "TIMESTAMP", "2Season",
   function(data) {
     t <- data$TIMESTAMP
-    one <- month(t) %in% 5:9 | (month(t) == 4 & day(t) > 16) |
+    one <- month(t) %in% 5:9 | (month(t) == 4 & day(t) > 17) |
       (month(t) == 10 & day(t) <= 14)
     return(one + 1)
+  }
+)
+
+get4bMonth <- constructGrouping(
+  c("Dec,Jan,Feb", "Mar,Nov", "Jun,Jul,Aug,Sep", "Apr,May,Oct"),
+  "TIMESTAMP","4bmonth",
+  function(data) {
+    m <- month(data$TIMESTAMP)
+    return(1 * (m %in% c(1, 2, 12)) + 2 * (m %in% c(3,11)) +
+             3 * (m %in% c(6,7,8,9)) + 4 * (m %in% c(4,5,10)))
   }
 )
 
@@ -359,6 +372,12 @@ get4Month2Wday <- productGrouping(get4Month, get2Wday)
 get4Month7Wday <- productGrouping(get4Month, getWday)
 get4Month6Hour2Wday <- productGrouping(get4Month6Hour, get2Wday)
 get4Month6Hour7Wday <- productGrouping(get4Month6Hour, getWday)
+
+getSumWinMonth <- productGrouping(getSumWin, getMonths)
+getSeason2Wday <- productGrouping(getSeasons, get2Wday)
+get2WdayHour <- productGrouping(get2Wday, getHours)
+get2Wday6Hour <- productGrouping(get2Wday, get6DayTime)
+getMonth2Wday6Hour <- productGrouping(getMonths, get2Wday6Hour)
 
 # include neighbor hours to train on
 getSeasonLargeHours <- function(data, group_nr=NA, getCategories=FALSE,
