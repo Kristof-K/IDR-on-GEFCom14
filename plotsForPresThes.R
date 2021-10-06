@@ -74,50 +74,90 @@ plotPIT <- function() {
 plotResults <- function() {
   library("gridExtra")
   tracks <- c("Load", "Price", "Wind", "Solar")
-  paths <- c("../BestLoad.csv", "../BestPrice.csv", "../BestWind.csv",
-             "../BestSolar.csv")
+  paths_curves <- c("../BestLoad.csv", "../BestPrice.csv", "../BestWind.csv",
+                    "../BestSolar.csv")
+  paths_bars <- c("../BestLoadFinal.csv", "../BestPriceFinal.csv",
+                  "../BestWindFinal.csv", "../BestSolarFinal.csv")
+  # number of best models by track (same order as tracks)
+  nr_best <- c(5, 5, 4, 4)
+  additional <- c(2, 2, 0, 1)
+  
+  label_pos <- c(0.1, 0.1, 0.1, 0.13)
+  benchmark_pos <- c(0.1, 0.1, 0.33, 0.4)
+  
   for (i in 1:4) {
-    raw_data <- read.csv2(paths[i])
-    p <- ncol(raw_data) - 1
-    participants <- raw_data %>%
+    raw_data <- read.csv2(paths_curves[i])
+    # minus task, minus benchmark, minus idr nodels = nr of participants
+    p <- ncol(raw_data) - 2 - nr_best[i]
+    participants <- raw_data %>% select(Task, starts_with("X")) %>%
       pivot_longer(cols = -Task, names_to = "Rank") %>%
       mutate(Rank = factor(substring(Rank, 2), ordered=TRUE,
                            levels=paste(1:p)))
+    benchmark <- select(raw_data, Task, Benchmark) %>% 
+      rename(value = Benchmark)
+    idr_models <- select(raw_data, Task, starts_with("IDR")) %>%
+      pivot_longer(cols = -Task, names_to = "Model") %>%
+      mutate(Model = factor(Model, ordered=TRUE, levels=paste0("IDR",
+                                                               1:nr_best[i])))
+
+    g <- nr_best[i] - additional[i]
+    o <- additional[i]
     part_colors <- scales::seq_gradient_pal("#132B43", "#56B1F7",
-                                            "Lab")(seq(0,1,length.out=p-1))
-    my_colors <- c(part_colors, "#FF0000")
-    my_colors2 <- c(rep("white", 10), rep("black", p - 10))
+                                            "Lab")(seq(0,1,length.out=p))
+    idr1_colors <- scales::seq_gradient_pal("#028618", "#1fdb3f",
+                                           "Lab")(seq(0,1, length.out=g))
+    idr2_colors <- scales::seq_gradient_pal("#FC6A03", "#FCAE1E",
+                                           "Lab")(seq(0,1, length.out=o))
+    idr_colors <- c(idr1_colors, idr2_colors)
 
     curves <- ggplot(mapping = aes(x=Task, y=value)) +
-      geom_line(data=participants, aes(color = Rank), show.legend=FALSE) +
-      geom_point(data=participants, aes(color = Rank), show.legend=FALSE) +
+      geom_line(data=participants, aes(color = Rank)) +
+      scale_color_manual(values=part_colors) +
+      ggnewscale::new_scale_color() +
+      geom_line(data=benchmark, color="red") +
+      geom_point(data=benchmark, color = "red", shape = 2) +
+      geom_line(data=idr_models, aes(color = Model), size=1.2) +
+      geom_point(data=idr_models, aes(color = Model), size=1.4, shape=1) +
       scale_x_continuous(breaks = 1:12) +
-      scale_color_manual(values=my_colors) +
+      scale_color_manual(values=idr_colors) +
       xlab("Task") +
       ylab("Mean pinball score") +
-      ggtitle(paste("Final Scores", tracks[i], "Track")) +
-      theme_bw() +
-      theme(text = element_text(size = 16), axis.text = element_text(size = 13))
-
-    means <- colMeans(raw_data, na.rm=TRUE)[paste0("X", 1:p)]
-    plot_data <- data.frame(Mean_val=unname(means),
-               Rank=factor(substring(names(means), 2), ordered=TRUE,
-                            levels=paste(p:1))) %>%
-      mutate(Lab = ifelse(Rank == p, "Benchmark", paste(Rank)))
-    bars <- ggplot(plot_data, aes(x=Rank, y=Mean_val, fill=Rank)) +
-      geom_col(show.legend = FALSE) +
-      geom_text(aes(x=Rank, y=Mean_val/2, label=Lab, color=Rank), angle=90,
-                show.legend=FALSE) +
-      scale_fill_manual(values = rev(my_colors)) +
-      scale_color_manual(values = rev(my_colors2)) +
-      ylab("Mean pinball score") +
-      xlab("") +
-      ggtitle("") +
+      ggtitle(paste("Final Scores of", tracks[i], "Track")) +
       theme_bw() +
       theme(text = element_text(size = 16), axis.text = element_text(size = 13),
-            axis.text.x = element_blank())
+            legend.position = "none")
+    
+    raw_data <- read.csv2(paths_bars[i]) %>%
+      mutate(Text = paste0(format(round(Rating * 100, 1), nsmall=1), "%")) %>%
+      arrange(desc(Rank)) %>%
+      mutate(Rank = factor(paste(Rank), ordered=TRUE, levels=paste(Rank)))
 
-    grid.arrange(curves, bars, nrow=1, widths=c(3,2))
+    idr_tags <- paste("IDR", 1:nr_best[i])
+    bar_colors <- c(setNames(part_colors, paste(1:p)), "Benchmark"="red",
+                    setNames(idr_colors, idr_tags))
+    draw_c <- unname(bar_colors[raw_data$Label])
+
+    bars <- ggplot(raw_data, aes(x=Rank, y=Rating, fill=Rank)) +
+      geom_col(show.legend=FALSE) +
+      geom_text(aes(y=label_pos[i], label=Text),
+                color=c("red", rep("black", p - 5 + nr_best[i]),
+                        rep("white", 5)),
+                angle=90, size=6) +
+      geom_text(data=filter(raw_data, Label %in% idr_tags), aes(y=Rating * 0.75,
+                                                                label=Label),
+                angle=90,size=6) +
+      annotate("text", x=paste(p+1), y=benchmark_pos[i], label="Benchmark", 
+               color="red", angle=90, size=6) +
+      scale_fill_manual(values = draw_c) +
+      scale_color_manual(values = draw_c) +
+      scale_x_discrete(breaks = paste(1:p)) +
+      ggtitle("Linear Weighted Skill Score") +
+      theme_bw() +
+      theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+            legend.position = "none")
+
+    grid.arrange(curves, bars, nrow=2)
+    # save with height 7.5
   }
 }
 
