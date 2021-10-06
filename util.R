@@ -306,6 +306,14 @@ get2Wday <- constructGrouping(
   }
 )
 
+get4Wday <- constructGrouping(
+  c("Mon-Wed", "Thu,Fr", "Sat", "Sun"), "TIMESTAMP", "4wdays",
+  function(data) {
+    w <- wday(data$TIMESTAMP)
+    return(1 * (w %in% 2:4) + 2 * (w %in% c(5,6)) + 3 * (w == 7) + 4 * (w == 1))
+  }
+)
+
 # for price track
 get4Month <- constructGrouping(
   c("Jan,Feb", "Mar,Apr,May", "Jun,Jul,Aug,Sep", "Oct,Nov,Dec"),

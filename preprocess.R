@@ -104,34 +104,29 @@ addPriceRegressors <- function(data, init=FALSE) {
     outputPreprocessing(name)
     return(name)
   }
-  # electricity price means for the respective groupings
-  hourVals <- c(34.41, 38.06, 52.11, 56.81, 61.65, 48.15)
-  wdayVals <- c(43.11, 49.83, 49.57, 49.26, 51.77, 50.67, 45.52)
-  wdayHourVals <- c(35.81, 32.58, 42.8, 46.15, 54.17, 47.17, 33.83,	39.76,
-                    54.57, 58.11, 63.92, 48.77, 33.25, 39.49, 53.95, 58.71,
-                    63.7, 48.31, 32.66,	38.97, 53.58, 59.47, 63.33, 47.54, 34.2,
-                    40.4, 55.63, 63.14,	67.52, 49.73, 34.78, 40.51,	55.94,
-                    61.71, 62.96, 48.12, 36.36,	34.73, 48.29, 50.38, 55.93,
-                    47.41)
-  wday2Vals <- c(50.22, 44.32)
-  wday2HourVals <- c(33.74, 39.82, 54.73, 60.23, 64.28, 48.49,
-                     36.09, 33.66, 45.55, 48.26, 55.05, 47.29)
+  # calculate for a given grouping fct mean Target value by group
+  getMeans <- function(d_train, groupingfct) {
+    mutate(d_train, G = groupingfct(d_train)) %>% group_by(G) %>%
+      summarise(Mean_Target = mean(TARGET)) %>% pull(Mean_Target)
+  }
+
   for(zone in data$Zones) {
+    d_train <- data[[zone]]$Train
+    hourVals <- getMeans(d_train, get6DayTime)
+    wdayVals <- getMeans(d_train, getWday)
+    wdayHourVals <- getMeans(d_train, getWday6Hour)
+    wday2Vals <- getMeans(d_train, get2Wday)
+    wday2HourVals <- getMeans(d_train, get2Wday6Hour)
+    wday4Vals <- getMeans(d_train, get4Wday)
+    wday4Vals
+
     for(t in c("Train", "Test")) {
       d <- data[[zone]][[t]]
-      wdays <- getWday(d)
       data[[zone]][[t]] <- mutate(d,
                                   WDAY = wdayVals[getWday(d)],
                                   HOUR6 = hourVals[get6DayTime(d)],
                                   WDAYHOUR6 = wdayHourVals[getWday6Hour(d)],
-                                  WDAY4 = case_when(wdays %in% 2:4 ~  49.56,
-                                                    wdays %in% 5:6 ~ 51.22,
-                                                    wdays == 7 ~ 45.52,
-                                                    wdays == 1 ~ 43.11),
-                                  WDAY4_CAT = case_when(wdays %in% 2:4 ~  3,
-                                                    wdays %in% 5:6 ~ 4,
-                                                    wdays == 7 ~ 2,
-                                                    wdays == 1 ~ 1),
+                                  WDAY4 = wday4Vals[get4Wday(d)],
                                   WDAY2 = wday2Vals[get2Wday(d)],
                                   WDAY2HOUR6 = wday2HourVals[get2Wday6Hour(d)])
     }

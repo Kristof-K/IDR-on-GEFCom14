@@ -162,7 +162,7 @@ loadV <- c("w9", "w11", "w21", "w14", "w15", "w13", "w6", "w19", "w24", "w4",
            "w16", "w5", "w20", "w8", "w2", "W9", "M2", "M3", "Med2", "Med3")
 
 priceV <- c("Forecasted.Total.Load", "Forecasted.Zonal.Load", "WDAY", "HOUR6",
-            "WDAYHOUR6", "WDAY4", "WDAY4_CAT", "WDAY2", "WDAY2HOUR6")
+            "WDAYHOUR6", "WDAY4", "WDAY2", "WDAY2HOUR6")
 
 # ORDERs
 COMP <- "comp"
