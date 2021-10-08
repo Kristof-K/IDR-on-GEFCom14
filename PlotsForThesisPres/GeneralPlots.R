@@ -11,9 +11,10 @@ plotPIT <- function() {
   w10 <- data.frame()
   w9 <- data.frame()
   for(i in 1:3) {
-    add10 <- paste0("predictions/Load-10000000100_1_1-squ_CondMed_meanTemp/Task",
-                    i, "_1.csv")
-    add9 <- paste0("predictions/Load-1_1_1-squ_Med_meanTemp/Task", i, "_1.csv")
+    add10 <- paste0("predictions/Load-10000000100_1_1-squ_CondMed_meanTemp_",
+                    "tune/Task", i, "_1.csv")
+    add9 <- paste0("predictions/Load-1_1_1-squ_Med_meanTemp_tune/Task", i,
+                   "_1.csv")
     w10 <- rbind(w10, cbind(read.csv(add10), Task=i))
     w9 <- rbind(w9, cbind(read.csv(add9), Task=i))
   }
@@ -23,7 +24,7 @@ plotPIT <- function() {
                     WS  = WS,
             PIT = rowSums(y >= combine[,paste0("X", 1:99 * 0.01)]) * 0.01) %>%
     ggplot() +
-    geom_histogram(aes(x=PIT, fill=Task), bins=20) +
+    geom_histogram(aes(x=PIT, fill=Task), binwidth=0.05, boundary=0) +
     facet_wrap(~WS) +
     ylab("Count") +
     ggtitle("Forecast Performance") +
@@ -159,6 +160,60 @@ plotResults <- function() {
     grid.arrange(curves, bars, nrow=2)
     # save with height 7.5
   }
+}
+
+plotFinalPIT <- function() {
+  zones <- list("Load"=1, "Price"=1, "Wind"=1:10, "Solar"=1:3)
+  models <- list("Load"=c("Load-1_1_1-meanTemp",
+                          "Load-1_1_1-squ_Med_meanTemp",
+                          "Load-1001_1_1-squ_Med_meanTemp",
+                          "Load-1001_1_29_1_75_0.25-squ_Med_meanTemp",
+                          "Load-1e+07_1_8_80_0.33-squ_CondMed_meanTemp"),
+                 "Price"=c("Price-1_1_1-addPriceRegressors",
+                           "Price-10_1_16-addPriceRegressors",
+                           "Price-1000010_1_16_1-addPriceRegressors",
+                           "Price-10_1_5-addPriceRegressors",
+                           "Price-10_1_8_1_75_0.25-addPriceRegressors"),
+                 "Wind"=c("Wind-10_1_1-CalcWindAttributes",
+                          "Wind-10_1_6-CalcWindAttributes",
+                          "Wind-1e+08_1_6-CalcWindAttributes",
+                          "Wind-100000010_1_6-CalcWindAttributes"),
+                 "Solar"=c("Solar-1_1_1-deacc_and_invert_vars",
+                           "Solar-1_1_9-deacc_and_invert_vars",
+                           "Solar-100001_1_9_1_70_0.7",
+                           "Solar-111011_1_2_1_75_0.25-deacc_and_invert_vars"))
+  current_track <- "Wind"
+  # load data
+  raw_data <- data.frame()
+  m <- 1
+  for(model in models[[current_track]]) {
+    for (task in 1:12) {
+      for (zone in zones[[current_track]]) {
+        file <- paste0("predictions/", model,
+                     "/Task", task, "_", zone, ".csv")
+        raw_data <- rbind(raw_data, cbind(read.csv(file), Task=task,
+                                          Model=paste("IDR", m)))
+      }
+    }
+    m <- m + 1
+  }
+  raw_data %>%
+    transmute(Model = Model, Task = factor(Task, ordered=TRUE, levels=12:1),
+              PIT = rowSums(y >=raw_data[,paste0("X", 1:99 * 0.01)]) * 0.01) %>%
+    ggplot() +
+    facet_wrap(~Model, nrow=1) +
+    geom_histogram(aes(x=PIT, fill=Task), binwidth=0.05, boundary=0) +
+    ylab("Count") +
+    ggtitle(paste("PIT Histograms", current_track, "Track")) +
+    guides(fill = guide_legend(nrow = 1, byrow = TRUE)) +
+    scale_fill_discrete() +
+    scale_x_continuous(breaks = 0:4 * 0.25,
+                       labels=paste(c(0, 0.25, 0.5, 0.75, 1))) +
+    theme_bw()  +
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+          legend.position="bottom")
+  ggsave(paste0(current_track, "_FinalPIT.pdf"), path="plots/ForThesis/",
+         width=11.69,height=4.2)
 }
 
 plotsForSlides <- function() {
