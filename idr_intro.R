@@ -261,9 +261,9 @@ P4
 
 # Extract all quantiles --------------------------------------------------------
 
-d <- 0.05
+d <- 0.1
 q <- seq(d, 1-d, d)
-allX <- TRUE
+allX <- FALSE
 x_vals <- X
 
 if (allX) {
@@ -272,37 +272,96 @@ if (allX) {
 }
 
 quantiles <- qpred(predictions, quantiles = q)
-colnames(quantiles) <- c(paste0("l", (0.49/d):1), "m", paste0("u", 1:(0.49/d)))
+nr <- floor(0.49/d)
+colnames(quantiles) <- c(paste0("l", nr:1), "m", paste0("u", 1:nr))
 
 lower <- data.frame(quantiles) %>% select(starts_with("l")) %>%
   mutate(X=x_vals) %>% pivot_longer(cols = -X, names_to = "Q") %>% arrange(Q, X)
-data.frame(quantiles) %>% select(starts_with("u")) %>%
+P5 <- data.frame(quantiles) %>% select(starts_with("u")) %>%
   mutate(X=x_vals) %>%
   pivot_longer(cols=-X, names_to="Q", names_prefix="u", values_to="upper") %>%
   arrange(Q, X) %>% mutate(lower=lower$value) %>%
   ggplot(mapping = aes(x=X)) +
     geom_ribbon(mapping = aes(ymin=lower, ymax=upper, group=Q),
-                alpha=d*5, fill="red", show.legend=FALSE) +
+                alpha=d*3, fill="red", show.legend=FALSE) +
     geom_point(data=data.frame(X=X, Y=Y), mapping = aes(y=Y), color = "black") +
-    ggtitle(label = "point cloud and estimated quantile areas")
-
+    ggtitle(label = "point cloud and estimated quantile areas") +
+    theme_bw()
+P5
 
 cat("Fertig")
 
 
 # plot for bachelor thesis =====================================================
-P1 <- P1 + 
+P1 <- P1 +
+  ggtitle("(a) Point Cloud of Training Data") +
   geom_vline(xintercept=predict_val, color=col_vec, size=1.3, alpha=0.5) +
-  ggtitle("(a) Point cloud of training data") +
   theme(text = element_text(size = 16), axis.text = element_text(size = 13))
 P2 <- P2 + ylab("Probability") + xlab("Threshold") +
-  ggtitle("(b) CDF estimates of IDR") +
+  ggtitle("(b) CDF Estimates of IDR") +
   theme(text = element_text(size = 16), axis.text = element_text(size = 13))
-P3 <- P3 + ggtitle("(c) Predicted CDFs vs. true CDFs") +
+P3 <- P3 + ggtitle("(c) Predicted CDFs vs. True CDFs") +
   theme(text = element_text(size = 16), axis.text = element_text(size = 13))
-P4 <- P4 + ggtitle("(d) Functional estimates of IDR ") +
-  theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+#g eom_hline(yintercept=q, color=col_vec2[2:4], alpha=0.5) +
+P4 <- P4 + ggtitle("(d) Functional Estimates of IDR ") +
+  theme(text = element_text(size = 16), axis.text = element_text(size = 13),
+        legend.position=c(0.01,0.99), legend.justification=c(0.01,0.99))
 grid.arrange(P1, P2, P3, P4, nrow=4)
+# svae with height 15.3
+
+
+# Non isotonic example =========================================================
+n <- 500
+X <- runif(n, min = -5, max = 5)
+Y <- rnorm(n, mean = abs(X), sd = (5.5 - abs(X)) / 5.5)
+
+visualizeIDR(x=X, y=Y)
+visualizeIDR(x=X, y=Y, pred=c(-4, -2, 0, 2, 4), print_all = FALSE)
+
+groups <- c(X = 1)
+orders <- c("comp" = 1)
+fit <- idr(y=Y, X=data.frame(X=X), groups, orders)
+predict_val <- c(-4, -2, 0, 2, 4)
+
+# to compare predictions with true CDFs
+idr_cdfs <- get_pred_df(fit, val=predict_val)
+
+# determine true CDFs
+true_cdfs <- data.frame()
+grid <- seq(min(Y)-0.15*(max(Y)-min(Y)), max(Y)+0.15*(max(Y)-min(Y)), 0.1)
+for(t in predict_val) {
+  norm_dist <- data.frame(X=grid, value=pnorm(grid, mean=abs(t),
+                                              sd = (5.5 - abs(t)) / 5.5),
+                          cdfs=paste0("cdf",t), color=t)
+  true_cdfs <- rbind(true_cdfs, norm_dist)
+}
+P3 <- ggplot(mapping = aes(x=X, y=value, group=cdfs, color=factor(color))) +
+  geom_step(data=idr_cdfs, show.legend = FALSE) +
+  geom_line(data=true_cdfs, linetype = "dashed", show.legend=FALSE) +
+  ggtitle(label = paste0("true cdf (solid,continuous) vs. ",
+                         "predicted cdf (dashed,stepfunction)")) +
+  ylab("Probability") +
+  xlab("Threshold") +
+  theme_bw()
+
+#scale_color_manual(values = col_vec) +
+
+P3
+
+
+P5_orig <- P5
+predictions <- predict(fit, data=data.frame(X=X))
+x_vals <- X
+# now go to all quantiles and start plotting (after if) short before P5
+P5_orig <- P5_orig +
+  ggtitle("Isotonic Setting") +
+  theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+P5 <- P5 +
+  ggtitle("Non-Isotonic Setting") +
+  theme(text = element_text(size = 16), axis.text = element_text(size = 13)) +
+  ylab("")
+grid.arrange(P5_orig, P5, nrow=1)
+# save with height = 5
 
 # old quantile plot ============================================================
 library(stringr)      # to manipulate strings
