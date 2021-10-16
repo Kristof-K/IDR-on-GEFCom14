@@ -13,7 +13,7 @@ plotsForThesisSolar <- function() {
   # scale_x_continuous(guide = guide_axis(check.overlap = TRUE))+
   # use scientific labels
   # scale_x_continuous(labels = function(x) format(x, scientific=TRUE)
-  data <- deaccumulateSol(loadSolar(4))
+  data <- deaccuInvertSol(loadSolar(4))
   var <- "VAR169"
   groupName <- "Hour"
   groupfct <- function(d) getHours(d) - 1
@@ -41,53 +41,53 @@ plotsForThesisSolar <- function() {
       scale_x_continuous(breaks = 0:4 * 0.25,
                          labels = c("0", "0.25", "0.5", "0.75", "1")) +
       guides(color = guide_legend(nrow = 2, byrow = TRUE)) +
-      scale_color_discrete(name = groupName) +
-      ggsave(paste0("SolarScatterAll_", zone, ".pdf"),
+      scale_color_discrete(name = groupName)
+    ggsave(paste0("SolarScatterAll_", zone, ".pdf"),
              path="plots/ForThesis/", width=11.69, height=8)
-      # plot single variable
-      data[[zone]]$Train %>% select(all_of(var), TARGET, TIMESTAMP) %>%
-        rename(X=var) %>%
-        mutate(across(.cols = c(-TARGET, -TIMESTAMP),
-                      .fns = function(x) (x-min(x))/(max(x)-min(x)))) %>%
-        mutate(Group = factor(groupfct(data[[zone]]$Train))) %>%
-        ggplot(aes(x=X, y=TARGET, color=Group)) +
-        facet_wrap(~Group, nrow=nrow) +
-        geom_point(alpha = 0.5, show.legend = FALSE) +
-        ylab(target) +
-        xlab("Surface solar radiation downwards") +
-        ggtitle("Power vs. Radiation Facetted by Hour") +
-        theme_bw()  +
-        theme(text = element_text(size = 16),
-              axis.text = element_text(size = 13)) +
-        scale_x_continuous(breaks = 0:4 * 0.25,
-                           labels = c("0", "0.25", "0.5", "0.75", "1")) +
-        ggsave(paste0("SolarScatterVAR169_", zone, ".pdf"),
-               path="plots/ForThesis/", width=11.69, height=8)
-    }
-    # plot power curves
-    colors <- c("#FC717F", "#ED8141", "#CF9400", "#A3A500", "#72B000",
-                "#00BC59", "#00C19C", "#00B4EF", "#7997FF", "#DC71FA",
-                "#F763E0", "#FF65AE")
-    zone <- "Zone2"
-    data[[zone]]$Train %>%
-      transmute(TARGET = TARGET,
-                Hour = factor(hour(TIMESTAMP), ordered = TRUE,
-                              levels = c(15:23, 0:14)),
-                Month = getMonths(data[[zone]]$Train, label=TRUE)) %>%
-      group_by(Hour, Month)  %>%
-      summarise(TARGET = mean(TARGET), .groups="drop") %>%
-      ggplot(aes(x=Hour, y=TARGET, color=Month, group=Month)) +
-      geom_line(size = 1.2) +
-      scale_color_manual(values = colors) +
-      xlab("Hour") +
+    # plot single variable
+    data[[zone]]$Train %>% select(all_of(var), TARGET, TIMESTAMP) %>%
+      rename(X=var) %>%
+      mutate(across(.cols = c(-TARGET, -TIMESTAMP),
+                    .fns = function(x) (x-min(x))/(max(x)-min(x)))) %>%
+      mutate(Group = factor(groupfct(data[[zone]]$Train))) %>%
+      ggplot(aes(x=X, y=TARGET, color=Group)) +
+      facet_wrap(~Group, nrow=nrow) +
+      geom_point(alpha = 0.5, show.legend = FALSE) +
       ylab(target) +
-      ggtitle("Mean Power Curves by Hour and Month") +
+      xlab("Surface solar radiation downwards") +
+      ggtitle("Power vs. Radiation Facetted by Hour") +
       theme_bw()  +
-      theme(legend.position = "bottom", text = element_text(size = 16),
+      theme(text = element_text(size = 16),
             axis.text = element_text(size = 13)) +
-      guides(color = guide_legend(nrow = 1, byrow = TRUE)) +
-      ggsave(paste0("SolarPowerMean_", zone, ".pdf"),
-             path="plots/ForThesis/", width=11.69, height=5)
+      scale_x_continuous(breaks = 0:4 * 0.25,
+                         labels = c("0", "0.25", "0.5", "0.75", "1"))
+    ggsave(paste0("SolarScatterVAR169_", zone, ".pdf"),
+               path="plots/ForThesis/", width=11.69, height=6.7)
+  }
+  # plot power curves
+  colors <- c("#FC717F", "#ED8141", "#CF9400", "#A3A500", "#72B000",
+              "#00BC59", "#00C19C", "#00B4EF", "#7997FF", "#DC71FA",
+              "#F763E0", "#FF65AE")
+  zone <- "Zone2"
+  data[[zone]]$Train %>%
+    transmute(TARGET = TARGET,
+              Hour = factor(hour(TIMESTAMP), ordered = TRUE,
+                            levels = c(15:23, 0:14)),
+              Month = getMonths(data[[zone]]$Train, label=TRUE)) %>%
+    group_by(Hour, Month)  %>%
+    summarise(TARGET = mean(TARGET), .groups="drop") %>%
+    ggplot(aes(x=Hour, y=TARGET, color=Month, group=Month)) +
+    geom_line(size = 1.2) +
+    scale_color_manual(values = colors) +
+    xlab("Hour") +
+    ylab(target) +
+    ggtitle("Mean Power Curves by Hour and Month") +
+    theme_bw()  +
+    theme(legend.position = "bottom", text = element_text(size = 16),
+          axis.text = element_text(size = 13)) +
+    guides(color = guide_legend(nrow = 1, byrow = TRUE))
+  ggsave(paste0("SolarPowerMean_", zone, ".pdf"),
+         path="plots/ForThesis/", width=11.69, height=5)
 
   tune_results <- c(0.01267822,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA,	NA, 0.012639036, 0.013172959, 0.012828283,
                     0.012673956, 0.012886168, 0.012400424, 0.012990511, 0.012939531, 0.013277446, 0.014445207,
@@ -121,7 +121,7 @@ plotsForThesisSolar <- function() {
     ylab("") +
     ggtitle("Mean Pinball Score (Initial Tuning Phase)") +
     theme_bw()  +
-    theme(text = element_text(size = 16), axis.text = element_text(size = 13)) +
-    ggsave("SolarPinballscores.pdf",
-             path="plots/ForThesis/", width=11.69, height=5)
+    theme(text = element_text(size = 16), axis.text = element_text(size = 13))
+  ggsave("SolarPinballscores.pdf",
+         path="plots/ForThesis/", width=11.69, height=5)
 }
