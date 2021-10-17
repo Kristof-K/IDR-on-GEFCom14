@@ -326,14 +326,14 @@ plotsForThesisLoad <- function() {
 
   # ANAlYZE TEMPERATURE FORECAST DEVIATIONS ====================================
   task <- 1
-  curr_test <- loadLoad(task)
-  curr_test$Zone1$Train <- filter(curr_test$Zone1$Train, !is.na(TARGET))
-  curr_test <- meanTemp(curr_test)$Zone1$Test
-  #curr_test <- meanTemp(loadLoad(task))$Zone1$Test
+  curr_test <- meanTmp(loadLoad(task))$Zone1$Test
   last <- curr_test$TIMESTAMP[1]
   pred <- curr_test[cols]
   true <- loadLoad(task + 1)$Zone1$Train %>% filter(TIMESTAMP >= last) %>%
     select(all_of(cols))
+  # task 15
+  #true <- read.csv("../GEFCom2014_Data/Load/Solution to Task 15/solution15_L_temperature.csv") %>%
+  #     select(all_of(cols))
 
   #colMeans(abs(true - pred))
   squ_error <- colMeans((true - pred)^2)
