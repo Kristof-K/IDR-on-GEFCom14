@@ -2,9 +2,21 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(gridExtra)
+library(lubridate)
 
 source("preprocess.R")
 source("loadData.R")
+
+getPIT <- function(y, quantiles) {
+  V <- runif(length(y))
+  F_y <- rowSums(y >= quantiles) * 0.01
+  below_jump <- apply(near(y, quantiles), 1, function(x) {
+    if (any(is.na(x)) || all(!x)) return(-1)
+    return(min(c(which(x) - 1, 0)) * 0.01)
+  })
+  F_y_minus <- ifelse(below_jump == -1, F_y, below_jump)
+  return(F_y_minus + V * (F_y - F_y_minus))
+}
 
 plotPIT <- function() {
   task_color <- c("#F8766D", "#00BA48", "#619CFF")
@@ -22,7 +34,7 @@ plotPIT <- function() {
 
   Hist <- transmute(combine, Task = factor(Task, ordered=TRUE, levels=3:1),
                     WS  = WS,
-            PIT = rowSums(y >= combine[,paste0("X", 1:99 * 0.01)]) * 0.01) %>%
+                    PIT = getPIT(y, combine[,paste0("X", QUANTILES)])) %>%
     ggplot() +
     geom_histogram(aes(x=PIT, fill=Task), binwidth=0.05, boundary=0) +
     facet_wrap(~WS) +
@@ -72,7 +84,6 @@ plotPIT <- function() {
 }
 
 plotResults <- function() {
-  library("gridExtra")
   tracks <- c("Load", "Price", "Wind", "Solar")
   paths_curves <- c("../BestLoad.csv", "../BestPrice.csv", "../BestWind.csv",
                     "../BestSolar.csv")
@@ -83,7 +94,8 @@ plotResults <- function() {
   additional <- c(2, 2, 0, 1)
 
   label_pos <- c(0.09, 0.13, 0.1, 0.13)
-  benchmark_pos <- c(0.3, 0.42, 0.33, 0.4)
+  benchmark_pos <- c(0.26, 0.38, 0.29, 0.36)
+  font_size <- 5
 
   for (i in 1:4) {
     raw_data <- read.csv2(paths_curves[i])
@@ -106,17 +118,19 @@ plotResults <- function() {
                                             "Lab")(seq(0,1,length.out=p))
     idr1_colors <- scales::seq_gradient_pal("#028618", "#1fdb3f",
                                            "Lab")(seq(0,1, length.out=g))
-    idr2_colors <- scales::seq_gradient_pal("#FC6A03", "#FCAE1E",
+    # old : #FC6A03 #FCAE1E
+    idr2_colors <- scales::seq_gradient_pal("#ffba00", "#ff7b00",
                                            "Lab")(seq(0,1, length.out=o))
     idr_colors <- c(idr1_colors, idr2_colors)
+    benchmark_c <- "#e6382c"
 
     curves <- ggplot(mapping = aes(x=Task, y=value)) +
       geom_line(data=participants, aes(color = Rank)) +
       scale_color_manual(values=part_colors) +
       ggnewscale::new_scale_color() +
-      geom_line(data=benchmark, color="red") +
-      geom_point(data=benchmark, color = "red", shape = 2) +
-      geom_line(data=idr_models, aes(color = Model), size=1.2) +
+      geom_line(data=benchmark, color = benchmark_c) +
+      geom_point(data=benchmark, color = benchmark_c, shape = 2) +
+      geom_line(data=idr_models, aes(color = Model), size=1.1) +
       geom_point(data=idr_models, aes(color = Model), size=1.4, shape=1) +
       scale_x_continuous(breaks = 1:12) +
       scale_color_manual(values=idr_colors) +
@@ -140,14 +154,14 @@ plotResults <- function() {
     bars <- ggplot(raw_data, aes(x=Rank, y=Rating, fill=Rank)) +
       geom_col(show.legend=FALSE) +
       geom_text(aes(y=label_pos[i], label=Text),
-                color=c("red", rep("black", p - 5 + nr_best[i]),
+                color=c(benchmark_c, rep("black", p - 5 + nr_best[i]),
                         rep("white", 5)),
-                angle=90, size=6) +
+                angle=90, size=font_size) +
       geom_text(data=filter(raw_data, Label %in% idr_tags), aes(y=Rating * 0.75,
                                                                 label=Label),
-                angle=90,size=6) +
+                angle=90,size=font_size) +
       annotate("text", x=paste(p+1), y=benchmark_pos[i], label="Benchmark",
-               color="red", angle=90, size=6) +
+               color=benchmark_c, angle=90, size=font_size) +
       scale_fill_manual(values = draw_c) +
       scale_color_manual(values = draw_c) +
       scale_x_discrete(breaks = paste(1:p)) +
@@ -164,11 +178,11 @@ plotResults <- function() {
 
 plotFinalPIT <- function() {
   zones <- list("Load"=1, "Price"=1, "Wind"=1:10, "Solar"=1:3)
-  models <- list("Load"=c("Load-1_1_1-meanTemp",
+  models <- list("Load"=c("Load-1_1_22-invWin_meanTemp",
                           "Load-1_1_1-squ_Med_meanTemp",
                           "Load-1001_1_1-squ_Med_meanTemp",
-                          "Load-1001_1_29_1_75_0.25-squ_Med_meanTemp",
-                          "Load-1e+07_1_8_80_0.33-squ_CondMed_meanTemp"),
+                          "Load-10000010000_1_23_1_75_0.25-invWin_meanTemp",
+                          "Load-1e+07_1_8_1_75_0.25-squ_CondMed_meanTemp"),
                  "Price"=c("Price-1_1_1-addPriceRegressors",
                            "Price-10_1_16-addPriceRegressors",
                            "Price-1000010_1_16_1-addPriceRegressors",
@@ -180,9 +194,10 @@ plotFinalPIT <- function() {
                           "Wind-100000010_1_6-CalcWindAttributes"),
                  "Solar"=c("Solar-1_1_1-deacc_and_invert_vars",
                            "Solar-1_1_9-deacc_and_invert_vars",
-                           "Solar-100001_1_9_1_70_0.7",
+                           "Solar-100001_1_9_1_70_0.7-deacc_and_invert_vars",
                            "Solar-111011_1_2_1_75_0.25-deacc_and_invert_vars"))
-  current_track <- "Wind"
+  binWidth <- c("Load"=0.05, "Price"=0.2, "Wind"=0.05, "Solar"=0.05)
+  current_track <- "Solar"
   # load data
   raw_data <- data.frame()
   m <- 1
@@ -197,12 +212,14 @@ plotFinalPIT <- function() {
     }
     m <- m + 1
   }
+
   raw_data %>%
     transmute(Model = Model, Task = factor(Task, ordered=TRUE, levels=12:1),
-              PIT = rowSums(y >=raw_data[,paste0("X", 1:99 * 0.01)]) * 0.01) %>%
+              PIT = getPIT(y, raw_data[,paste0("X", QUANTILES)])) %>%
     ggplot() +
     facet_wrap(~Model, nrow=1) +
-    geom_histogram(aes(x=PIT, fill=Task), binwidth=0.05, boundary=0) +
+    geom_histogram(aes(x=PIT, fill=Task), binwidth=binWidth[[current_track]],
+                   boundary=0) +
     ylab("Count") +
     ggtitle(paste("PIT Histograms", current_track, "Track")) +
     guides(fill = guide_legend(nrow = 1, byrow = TRUE)) +
@@ -214,6 +231,44 @@ plotFinalPIT <- function() {
           legend.position="bottom")
   ggsave(paste0(current_track, "_FinalPIT.pdf"), path="plots/ForThesis/",
          width=11.69,height=4.2)
+
+  focus_tails <- raw_data %>%
+    mutate(PIT = getPIT(y, raw_data[,paste0("X", 1:99 * 0.01)])) %>%
+    filter((PIT <= 0.05 | PIT >= 0.95)) %>%
+    mutate(PIT = ifelse(PIT <= 0.05, "lower 5%", "upper 5%"))
+
+  ggplot(focus_tails) +
+    facet_wrap(~Model) +
+    geom_histogram(aes(x=y, fill=PIT))
+
+
+  y <- select(focus_tails, y, PIT, Model) %>%
+    mutate(F_y=0, X=1:nrow(focus_tails))
+  predictions <- select(focus_tails, all_of(paste0("X", 1:99 * 0.01)), PIT,
+                        Model) %>%
+    mutate(X=1:nrow(focus_tails)) %>%
+    pivot_longer(cols = c(-X, -PIT, -Model), names_to = "F_y",
+                 values_to = "y") %>%
+    mutate(F_y = as.numeric(substring(F_y, 2)))
+
+  ggplot(mapping=aes(y=F_y, x=y, color=X, group=factor(X))) +
+     facet_wrap(~PIT) +
+     geom_step(data=filter(predictions, X<=100, Model=="IDR 1")) +
+     geom_point(data=filter(y, X<=100, Model=="IDR 1"))
+
+  for (i in 1:4) {
+    d <- filter(raw_data, Model==paste("IDR", i))
+    transmute(d, G = cut_interval(y, 20),
+              PIT = getPIT(y, d[,paste0("X", 1:99 * 0.01)])) %>%
+    ggplot() +
+    facet_wrap(~G, scales="free_y") +
+    geom_histogram(aes(x=PIT, fill=factor(G)), binwidth=binWidth[[current_track]],
+                   boundary=0, show.legend=FALSE) +
+    scale_fill_discrete() +
+    ggtitle("PIT Histograms of IDR 4 in solar track facetted by binned observation")
+ggsave(paste0("PIT_Hist_Load", i, ".png"), path="plots/ForThesis/", width=10,
+       height=6)
+  }
 }
 
 plotsForSlides <- function() {
