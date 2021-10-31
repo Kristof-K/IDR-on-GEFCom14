@@ -7,35 +7,32 @@ source("util.R")
 source("applyIDR.R")
 source("preprocess.R")
 
-# TODO
-# - Loss-plot
 
-
-# Routine conducting evaluation for a given prediciton and scoring method
+# Given a specific prediction and evaluation function, simulate GEFCom14
+# competition and output results (results are logged automatically in a file)
 # - predictionfct : function getting
 #     - X_train (data.frame containing covariates)
 #     - y_train (vector containing response variable)
 #     - X_test (data.frame containing covariates for test data)
 #     - id (specify intern modalities)
 #     - init (if true print and return information, if false make forecast)
-#   If init false return matrix of quantiles (1% up to 99%) of response variable
-#   for testing data, i.e. every row in X_test leads to such q quantile row
-# - scoringfct : function getting matrix as 1st and vector as 2nd argument,
-#   whereby 1st list in rows predictions for 1% up to 99% quantiles and
-#   2nd is vector of true observation. It should return an average score over
-#   all quantiles. If init=TRUE is passed, the function should print some
+#   If init false return matrix of QUANTILES (see util.R) predictions of
+#   response variable for testing data
+# - scoringfct : function getting prediction matrix (rows * QUANTILES) as 1st
+#   and vector of true observations as 2nd argument. It should return an average
+#   score (one scalar). If init=TRUE is passed, the function should print some
 #   explaining text
 # - id : id (argument for predicitionfct)
 # - preprocessfct : function getting data after it was loaded (i.e. it expects
-#   list with zones referring to data.frames), preprocess and return it
+#   in the format used in loadData.R), preprocess and return it
 #   If init=TRUE, then print text and return name of this preprocess method
-# - tune : true to consider only the initial tuning phase in the competition,
-#   false to use the preceding competition phase
+# - tune : true to consider only the initial tuning phase in the competition
+#   (task 1,2,3); false to use the succeeding competition phase (task 4,...,15)
 # - ret : true return list of all single scores, false then not
 # - write : write predictions, true observations and scores in extra log file
 evaluation <- function(predictionfct, scoringfct, id, preprocessfct=no_pp,
                        tune=FALSE, ret=FALSE, write=FALSE) {
-  # in order to run the foeach loop in parallel
+  # in order to run the foreach loop in parallel
   cl <- makeCluster(3)
   registerDoParallel(cl)
   # use print / init functionality to output and store important information
@@ -106,8 +103,9 @@ predAndEval <- function(data, predictionfct, scoringfct, id, path, task) {
   prediction <- predictionfct(X_train, y_train, X_test, id)
   # conduct scoring
   scores <- scoringfct(prediction, y)
+  # save results if wanted
   if (!is.null(path)) {
-    colnames(prediction) <- paste(1:99 * 0.01)
+    colnames(prediction) <- QUANTILES
     write_df <- data.frame(time = paste(times), zoneid = zone, y = y,
                            prediction, score = scores)
     write.csv(write_df, paste0(path, "/Task", task, "_", zone[1], ".csv"))
@@ -151,30 +149,60 @@ outputAndLog <- function(scoreList, duration, info, tune) {
 #evaluation(unleashSolIDR, pinBallLoss, c(1, 1, 2, 0.95), preprocessfct=deaccuInvertSol)
 #evaluation(unleashSolIDR, pinBallLoss, c(1, 1, 9), preprocessfct=deaccuInvertSol)
 #evaluation(unleashSolIDR, pinBallLoss, c(100001, 1, 9, 1, 75, 0.25), preprocessfct=deaccuInvertSol)
+#
+#evaluation(unleashSolIDR, pinBallLoss, c(1, 1, 1), preprocessfct=deaccuInvertSol, write=TRUE)
+#evaluation(unleashSolIDR, pinBallLoss, c(1, 1, 9), preprocessfct=deaccuInvertSol, write=TRUE)
+#evaluation(unleashSolIDR, pinBallLoss, c(100001, 1, 9), preprocessfct=deaccuInvertSol, write=TRUE)
+#evaluation(unleashSolIDR, pinBallLoss, c(1, 1, 9, 1, 100, 0.50), preprocessfct=deaccuInvertSol, write=TRUE)
+#evaluation(unleashSolIDR, pinBallLoss, c(100001, 1, 9, 1, 70, 0.70), preprocessfct=deaccuInvertSol, write=TRUE)
+#evaluation(unleashSolIDR, pinBallLoss, c(111011, 1, 2), preprocessfct=deaccuInvertSol)
 
 #evaluation(benchmarkWind, pinBallLoss, 1)
 #evaluation(unleashWinIDR, pinBallLoss, c(10, 1, 3), preprocessfct=getWindAttributes, tune=TRUE)
 #evaluation(unleashWinIDR, pinBallLoss, c(100000001, 1, 6), preprocessfct=getWindAttributes, tune=TRUE)
 #evaluation(unleashWinIDR, pinBallLoss, c(2, 1, 6, 0.8), preprocessfct=getWindAttributes)
+#
+#evaluation(unleashWinIDR, pinBallLoss, c(10, 1, 1), preprocessfct=getWindAttributes, write=TRUE)
+#evaluation(unleashWinIDR, pinBallLoss, c(10, 1, 6, 1, 70, 0.70), preprocessfct=getWindAttributes, write=TRUE)
+#evaluation(unleashWinIDR, pinBallLoss, c(100000000, 1, 6, 1, 70, 0.70), preprocessfct=getWindAttributes, write=TRUE)
+#evaluation(unleashWinIDR, pinBallLoss, c(100000010, 1, 6, 1, 70, 0.25), preprocessfct=getWindAttributes, write=TRUE)
 
 #evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 1), preprocessfct=squared_lastTmp, tune=TRUE)
 #evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8), preprocessfct=invWin_meanTmp)
 #evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8, 1, 75, 0.25), preprocessfct=invWin_lwMean)
 #evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8, 1, 100, 0.5), preprocessfct=invWin_lwMean)
 #evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 1), preprocessfct=squ_meanTmp, tune=TRUE, write=TRUE)
+#
+#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 1), preprocessfct=squ_meanTmp, write=TRUE)
+#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 1), preprocessfct=meanTmp, write=TRUE)
+#evaluation(unleashLoaIDR, pinBallLoss, c(1001, 1, 24, 1), preprocessfct=squ_meanTmp, write=TRUE)
+#evaluation(unleashLoaIDR, pinBallLoss, c(1001, 1, 29, 1, 70, 0.70), preprocessfct=squ_meanTmp, write=TRUE)
+#evaluation(unleashLoaIDR, pinBallLoss, c(10000000, 1, 8), preprocessfct=squ_meanTmp_CMed, write=TRUE)
+#evaluation(unleashLoaIDR, pinBallLoss, c(10000010000, 1, 23, 1, 70, 0.70), preprocessfct=invWin_meanTmp, write=TRUE)
+#evaluation(unleashLoaIDR, pinBallLoss, c(10000010000, 1, 23, 1, 75, 0.25), preprocessfct=invWin_meanTmp, write=TRUE)
+#evaluation(unleashLoaIDR, pinBallLoss, c(1, 1, 8, 1, 75, 0.25), preprocessfct=squ_meanTmp_CMed)
 
 #evaluation(unleashPriIDR, pinBallLoss, c(110, 1, 16), tune=TRUE, preprocessfct=addPriceRegressors)
 #evaluation(unleashPriIDR, pinBallLoss, c(10000010, 1, 17), tune=TRUE, preprocessfct=addPriceRegressors)
 #evaluation(unleashPriIDR, pinBallLoss, c(110, 1, 18), tune=TRUE, preprocessfct=addPriceRegressors)
-#evaluation(unleashPriIDR, pinBallLoss, c(10, 1, 8, 1, 75, 0.25))
+#evaluation(unleashPriIDR, pinBallLoss, c(110, 1, 8), preprocessfct=addPriceRegressors)
+#
+#evaluation(unleashPriIDR, pinBallLoss, c(1, 1, 1), preprocessfct=addPriceRegressors, write=TRUE)
+#evaluation(unleashPriIDR, pinBallLoss, c(10, 1, 16), preprocessfct=addPriceRegressors, write=TRUE)
+#evaluation(unleashPriIDR, pinBallLoss, c(10000010, 1, 16), preprocessfct=addPriceRegressors, write=TRUE)
+#evaluation(unleashPriIDR, pinBallLoss, c(1000010, 1, 16, 1), preprocessfct=addPriceRegressors, write=TRUE)
+#evaluation(unleashPriIDR, pinBallLoss, c(1000010, 1, 16, 1, 75, 0.25), preprocessfct=addPriceRegressors, write=TRUE)
+#evaluation(unleashPriIDR, pinBallLoss, c(10, 1, 1), preprocessfct=addPriceRegressors)
 
+# go through all load variables (since load has more than 12 it is a bit more
+# complex)
 checkAllLoad <- function() {
   max_exp <- c(9, 9, 4)
 
   for(i in 0:2) {
     for (j in 0:max_exp[i + 1]) {
       var <- i * 10^10 + 10^j
-      evaluation(unleashLoaIDR, pinBallLoss, c(var, 1, 1), preprocessfct=squ_meanTmp, tune=TRUE)
+      evaluation(unleashLoaIDR, pinBallLoss, c(var, 1, 1), preprocessfct=squ_meanTmp)
     }
   }
 }
