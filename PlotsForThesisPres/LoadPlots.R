@@ -49,7 +49,7 @@ plotsForThesisLoad <- function() {
     xlab("Temperature") +
     ggtitle("Temperature Deviations (w10)") +
     theme(text = element_text(size = 16), axis.text = element_text(size = 13),
-          legend.justification=c(1,0), legend.position=c(1,0)) +
+          legend.justification=c(1,0), legend.position=c(0.99,0.01)) +
     guides(color = guide_legend(title=NULL))
 
   plot_data <- data.frame()
@@ -69,7 +69,7 @@ plotsForThesisLoad <- function() {
     scale_color_brewer(palette="Dark2") +
     theme_bw() +
     theme(text = element_text(size = 16), axis.text = element_text(size = 13),
-          legend.justification=c(1,0), legend.position=c(1,0)) +
+          legend.justification=c(1,0), legend.position=c(0.99,0.01)) +
     guides(color = guide_legend(title=NULL))
   grid.arrange(point_cloud, preprocessed, nrow=1)
   ggsave("LoadDist2.pdf", path="plots/ForThesis/", width=11.69,
@@ -177,16 +177,16 @@ plotsForThesisLoad <- function() {
     pivot_longer(cols=everything(), names_to=c("WS", "Mid"), names_sep="_") %>%
     mutate(WS = factor(substring(WS, 2), ordered=TRUE, levels=paste(1:25)),
            Mid = factor(Mid, ordered=TRUE, levels=names(fns_list)))
-  top25 <- mutate(corr_vals, rk = 25 * 5 + 1 - rank(value)) %>%
+  top50 <- mutate(corr_vals, rk = 25 * 5 + 1 - rank(value)) %>%
     filter(rk <= 50) %>% select(-value)
 
   ggplot(mapping=aes(x=WS, y=Mid)) +
     geom_tile(data=corr_vals, aes(fill=value)) +
-    geom_text(data=top25, aes(label = rk, alpha = 53 - rk), show.legend=FALSE,
+    geom_text(data=top50, aes(label = rk, alpha = 53 - rk), show.legend=FALSE,
               size=5) +
     xlab("Weather station") +
     ylab("") +
-    ggtitle("Correlation: Load and Squared Temperatuere Deviations") +
+    ggtitle("Correlation: Load and Squared Temperature Deviations") +
     scale_fill_gradient(low="darkorchid4", high="coral", name = "Correlation") +
     theme_bw() +
     theme(text = element_text(size = 16), axis.text = element_text(size = 13))
@@ -256,7 +256,7 @@ plotsForThesisLoad <- function() {
   }
 
   plot_data <- loadLoad(4)$Zone1$Train %>%
-    mutate(Time = paste(month(TIMESTAMP), year(TIMESTAMP), sep="."),
+    mutate(Time = paste(month(TIMESTAMP, label=TRUE), year(TIMESTAMP), sep=" "),
            x = month(TIMESTAMP) + 12 * (year(TIMESTAMP) - 2001))
 
   n <- max(plot_data$x)
@@ -279,7 +279,7 @@ plotsForThesisLoad <- function() {
     ggtitle("Temperature Summary Statistics (w25)") +
     theme_bw() +
     theme(text = element_text(size = 16), axis.text = element_text(size = 13),
-          legend.justification=c(1,0), legend.position=c(1,0)) +
+          legend.justification=c(0.99,0.01), legend.position=c(0.99,0.01)) +
      guides(color = guide_legend(nrow = 1, byrow = TRUE, title="",
                                  title.position="left"))
   ggsave("LoadTempDev.pdf", path="plots/ForThesis/", width=11.69,
