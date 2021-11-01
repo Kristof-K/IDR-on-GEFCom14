@@ -347,8 +347,9 @@ plotsForThesisLoad <- function() {
   col_names <-c("simple"="w*", "nn"="w*,-w*", "seas2"="Summer,Winter",
                 "Na1"="1", "squ"="squared diff", "abs"="absolute diff",
                 "Na2"="2", "Med"="Median", "MaxMinBin"="Min-max-bin",
-                "squMean"="Mean", "Na3"="3", "Mean"="Mean temp",
-                "LinMean"="Lin-weigh-mean temp", "Last"="Last temp")
+                "squMean"="Mean", "CMed"="Cond-median", "WMean"="Weigh-mean",
+                "Na3"="3", "Mean"="Mean temp", "LinMean"="Lin-weigh-mean temp",
+                "Last"="Last temp")
 
   sorted <- arrange(scores, Mean)
   sorted %>% mutate(WS=factor(WS, ordered=TRUE, levels=sorted[["WS"]])) %>%
@@ -358,10 +359,10 @@ plotsForThesisLoad <- function() {
     geom_tile() +
     xlab("Weather station") +
     ylab("") +
-    scale_y_discrete(breaks=unname(col_names)[c(1:3, 5:6, 8:10, 12:14)]) +
+    scale_y_discrete(breaks=unname(col_names)[c(1:3, 5:6, 8:12, 14:16)]) +
     ggtitle("Mean Pinball Score (Initial Tuning Phase)") +
     theme_bw()  +
     theme(text = element_text(size = 16), axis.text = element_text(size = 13))
   ggsave("LoadFirstScores.pdf",
-             path="plots/ForThesis/", width=11.69, height=4.5)
+             path="plots/ForThesis/", width=11.69, height=4.9)
 }
