@@ -243,7 +243,7 @@ calc_expectation <- function(step_cdf) {
 expectations <- sapply(predictions, calc_expectation)
 
 features <- data.frame(cbind(quantiles, expectations, X))
-colnames(features) <- c("Lower Quartil", "Median", "Upper Quartil",
+colnames(features) <- c("Lower Quartile", "Median", "Upper Quartile",
                         "Expectation", "X")
 
 P4 <- pivot_longer(features, cols = -X, names_to = "Functional") %>%
@@ -305,7 +305,7 @@ P3 <- P3 + ggtitle("(c) Predicted CDFs vs. True CDFs") +
 #g eom_hline(yintercept=q, color=col_vec2[2:4], alpha=0.5) +
 P4 <- P4 + ggtitle("(d) Functional Estimates of IDR ") +
   theme(text = element_text(size = 16), axis.text = element_text(size = 13),
-        legend.position=c(0.01,0.99), legend.justification=c(0.01,0.99))
+        legend.position=c(0.01,0.99), legend.justification=c(0, 1))
 grid.arrange(P1, P2, P3, P4, nrow=4)
 # svae with height 15.3
 
