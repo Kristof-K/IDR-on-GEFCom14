@@ -43,7 +43,7 @@ plotPIT <- function() {
     scale_fill_manual(values = rev(task_color)) +
     theme_bw()  +
     theme(text = element_text(size = 16), axis.text = element_text(size = 13),
-          legend.justification=c(1,1), legend.position=c(1,1))
+          legend.justification=c(1,1), legend.position=c(0.99,0.99))
 
   n <- nrow(combine) / 2
   breaks <- as.integer(seq(1, n, (n - 1) / 4))

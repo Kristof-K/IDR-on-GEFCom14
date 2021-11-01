@@ -54,10 +54,10 @@ plotsForThesisLoad <- function() {
 
   plot_data <- data.frame()
   for (fnc_m in c("cond-median", "median")) {
-    mid <- mid_fnc[[fnc_m]](d$w9, d$TARGET)
-    add_df <- data.frame(Load=d$TARGET, T=abs(d$w9 - mid),
+    mid <- mid_fnc[[fnc_m]](d$w10, d$TARGET)
+    add_df <- data.frame(Load=d$TARGET, T=abs(d$w10 - mid),
                          Lab=fnc_m,
-                         Col=ifelse(d$w9 > mid, "Right arm", "Left arm"))
+                         Col=ifelse(d$w10 > mid, "Right arm", "Left arm"))
     plot_data <- rbind(plot_data, add_df)
   }
   preprocessed <- ggplot(plot_data, aes(x=T, y=Load, color=Col)) +

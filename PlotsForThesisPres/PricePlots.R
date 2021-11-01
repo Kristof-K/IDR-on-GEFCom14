@@ -29,7 +29,6 @@ plotsForThesisPrice <- function() {
     theme_bw()
 
   # scatter plot with histogram
-  library(gridExtra)    # for combining plots
   scatter <- data %>% mutate(Season = get4Seasons(data, label=TRUE)) %>%
     select(-ZONEID, -TIMESTAMP) %>%
     pivot_longer(cols = c(-Price, -Season), names_to = "Var") %>%
@@ -52,7 +51,7 @@ plotsForThesisPrice <- function() {
     scale_y_continuous(labels = NULL) +
     theme_bw() +
     theme(text = element_text(size = 16), axis.text = element_text(size = 13),
-          legend.justification=c(1,1), legend.position=c(1,1)) +
+          legend.justification=c(1,1), legend.position=c(0.99,0.99)) +
     facet_wrap(~Type) +
     ggtitle("")
   grid.arrange(scatter, histogram, nrow=1, widths = c(5,2))
