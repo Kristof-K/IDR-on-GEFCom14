@@ -132,8 +132,8 @@ plotsForThesisWind <- function() {
     scale_x_continuous(breaks = 0:4 * 0.25,
                          labels = c("0", "0.25", "0.5", "0.75", "1")) +
     guides(color = guide_legend(nrow = 1, byrow = TRUE)) +
-    scale_color_discrete(name = groupName) +
-    ggsave("WindScatterSpeed2.pdf",
+    scale_color_discrete(name = groupName)
+  ggsave("WindScatterSpeed2.pdf",
            path="plots/ForThesis/", width=11.69, height=6)
   # look at linear combinations of height of wind speed
   corr <- data.frame()
