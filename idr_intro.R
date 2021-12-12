@@ -133,14 +133,16 @@ visualizeIDR <- function(x, y, pred=numeric(0), print_all=TRUE, ret=FALSE) {
   # if there are predictions, draw them also in the graphs
   s <- length(pred)
   if (s > 0) {
+    pred_colors <- scales::seq_gradient_pal("#ffba00", "#ff7b00",
+                                            "Lab")(seq(0,1, length.out=s))
     # extend points clouds by dashed vertical lines
     vert_lines <- data.frame(x=rep(pred, each=2), y=rep(c(min(y), max(y)), s),
                           p=rep(paste0("l", 1:s), each=2))
     pointcloud <- pointcloud +
-      geom_line(data=vert_lines, show.legend=FALSE, linetype = "dashed")
+      geom_line(data=vert_lines, show.legend=FALSE, color=pred_colors, size=1.5)
     # add predicted cdfs to the cdf graph
     cdfs_plot <- cdfs_plot +
-      geom_step(data=get_pred_df(fit, pred), linetype = "dashed",
+      geom_step(data=get_pred_df(fit, pred), color=pred_colors, size=1.5,
                 show.legend = FALSE)
   }
   if (ret) {
@@ -183,7 +185,7 @@ ggplot(data = data.frame(X=X, Y=Y)) +
 
 # apply IDR
 visualizeIDR(x=X, y=Y)
-plotList <- visualizeIDR(x=X, y=Y, ret=TRUE)
+plotList <- visualizeIDR(x=X, y=Y, 5, ret=TRUE)
 P1 <- plotList$pointCloud
 P2 <- plotList$cdfs
 # make some predictions
