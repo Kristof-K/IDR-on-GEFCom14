@@ -18,7 +18,7 @@ source("preprocess.R")
 #     - init (if true print and return information, if false make forecast)
 #   If init false return matrix of QUANTILES (see util.R) predictions of
 #   response variable for testing data
-# - scoringfct : function getting prediction matrix (rows * QUANTILES) as 1st
+# - scoringfct : function getting prediction matrix (rows x QUANTILES) as 1st
 #   and vector of true observations as 2nd argument. It should return an average
 #   score (one scalar). If init=TRUE is passed, the function should print some
 #   explaining text
@@ -195,7 +195,7 @@ outputAndLog <- function(scoreList, duration, info, tune) {
 #evaluation(unleashPriIDR, pinBallLoss, c(10, 1, 1), preprocessfct=addPriceRegressors)
 
 # go through all load variables (since load has more than 12 it is a bit more
-# complex)
+# complicated)
 checkAllLoad <- function() {
   max_exp <- c(9, 9, 4)
 

@@ -7,11 +7,15 @@ CSV <- ".csv"
 SLASH <- "\\"
 JOIN <- c("TIMESTAMP", "ZONEID")
 
-# load data track of the given task (task must be a number bewtween 1 and 15).
-# The return value is a named list containing the elements "Zones" containing
-# a vector of Zones. And for every Zone in this vector there is a nested list
-# containing a "Train" and "Test" data.frame with columns TIMESTAMP, TARGET and
-# other explanatory variables. Test thereby already contains true observations.
+# Load data track of the given task (task must be a number bewtween 1 and 15).
+# The return value is a named list containing the elements "Zones" and "Zone1",
+# "Zone2", ..., "ZoneN". The element "Zones" is a vector just containing the
+# Strings "Zone1", "Zone2", ..., "ZoneN", so that it can be used to iterate
+# through the available zones.
+# Each "ZoneI" contains again a named list, with names "Train" and "Test". These
+# are data.frames that contain the actual data. They possess the columns
+# TIMESTAMP, TARGET and other explanatory variables. Hence, TARGET corresponds
+#  in "Test" to the true observations.
 loadSet <- function(track, task) {
   if (task < 1 || task > 15) {
     return(data.frame(ERROR=c("unknown task number:", task)))
@@ -27,9 +31,7 @@ loadSet <- function(track, task) {
   return(data)
 }
 
-
 # LOAD SOLAR -------------------------------------------------------------------
-
 loadSolar <- function(task) {
   track <- "Solar"
   subfolder <- paste("Task", task)
@@ -70,9 +72,7 @@ loadSolar <- function(task) {
   return(output)
 }
 
-
 # LOAD WIND --------------------------------------------------------------------
-
 loadWind <- function(task) {
   track <- "Wind"
   subfolder <-  paste0(PATH, SLASH, track, SLASH, "Task\ ", task, SLASH)
@@ -106,7 +106,6 @@ loadWind <- function(task) {
   }
   return(output)
 }
-
 
 # LOAD LOAD --------------------------------------------------------------------
 loadLoad <- function(task) {
@@ -146,7 +145,6 @@ loadLoad <- function(task) {
   return(output)
 }
 
-
 # LOAD PRICE -------------------------------------------------------------------
 loadPrice <- function(task) {
   track <- "Price"
@@ -177,5 +175,3 @@ loadPrice <- function(task) {
   output[[zones]] <- list(Train=train, Test=test)
   return(output)
 }
-
-loadSet("Solar", 15)

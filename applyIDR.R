@@ -2,6 +2,7 @@ library(isodistrreg)
 
 source("util.R")
 
+# Implement functionality to predict with IDR in a variety of ways
 
 # core functions ===============================================================
 
@@ -61,6 +62,7 @@ idrByGroup <- function(X_train, y_train, X_test, groups, orders, thresh=1,
   return(quantilesPred[order(quantilesPred[,1]), -1])
 }
 
+# idr predict function wrapper
 myIDR <- function(X_train, y_train, X_test, groups, orders, bag_number=NA,
                   bag_size=NA) {
   # idr cannot handle if y is constant
@@ -68,6 +70,7 @@ myIDR <- function(X_train, y_train, X_test, groups, orders, bag_number=NA,
     return(y_train[1])     # constant predictions if y is constant
   }
   # idr cannot predict if there is only one combination of covariates
+  # --> use estimated cdf for prediction
   if (all(sapply(X_train, function(x) length(unique(x))==1))) {
     model <- idr(y=y_train, X=X_train,  groups=groups, orders=orders,
                  progress=FALSE)
@@ -130,9 +133,6 @@ idrByZones <- function(X_train, y_train, X_test, groups, orders, thresh=1,
 
 # IDR variants and variable combinations =======================================
 
-# idr version ideas
-# * IDR on every astronomical hour (same sunposition)
-
 # IDR variants:
 # FUN : idr core method
 # TIT : title
@@ -149,8 +149,7 @@ IDR_BY_ZONE <- list(FUN = idrByZones, TIT = "IDR zone combined data",
                             "target","variable)","and","apply","idr_by_group",
                             "on","this","data"), ADD = "ZONEID")
 
-# Variable selections
-# VAR : list of variables that are used
+# Variable selections : list of variables that are used
 
 solarV <- c("VAR169", "VAR178", "VAR167", "VAR157", "VAR228", "VAR79", "VAR78",
             "VAR164", "VAR175", "VAR134", "VAR165", "VAR166")

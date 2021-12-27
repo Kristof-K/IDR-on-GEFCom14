@@ -9,10 +9,20 @@ TUNE_TASKS <- 1:3
 PRINT_WIDTH <- 70
 NONE <- "None"
 
+# Collection of:
+# - general methods and variable definitions
+# - basic forecasting methods (among them the GEFCom14 benchmark forecasts)
+# - grouping functions to group data to train and predict with models on
+#   groups separately
+
+
+# General methods ==============================================================
+
 # Calculate the pearson, spearman and kendall correlation coefficient for every
 # variable for every category in list
 # - list : list of data.frames for every category
-# - categroy : vector of names defining the categories
+# - categories : vector of names defining the categories
+# - vars : vector of variables
 # return 3-dim array: 1st axis variables, 2nd axis correlation coefficient typ
 # (pearson, spearman, kendall), 3rd axis categories
 getCorrelationCoefficients <- function(list, categories, vars) {
@@ -81,6 +91,8 @@ outputForecastingMethod <- function(name, description, vars=NONE) {
   cat(description, "\n", fill = PRINT_WIDTH)
   cat("[VARIABLES]:", vars, "\n")
 }
+
+# FORECASTING METHODS ==========================================================
 
 # Make a trivial forecast by using the empirical qauntiles of past obervations
 # belonging to the hour for which a forecast is issued
@@ -178,13 +190,15 @@ benchmarkWind <- function(X_train, y_train, X_test, id=1, init=FALSE) {
 }
 
 
-
 # GROUPING FUNCTIONS ===========================================================
 
 # Group data in categories: these functions should return a vector of categories
 # if getCategories is TRUE, otherwise return boolean vector assigning each
-# timestamp a value inidicating whether it belongs to given group or not
+# timestamp a value inidicating whether it belongs to given group or not if a
+# group_nr is specified. If not just return vector assigning each row in the
+# data.frame the respective group number (starting from 1 to n).
 
+# assign each implemented grouping method an integer number
 getGroupingfct <- function(nr) {
   return(switch(nr, no_gr, getHours, getMonths, getSeasons, get4Seasons,
                 getWind100Directions, getSeasonHours, getSeasonLargeHours,
@@ -387,7 +401,11 @@ get2WdayHour <- productGrouping(get2Wday, getHours)
 get2Wday6Hour <- productGrouping(get2Wday, get6DayTime)
 getMonth2Wday6Hour <- productGrouping(getMonths, get2Wday6Hour)
 
-# include neighbor hours to train on
+# Now groups should be larger for training than for testing, thus test parameter
+# is necessary
+
+# Include neighboring hours in the same season for training
+# To predict hour h in season s train on hour (h-1, h, h+1) in season s
 getSeasonLargeHours <- function(data, group_nr=NA, getCategories=FALSE,
                                 getGroupVar=FALSE, getName=FALSE, test=FALSE) {
   if (getCategories) return(getSeasonHours(NA, getCategories=TRUE))
@@ -409,7 +427,8 @@ getSeasonLargeHours <- function(data, group_nr=NA, getCategories=FALSE,
   }
 }
 
-# include neighbor seasons to train on
+# Include hours of neighboring seasons for training
+# To predict hour h in season s train on hour h in season (s-1, s, s+1)
 getHourLargeSeasons <- function(data, group_nr=NA, getCategories=FALSE,
                                 getGroupVar=FALSE, getName=FALSE, test=FALSE) {
   if (getCategories) return(getSeasonHours(NA, getCategories=TRUE))
@@ -430,6 +449,7 @@ getHourLargeSeasons <- function(data, group_nr=NA, getCategories=FALSE,
   }
 }
 
+# Get each US federal holiday indicated
 getWdayWithHolidays <- function(data, group_nr=NA, getCategories=FALSE,
                                 getGroupVar=FALSE, getName=FALSE, label=FALSE,
                                 test=FALSE) {

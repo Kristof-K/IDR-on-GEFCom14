@@ -1,9 +1,10 @@
-# define preprocess methods getting X_train and X_test and applying data
-# transformation on both
-
-library(dplyr)    # for lag in deaccumulateSun and transmute in
+library(dplyr)    # for lag and transmute
 
 source("util.R")
+
+# Define preprocessing methods getting data after it was loaded with loadData.R
+# (hence we need the data format that is defined there) and apply transformation
+# on it
 
 # For Solar track
 ACCUMULATED <- c("VAR169", "VAR178", "VAR175", "VAR228")
@@ -218,7 +219,11 @@ invertWinter <- function(tmpGen=meanTmp) {
 invWin_meanTmp <- invertWinter(meanTmp)
 invWin_lwMean <- invertWinter(linWeightMean)
 
-# Transform temperature values to temperature differences
+# Transform temperature values to temperature differences. Therefore we need a
+# method that can calculate distances (f_diff) and a method that can determine a
+# point to which distances are calculated (f_mid). After transforming
+# temperature values in differences, we have to apply a temperature generator
+# again to have covariates for testing data at our disposal
 transformToDiffs <- function(f_diff, f_mid, tmpGen=meanTmp) {
   diffed <- (function(data, init=FALSE) {
     name <- paste(f_diff(NA, NA, init=TRUE), f_mid(NA, NA, init=TRUE),

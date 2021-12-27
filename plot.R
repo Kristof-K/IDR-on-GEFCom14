@@ -6,6 +6,8 @@ library(lubridate)  # for working with dates
 
 source("util.R")
 
+# Loose collection of plotting functions developed for data analysis
+
 solarVars <- c("VAR78" = "total column liquid water",
                "VAR79" = "total columbn ice water",
                "VAR134" = "surface pressure",
