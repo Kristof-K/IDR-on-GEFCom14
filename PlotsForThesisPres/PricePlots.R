@@ -8,6 +8,8 @@ source("plot.R")
 source("loadData.R")
 source("util.R")
 
+# create plots of the price track for thesis or presentation
+
 plotsForThesisPrice <- function() {
   data <- loadPrice(4)$Zone1$Train %>% rename(Price = TARGET)
 

@@ -7,6 +7,8 @@ source("preprocess.R")
 source("loadData.R")
 source("util.R")
 
+# create plots of the load track for thesis or presentation
+
 plotsForThesisLoad <- function() {
   cols <- paste0("w", 1:25)
   d <- loadLoad(4)$Zone1$Train %>% filter(!is.na(TARGET))

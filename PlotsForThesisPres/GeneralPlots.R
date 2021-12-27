@@ -7,6 +7,9 @@ library(lubridate)
 source("preprocess.R")
 source("loadData.R")
 
+# create performance plots that compare the performance of models to
+# GEFCom14 participants
+
 getPIT <- function(y, quantiles) {
   V <- runif(length(y))
   F_y <- rowSums(y >= quantiles) * 0.01

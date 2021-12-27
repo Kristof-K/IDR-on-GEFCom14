@@ -8,6 +8,8 @@ source("plot.R")
 source("loadData.R")
 source("util.R")
 
+# create plots of the solar track for thesis or presentation
+
 plotsForThesisSolar <- function() {
   # prevent labels from overlapping (just leave labels out)
   # scale_x_continuous(guide = guide_axis(check.overlap = TRUE))+

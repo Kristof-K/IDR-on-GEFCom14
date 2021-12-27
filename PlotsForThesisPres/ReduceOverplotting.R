@@ -11,7 +11,6 @@ source("util.R")
 # since geom_point leads despite low alpha to overplotting, use
 # geom_bin2d or geom_hex for plotting of scatter plots
 
-
 solarPlots <- function() {
   data <- deaccuInvertSol(loadSolar(4))
   zone <- "Zone1"

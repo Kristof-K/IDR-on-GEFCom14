@@ -8,6 +8,8 @@ source("plot.R")
 source("loadData.R")
 source("util.R")
 
+# create plots of the wind track for thesis or presentation
+
 plotsForThesisWind <- function() {
   data <-getWindAttributes(loadWind(4))
   groupName <- "Wind angle"
