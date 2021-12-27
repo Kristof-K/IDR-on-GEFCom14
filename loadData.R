@@ -113,7 +113,7 @@ loadLoad <- function(task) {
   subfolder <-  paste0(PATH, SLASH, track, SLASH)
   zones <- "Zone1"
   # sadly dates are not unanambiguous (e.g. 11.01.10 and 01.11.10 are both
-  # represented as 1112010) => hardcode start dates and generate rest
+  # represented as 1112010) => hardcode start dates and generate remainder
   start_dates <- c("2001-01-01 01:00", "2010-10-01 01:00", "2010-11-01 01:00",
                    "2010-12-01 01:00", "2011-01-01 01:00", "2011-02-01 01:00",
                    "2011-03-01 01:00", "2011-04-01 01:00", "2011-05-01 01:00",
