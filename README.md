@@ -10,7 +10,8 @@ Isontonic Distributional Regression (IDR) was introduced by Henzi et al. as "pow
 technique for the estimation of conditional distributions under order restrictions"
 (p.1) [1]. It can be used to estimate conditional cumulative distribution functions (distributional regression!)
 of a response variable given realizations of explanatory variables and also predict
-conditional CDFs for newly observed explanatory variable values.
+conditional CDFs of the response variable for newly observed explanatory variable
+values.
 
 ![IDR on synthetic data](./ReadmeImages/IDR_simple.png)
 
@@ -41,7 +42,7 @@ quantities. Theoretically, one could contemplate more in-depth the underlying
 partial order (for single real-valued explanatory variables the total order on
 the real values is used), but with the component-wise order there is a useful 
 option predefined. This order has the drawback that the fraction of comparable
-elements decays exponentially.
+elements decays exponentially in the number of features.
 
 ## Global Energy Forecasting Competition 2014 (GEFCom14) [2]
 
