@@ -158,7 +158,7 @@ windV <- c("S10", "S100", "U10", "V10", "U100", "V100", "A10", "A100", "SX")
 
 loadV <- c("w9", "w11", "w21", "w14", "w15", "w13", "w6", "w19", "w24", "w4",
            "w12", "w18", "w10", "w23", "w3", "w17", "w7", "w22", "w1", "w25",
-           "w16", "w5", "w20", "w8", "w2", "W9", "M2", "M3", "Med2", "Med3")
+           "w16", "w5", "w20", "w8", "w2", "W_MEAN", "M2", "M3", "Med2", "Med3")
 
 priceV <- c("Forecasted.Total.Load", "Forecasted.Zonal.Load", "WDAY", "HOUR6",
             "WDAYHOUR6", "WDAY4", "WDAY2", "WDAY2HOUR6")

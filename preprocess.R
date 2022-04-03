@@ -319,16 +319,17 @@ linWeightN <- constructTempGenerator(weightFctGen(function(x) x), "lwNMeanTemp")
 squared_lwNMean <- transformToDiffs(squ_diff, getDiffMed, linWeightN)
 
 addLoadSummaries <- function(data, init=FALSE) {
-  name <- "AddLoadMeans"
+  name <- "AddLoadMeans_invWinter"
   if (init) {
     outputPreprocessing(name)
     return(name)
   }
-  data <- squ_meanTmp(data)
+  # data <- squ_meanTmp(data)
+  data <- invWin_meanTmp(data)
   for(zone in data$Zones) {
     for(t in c("Train", "Test")) {
       data[[zone]][[t]] <- mutate(data[[zone]][[t]],
-                                  W9=w9,
+                                  W_MEAN=rowMeans(across(paste0("w", 1:25))),
                                   M2= rowMeans(cbind(w14, w11)),
                                   M3 = rowMeans(cbind(w14, w11, w21)),
                                   Med2 = apply(cbind(w14, w11), 1,
