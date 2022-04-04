@@ -2,7 +2,7 @@
 
 ## Goal
 Examine performance of Isotonic Distributional Regression (IDR) models (based on CRAN package "isodistrreg", or see https://github.com/AlexanderHenzi/isodistrreg) in GEFCom14 forecasting competition.
-A comparison with the advanced (and tailored) methods of GEFCom14 participants allows us to get a realistic assessment of the predictive abilities of IDR in probabilistic energy forecasting.
+A comparison with the advanced (and tailored) methods of GEFCom14 participants permits us to get a realistic assessment of the predictive abilities of IDR in probabilistic energy forecasting.
 
 ## Isotonic Distributional Regression (IDR) [1]
 
